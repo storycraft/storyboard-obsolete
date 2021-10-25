@@ -1,0 +1,14 @@
+[package]
+name = "storyboard-text"
+version = "0.1.0"
+authors = ["storycraft <storycraft@pancake.sh>"]
+edition = "2018"
+license = "MIT"
+
+[dependencies]
+storyboard = { path = "../../core" }
+
+rect_packer = "0.2.1"
+pathfinder_geometry = "0.5.1"
+font-kit = "0.10.1"
+bytemuck = { version = "1.7.2", features = [ "derive" ] }

@@ -1,0 +1,12 @@
+[workspace]
+resolver = "2"
+
+members = [
+    "core",
+    "compositor/primitive",
+    "compositor/path",
+    "compositor/box-2d",
+    "compositor/text",
+    "layout/flex",
+    "example"
+]

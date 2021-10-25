@@ -1,0 +1,12 @@
+[package]
+name = "storyboard-path"
+version = "0.1.0"
+authors = ["storycraft <storycraft@pancake.sh>"]
+edition = "2018"
+license = "MIT"
+
+[dependencies]
+storyboard = { path = "../../core" }
+
+lyon = "0.17.5"
+bytemuck = { version = "1.7.2", features = [ "derive" ] }

@@ -1,0 +1,20 @@
+[package]
+name = "storyboard-example"
+version = "0.1.0"
+authors = ["storycraft <storycraft@pancake.sh>"]
+edition = "2018"
+license = "MIT"
+
+[dependencies]
+storyboard = { path = "../core" }
+storyboard-primitive = { path = "../compositor/primitive" }
+storyboard-path = { path = "../compositor/path" }
+storyboard-box-2d = { path = "../compositor/box-2d" }
+storyboard-text = { path = "../compositor/text" }
+storyboard-flex-layout = { path = "../layout/flex" }
+
+winit = "0.25.0"
+futures = "0.3.17"
+rand = "0.8.4"
+simple_logger = "1.13.0"
+image = "0.23.14"
