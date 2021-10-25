@@ -2,7 +2,7 @@
 name = "storyboard-text"
 version = "0.1.0"
 authors = ["storycraft <storycraft@pancake.sh>"]
-edition = "2018"
+edition = "2021"
 license = "MIT"
 
 [dependencies]
