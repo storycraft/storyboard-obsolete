@@ -12,7 +12,7 @@ use futures::executor::block_on;
 use logo::build_logo_path;
 use storyboard::wgpu::{
     Backends, BlendState, BufferUsages, Color, ColorTargetState, ColorWrites,
-    CommandEncoderDescriptor, LoadOp, Operations, RenderPassColorAttachment,
+    CommandEncoderDescriptor, LoadOp, Operations, PresentMode, RenderPassColorAttachment,
     RenderPassDepthStencilAttachment, RenderPassDescriptor, TextureFormat,
 };
 use storyboard::{
@@ -78,6 +78,7 @@ pub fn main() {
     ))
     .unwrap();
     let size: (u32, u32) = window.inner_size().into();
+    backend.update_present_mode(PresentMode::Mailbox);
     backend.update_view(size.into());
 
     let textures = TextureResources::init(backend.device().clone(), backend.queue().clone());

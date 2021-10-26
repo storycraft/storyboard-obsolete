@@ -20,7 +20,7 @@ pub struct GrowingBuffer {
 }
 
 impl GrowingBuffer {
-    pub fn new(label: Option<String>, usages: BufferUsages, mapped_at_creation: bool) -> Self {
+    pub const fn new(label: Option<String>, usages: BufferUsages, mapped_at_creation: bool) -> Self {
         Self {
             label,
             usages,

@@ -12,14 +12,14 @@ pub struct Observable<T> {
 }
 
 impl<T> Observable<T> {
-    pub fn new(data: T) -> Self {
+    pub const fn new(data: T) -> Self {
         Self {
             inner: data,
             valid: false,
         }
     }
 
-    pub fn new_valid(data: T) -> Self {
+    pub const fn new_valid(data: T) -> Self {
         Self {
             inner: data,
             valid: true,

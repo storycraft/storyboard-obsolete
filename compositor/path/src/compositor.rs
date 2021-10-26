@@ -27,7 +27,7 @@ pub struct PathCompositor {
 }
 
 impl PathCompositor {
-    pub fn new(pipeline: RenderPipeline) -> Self {
+    pub const fn new(pipeline: RenderPipeline) -> Self {
         Self { pipeline }
     }
 

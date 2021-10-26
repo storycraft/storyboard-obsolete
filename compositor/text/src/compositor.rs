@@ -30,7 +30,7 @@ pub struct GlyphCompositor {
 }
 
 impl GlyphCompositor {
-    pub fn new(pipeline: RenderPipeline, quad_index_buffer: IndexBuffer) -> Self {
+    pub const fn new(pipeline: RenderPipeline, quad_index_buffer: IndexBuffer) -> Self {
         Self {
             pipeline,
             quad_index_buffer,
