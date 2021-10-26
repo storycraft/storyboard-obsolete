@@ -136,16 +136,18 @@ impl BoxCompositor {
             },
         ];
 
+        let border_radius = style.border_radius.calc(draw_box.rect.size.width.min(draw_box.rect.size.height));
+
         let instance = BoxInstance {
             rect: [draw_box.rect.size.width, draw_box.rect.size.height],
-            border_radius: style.border_radius,
+            border_radius,
             border_thickness: style.border_thickness,
         };
 
         let opaque = !style.fill_color.partial_transparent()
             && style.texture.is_none()
             && style.opacity == 1.0
-            && style.border_radius == 0.0
+            && border_radius == 0.0
             && style.border_thickness == 0.0;
 
         Drawable {

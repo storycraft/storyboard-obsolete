@@ -10,6 +10,7 @@ use std::{borrow::Cow, sync::Arc};
 
 use bytemuck::{Pod, Zeroable};
 
+use storyboard::component::extent::ExtentUnit;
 use storyboard::renderer::RenderStateQueue;
 use storyboard::wgpu::{
     vertex_attr_array, BindGroupLayout, BufferAddress, CommandEncoder, Device, FragmentState,
@@ -36,7 +37,7 @@ pub struct BoxStyle {
     pub border_color: BoxShapeColor,
 
     pub border_thickness: f32,
-    pub border_radius: f32,
+    pub border_radius: ExtentUnit,
 
     pub opacity: f32,
     pub texture: Option<ComponentTexture>,
@@ -49,7 +50,7 @@ impl Default for BoxStyle {
             border_color: ShapeColor::default(),
 
             border_thickness: 0.0,
-            border_radius: 0.0,
+            border_radius: ExtentUnit::default(),
 
             opacity: 1.0,
             texture: None,
