@@ -4,8 +4,9 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
-use std::ops::Range;
+use std::{hash::BuildHasherDefault, ops::Range};
 
+use rustc_hash::FxHashMap;
 use wgpu::{
     BindGroup, Buffer, BufferAddress, BufferSlice, Color, DynamicOffset, IndexFormat, RenderBundle,
     RenderPass, RenderPipeline,
@@ -14,6 +15,8 @@ use wgpu::{
 #[derive(Debug)]
 pub struct StoryboardRenderPass<'a> {
     pass: RenderPass<'a>,
+
+    current_bind_groups: FxHashMap<u32, (&'a BindGroup, usize)>,
 
     current_pipeline: Option<&'a RenderPipeline>,
     current_index_buffer: Option<(RenderBufferSlice<'a>, IndexFormat)>,
@@ -26,6 +29,10 @@ impl<'a> StoryboardRenderPass<'a> {
 
             current_pipeline: None,
 
+            current_bind_groups: FxHashMap::with_capacity_and_hasher(
+                16,
+                BuildHasherDefault::default(),
+            ),
             current_index_buffer: None,
         }
     }
@@ -44,13 +51,22 @@ impl<'a> StoryboardRenderPass<'a> {
         self.pass.set_pipeline(pipeline)
     }
 
-    #[inline(always)]
     pub fn set_bind_group(
         &mut self,
         index: u32,
         bind_group: &'a BindGroup,
         offsets: &[DynamicOffset],
     ) {
+        let offsets_ptr = offsets.as_ptr() as usize;
+
+        if let Some((current_group, current_offsets_ptr)) = self.current_bind_groups.get(&index) {
+            if std::ptr::eq(bind_group, *current_group) && offsets.as_ptr() as usize == *current_offsets_ptr {
+                return;
+            }
+        }
+
+        self.current_bind_groups.insert(index, (bind_group, offsets_ptr));
+
         self.pass.set_bind_group(index, bind_group, offsets)
     }
 
@@ -121,8 +137,10 @@ impl<'a> StoryboardRenderPass<'a> {
             .draw_indexed_indirect(indirect_buffer, indirect_offset)
     }
 
+    #[inline]
     fn reset_pipeline_desc(&mut self) {
         self.current_index_buffer = None;
+        self.current_bind_groups.clear();
     }
 
     pub fn into_inner(self) -> RenderPass<'a> {
