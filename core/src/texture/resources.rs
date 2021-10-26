@@ -21,12 +21,12 @@ pub struct TextureResources {
     empty_texture: Texture2D,
     default_sampler: Sampler,
 
-    texture2d_bind_group_layout: Arc<BindGroupLayout>,
+    texture2d_bind_group_layout: BindGroupLayout,
 }
 
 impl TextureResources {
     pub fn init(device: Arc<Device>, queue: Arc<Queue>) -> Self {
-        let texture2d_bind_group_layout = Arc::new(create_texture2d_bind_group_layout(&device));
+        let texture2d_bind_group_layout = create_texture2d_bind_group_layout(&device);
 
         let default_sampler = init_default_sampler(&device);
 
@@ -62,7 +62,7 @@ impl TextureResources {
         &self.default_sampler
     }
 
-    pub fn texture2d_bind_group_layout(&self) -> &Arc<BindGroupLayout> {
+    pub fn texture2d_bind_group_layout(&self) -> &BindGroupLayout {
         &self.texture2d_bind_group_layout
     }
 
