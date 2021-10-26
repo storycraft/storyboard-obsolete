@@ -6,7 +6,11 @@
 
 use std::collections::VecDeque;
 
-use smallbox::{SmallBox, smallbox, space::S16};
+use smallbox::{
+    smallbox,
+    space::{S16, S64},
+    SmallBox,
+};
 use wgpu::{CommandEncoder, RenderPass};
 
 use crate::component::{DrawState, RenderState};
@@ -18,7 +22,7 @@ use super::{
 };
 
 pub struct StoryboardRenderer<'a> {
-    drawables: VecDeque<(f32, SmallBox<dyn DrawState<'a> + 'a, [usize; 48]>)>,
+    draw_states: VecDeque<(f32, SmallBox<dyn DrawState<'a> + 'a, S64>)>,
     render_states: RenderStateQueue<'a>,
 }
 
@@ -27,23 +31,23 @@ impl<'a> StoryboardRenderer<'a> {
 
     pub fn new() -> Self {
         Self {
-            drawables: VecDeque::with_capacity(Self::DEFAULT_CAPACITY),
+            draw_states: VecDeque::with_capacity(Self::DEFAULT_CAPACITY),
             render_states: RenderStateQueue(Vec::new()),
         }
     }
 
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
-            drawables: VecDeque::with_capacity(capacity),
+            draw_states: VecDeque::with_capacity(capacity),
             render_states: RenderStateQueue(Vec::new()),
         }
     }
 
     pub fn prepare(&mut self, context: &mut DrawContext, encoder: &mut CommandEncoder) {
-        self.render_states.reserve(self.drawables.len());
+        self.render_states.reserve(self.draw_states.len());
 
-        let len = self.drawables.len() as f32;
-        for (i, mut draw_state) in self.drawables.drain(..).rev() {
+        let len = self.draw_states.len() as f32;
+        for (i, mut draw_state) in self.draw_states.drain(..).rev() {
             let depth = 1.0 - i / len;
 
             draw_state.prepare(context, depth, encoder, &mut self.render_states);
@@ -63,13 +67,13 @@ impl<'a> StoryboardRenderer<'a> {
     }
 
     pub fn append(&mut self, drawable: Drawable<impl DrawState<'a> + 'a>) {
-        let index = self.drawables.len() as f32;
+        let index = self.draw_states.len() as f32;
         let draw_state = drawable.state;
 
         if drawable.opaque {
-            self.drawables.push_back((index, smallbox!(draw_state)));
+            self.draw_states.push_back((index, smallbox!(draw_state)));
         } else {
-            self.drawables.push_front((index, smallbox!(draw_state)));
+            self.draw_states.push_front((index, smallbox!(draw_state)));
         }
     }
 }
