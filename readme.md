@@ -1,14 +1,10 @@
 # Storyboard
-Fast, Flexible GPU accelerated 2D rendering using Wgpu
+Fast, Flexible GPU accelerated 2D rendering engine using Wgpu
 
 ## TODO (Milestone 1)
-1. [x] Layout system
+1. [ ] Layout system
 2. [x] Component system
-3. [x] Front to back renderer
+3. [x] Threaded rendering
 4. [x] Primitive(Triangle, Rect) rendering
-5. [x] Path rendering
+5. [ ] Path rendering
 6. [ ] Text rendering
-
-## Concepts
-TODO::
-Backend, Compositor, Layout, Renderer

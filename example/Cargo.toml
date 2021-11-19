@@ -7,9 +7,7 @@ license = "MIT"
 
 [dependencies]
 storyboard-graphics = { path = "../graphics" }
-storyboard-primitive = { path = "../compositor/primitive" }
 storyboard-path = { path = "../compositor/path" }
-storyboard-box-2d = { path = "../compositor/box-2d" }
 storyboard-text = { path = "../compositor/text" }
 
 winit = "0.25.0"

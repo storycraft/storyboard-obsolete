@@ -3,11 +3,8 @@ resolver = "2"
 
 members = [
     "graphics",
-    "compositor/primitive",
-    "compositor/path",
-    "compositor/box-2d",
     "compositor/text",
     "storyboard",
     "example",
-    "visual-sample"
+    "visual-test"
 ]

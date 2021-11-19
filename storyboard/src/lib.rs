@@ -1,300 +1,239 @@
 /*
- * Created on Thu Nov 04 2021
+ * Created on Fri Nov 12 2021
  *
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
-pub mod app;
-pub mod compositor;
-pub mod scene;
-pub mod window;
+pub mod component;
+pub mod graphics;
+pub mod id_gen;
+pub mod observable;
+pub mod state;
+pub mod store;
+pub mod thread;
 
-pub use storyboard_box_2d as box_2d;
-pub use storyboard_graphics as graphics;
-pub use storyboard_path as path;
-pub use storyboard_primitive as primitive;
-pub use winit;
+use std::{
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
-use std::{iter, sync::Arc};
+use component::DrawSpace;
+pub use euclid as math;
+use math::{Point2D, Rect, Size2D};
+pub use palette as color;
+pub use ringbuffer;
+use thread::render::{RenderConfiguration, RenderQueue, RenderThread};
+pub use wgpu;
+pub use winit as window;
+
+use wgpu::{
+    Backends, BlendState, ColorTargetState, ColorWrites, Instance, PresentMode, Surface,
+    TextureFormat,
+};
 
 use graphics::{
     backend::{BackendOptions, StoryboardBackend},
-    buffer::stream::StreamBufferAllocator,
-    component::DrawSpace,
-    context::DrawContext,
-    math::{Point2D, Rect},
-    pipeline::PipelineTargetDescriptor,
-    renderer::StoryboardRenderer,
-    texture::{depth::DepthStencilTexture, resources::TextureResources},
-    wgpu::{
-        Backends, BlendState, BufferUsages, Color, ColorTargetState, ColorWrites,
-        CommandEncoderDescriptor, CompareFunction, DepthBiasState, DepthStencilState, Instance,
-        LoadOp, MultisampleState, Operations, PolygonMode, RenderPassColorAttachment,
-        RenderPassDepthStencilAttachment, RenderPassDescriptor, StencilState, TextureFormat,
-        TextureViewDescriptor,
-    },
+    renderer::RenderData,
+    texture::{Texture2D, TextureData},
+    PixelUnit,
 };
 
-use scene::StoryboardScene;
+use ringbuffer::{ConstGenericRingBuffer, RingBufferWrite};
 
-use compositor::StoryboardCompositor;
-use window::StoryboardWindow;
-use winit::window::Window;
+use state::{State, StateStatus, StateSystem};
+use window::{
+    event::Event,
+    event_loop::{ControlFlow, EventLoop},
+    window::{Window, WindowBuilder},
+};
 
 #[derive(Debug)]
 pub struct Storyboard {
+    event_loop: EventLoop<()>,
+
     backend: StoryboardBackend,
 
-    window: StoryboardWindow,
-    window_depth_stencil: DepthStencilTexture,
+    render_data: RenderData,
+    texture_data: TextureData,
 
-    stream_allocator: StreamBufferAllocator,
+    pub render_present_mode: PresentMode,
 
-    textures: TextureResources,
-    compositor: StoryboardCompositor,
+    window: Window,
+    surface: Surface,
 }
 
 impl Storyboard {
-    pub async fn init(window: Window, options: BackendOptions) -> Self {
+    pub async fn init(builder: WindowBuilder, options: &BackendOptions) -> Self {
+        let event_loop = EventLoop::new();
         let instance = Instance::new(Backends::all());
 
-        // TODO:: remove unwrap
-        let mut window = StoryboardWindow::init(&instance, window);
+        let window = builder.build(&event_loop).unwrap();
+        let surface = unsafe { instance.create_surface(&window) };
 
-        // TODO:: remove unwrap
-        let backend = window
-            .surface()
-            .create_backend(&instance, options)
+        let backend = StoryboardBackend::init(&instance, Some(&surface), options)
             .await
             .unwrap();
 
-        let surface_texture_format = window
-            .surface_mut()
-            .update_format_for(backend.adapter())
-            .unwrap();
+        let framebuffer_format = surface.get_preferred_format(backend.adapter()).unwrap();
 
-        let textures = TextureResources::init(
-            Arc::clone(backend.device()),
-            Arc::clone(backend.queue()),
-            surface_texture_format,
-        );
-
-        let window_depth_stencil = DepthStencilTexture::init(backend.device(), window.inner_size());
-
-        let compositor = StoryboardCompositor::init(
+        let texture_data = TextureData::init(backend.device(), framebuffer_format);
+        let render_data = RenderData::init(
             backend.device(),
-            textures.texture2d_bind_group_layout(),
-            PipelineTargetDescriptor {
-                fragments_targets: &[ColorTargetState {
-                    format: surface_texture_format,
-                    blend: Some(BlendState::ALPHA_BLENDING),
-                    write_mask: ColorWrites::all(),
-                }],
-                topology: None,
-                polygon_mode: PolygonMode::Fill,
-                depth_stencil: Some(DepthStencilState {
-                    format: TextureFormat::Depth24PlusStencil8,
-                    depth_write_enabled: true,
-                    depth_compare: CompareFunction::LessEqual,
-                    stencil: StencilState {
-                        read_mask: !0,
-                        write_mask: !0,
-                        ..StencilState::default()
-                    },
-                    bias: DepthBiasState::default(),
-                }),
-                multisample: MultisampleState::default(),
-            },
+            backend.queue(),
+            &texture_data,
+            &[ColorTargetState {
+                format: framebuffer_format,
+                blend: Some(BlendState::ALPHA_BLENDING),
+                write_mask: ColorWrites::all(),
+            }],
+            None,
         );
-
-        let stream_allocator =
-            StreamBufferAllocator::new(BufferUsages::INDEX | BufferUsages::VERTEX);
 
         Self {
+            event_loop,
+
             backend,
 
+            texture_data,
+            render_data,
+
+            render_present_mode: PresentMode::Fifo,
+
             window,
-            window_depth_stencil,
-
-            stream_allocator,
-
-            textures,
-            compositor,
+            surface,
         }
     }
 
-    pub fn window(&self) -> &StoryboardWindow {
+    pub const fn window(&self) -> &Window {
         &self.window
     }
 
-    pub fn window_mut(&mut self) -> &mut StoryboardWindow {
-        &mut self.window
-    }
+    pub fn run(self, state: impl StoryboardState + 'static) -> ! {
+        let win_size = self.window.inner_size();
 
-    pub fn textures(&self) -> &TextureResources {
-        &self.textures
-    }
+        let graphics = GraphicsData {
+            texture_data: Arc::new(self.texture_data),
+            render_data: Arc::new(self.render_data),
 
-    pub fn draw(&mut self, scene: &mut impl StoryboardScene) {
-        let window_inner_size = self.window.inner_size();
+            backend: Arc::new(self.backend),
+        };
 
-        if window_inner_size.is_empty() {
-            return;
-        }
+        let system_prop = StoryboardSystemProp {
+            window: self.window,
+            graphics,
+        };
 
-        if window_inner_size != *self.window_depth_stencil.size() {
-            self.window.update_view(window_inner_size);
-            self.window_depth_stencil =
-                DepthStencilTexture::init(self.backend.device(), window_inner_size);
-        }
-
-        // TODO:: error checking
-        if let Ok(current_texture) = self
-            .window
-            .surface_mut()
-            .get_current_texture(self.backend.device())
-        {
-            let current_view = current_texture
-                .texture
-                .create_view(&TextureViewDescriptor::default());
-
-            let mut renderer = StoryboardRenderer::with_capacity(256);
-
-            scene.render(
-                DrawSpace::new_screen(Rect {
-                    origin: Point2D::zero(),
-                    size: window_inner_size.cast(),
-                }),
-                &self.compositor,
-                &mut renderer,
-            );
-
-            let mut encoder =
-                self.backend
-                    .device()
-                    .create_command_encoder(&CommandEncoderDescriptor {
-                        label: Some("Storyboard window command encoder"),
-                    });
-
-            let mut draw_ctx = DrawContext {
-                device: self.backend.device(),
-                queue: self.backend.queue(),
-                textures: &self.textures,
-                stream_allocator: &mut self.stream_allocator,
-            };
-
-            renderer.prepare(&mut draw_ctx, &mut encoder);
-
-            let pass = encoder.begin_render_pass(&RenderPassDescriptor {
-                label: Some("Storyboard window render pass"),
-                color_attachments: &[RenderPassColorAttachment {
-                    view: &current_view,
-                    resolve_target: None,
-                    ops: Operations {
-                        load: LoadOp::Clear(Color::BLACK),
-                        store: true,
-                    },
-                }],
-                depth_stencil_attachment: Some(RenderPassDepthStencilAttachment {
-                    view: self.window_depth_stencil.view(),
-                    depth_ops: Some(Operations {
-                        load: LoadOp::Clear(1.0),
-                        store: true,
-                    }),
-                    stencil_ops: Some(Operations {
-                        load: LoadOp::Clear(0),
-                        store: true,
-                    }),
-                }),
-            });
-
-            renderer.render(&draw_ctx.into_render_context(), pass);
-
-            self.backend.queue().submit(iter::once(encoder.finish()));
-            current_texture.present();
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct StoryboardTest2 {
-    backend: StoryboardBackend,
-
-    textures: TextureResources,
-    compositor: StoryboardCompositor,
-}
-
-impl StoryboardTest2 {
-    pub async fn init(window: Window, options: BackendOptions) -> (Self, StoryboardWindow) {
-        let instance = Instance::new(Backends::all());
-
-        // TODO:: remove unwrap
-        let mut window = StoryboardWindow::init(&instance, window);
-
-        // TODO:: remove unwrap
-        let backend = window
-            .surface()
-            .create_backend(&instance, options)
-            .await
-            .unwrap();
-
-        let surface_texture_format = window
-            .surface_mut()
-            .update_format_for(backend.adapter())
-            .unwrap();
-
-        let textures = TextureResources::init(
-            Arc::clone(backend.device()),
-            Arc::clone(backend.queue()),
-            surface_texture_format,
-        );
-
-        let compositor = StoryboardCompositor::init(
-            backend.device(),
-            textures.texture2d_bind_group_layout(),
-            PipelineTargetDescriptor {
-                fragments_targets: &[ColorTargetState {
-                    format: surface_texture_format,
-                    blend: Some(BlendState::ALPHA_BLENDING),
-                    write_mask: ColorWrites::all(),
-                }],
-                topology: None,
-                polygon_mode: PolygonMode::Fill,
-                depth_stencil: Some(DepthStencilState {
-                    format: TextureFormat::Depth24PlusStencil8,
-                    depth_write_enabled: true,
-                    depth_compare: CompareFunction::LessEqual,
-                    stencil: StencilState {
-                        read_mask: !0,
-                        write_mask: !0,
-                        ..StencilState::default()
-                    },
-                    bias: DepthBiasState::default(),
-                }),
-                multisample: MultisampleState::default(),
+        let render_thread = RenderThread::run(
+            system_prop.graphics.backend.clone(),
+            self.surface,
+            system_prop
+                .graphics
+                .texture_data
+                .framebuffer_texture_format(),
+            system_prop.graphics.render_data.clone(),
+            system_prop.graphics.texture_data.clone(),
+            RenderConfiguration {
+                size: Size2D::new(win_size.width, win_size.height),
+                present_mode: self.render_present_mode,
             },
         );
 
-        (
-            Self {
-                backend,
+        let mut system_state = StoryboardSystemState {
+            events: ConstGenericRingBuffer::new(),
+            screen: DrawSpace::new_screen(Rect::new(
+                Point2D::zero(),
+                Size2D::new(win_size.width as f32, win_size.height as f32),
+            )),
+            elapsed: Duration::ZERO,
 
-                textures,
-                compositor,
-            },
-            window,
-        )
+            render_thread,
+        };
+
+        let mut state_system = StateSystem::new(Box::new(state), system_prop);
+
+        self.event_loop.run(move |event, _, control_flow| {
+            let instant = Instant::now();
+
+            if state_system.finished() {
+                system_state.render_thread.interrupt();
+                *control_flow = ControlFlow::Exit;
+                return;
+            }
+
+            if let Some(event) = event.to_static() {
+                system_state.events.push(event);
+            }
+
+            state_system.run(&mut system_state);
+
+            *control_flow = ControlFlow::Poll;
+            system_state.elapsed = instant.elapsed();
+        })
+    }
+}
+
+pub trait StoryboardState: State<StoryboardSystemProp, StoryboardSystemState> {
+    fn update(
+        &mut self,
+        system_prop: &StoryboardSystemProp,
+        system_state: &mut StoryboardSystemState,
+    ) -> StateStatus<StoryboardSystemProp, StoryboardSystemState>;
+
+    fn load(&mut self, system_prop: &StoryboardSystemProp);
+    fn unload(&mut self, system_prop: &StoryboardSystemProp);
+}
+
+impl<T: StoryboardState> State<StoryboardSystemProp, StoryboardSystemState> for T {
+    fn update(
+        &mut self,
+        system_prop: &StoryboardSystemProp,
+        system_state: &mut StoryboardSystemState,
+    ) -> StateStatus<StoryboardSystemProp, StoryboardSystemState> {
+        StoryboardState::update(self, system_prop, system_state)
     }
 
-    pub fn create_draw_context<'a>(
-        &'a self,
-        stream_allocator: &'a mut StreamBufferAllocator,
-    ) -> DrawContext<'a> {
-        DrawContext {
-            device: self.backend.device(),
-            queue: self.backend.queue(),
-            textures: &self.textures,
-            stream_allocator,
-        }
+    fn load(&mut self, system_prop: &StoryboardSystemProp) {
+        StoryboardState::load(self, system_prop)
+    }
+
+    fn unload(&mut self, system_prop: &StoryboardSystemProp) {
+        StoryboardState::unload(self, system_prop)
+    }
+}
+
+pub struct StoryboardSystemProp {
+    pub window: Window,
+    pub graphics: GraphicsData,
+}
+
+pub struct StoryboardSystemState {
+    pub events: ConstGenericRingBuffer<Event<'static, ()>, 32>,
+    pub screen: DrawSpace,
+    pub elapsed: Duration,
+
+    render_thread: RenderThread,
+}
+
+impl StoryboardSystemState {
+    pub fn submit_render_queue(&mut self, render_queue: RenderQueue) -> bool {
+        self.render_thread.submit_queue(render_queue)
+    }
+
+    pub const fn render_thread(&self) -> &RenderThread {
+        &self.render_thread
+    }
+}
+
+pub struct GraphicsData {
+    pub render_data: Arc<RenderData>,
+    pub texture_data: Arc<TextureData>,
+
+    pub backend: Arc<StoryboardBackend>,
+}
+
+impl GraphicsData {
+    pub fn create_texture(&self, format: TextureFormat, size: Size2D<u32, PixelUnit>) -> Texture2D {
+        self.texture_data
+            .create_texture(self.backend.device(), format, size)
     }
 }
