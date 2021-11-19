@@ -11,6 +11,7 @@ pub mod observable;
 pub mod state;
 pub mod store;
 pub mod thread;
+pub mod time_sampler;
 
 use std::{
     sync::Arc,

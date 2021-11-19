@@ -19,15 +19,13 @@ use std::fmt::Debug;
 
 use euclid::Size2D;
 use ringbuf::{Producer, RingBuffer};
-use ringbuffer::{ConstGenericRingBuffer, RingBufferExt, RingBufferWrite};
 use wgpu::{
     BufferUsages, Color, CommandEncoderDescriptor, Operations, PresentMode,
     RenderPassColorAttachment, RenderPassDescriptor, Surface, SurfaceConfiguration, TextureFormat,
     TextureUsages, TextureView, TextureViewDescriptor,
 };
 
-use crate::{
-    graphics::{
+use crate::{graphics::{
         backend::StoryboardBackend,
         buffer::stream::StreamBufferAllocator,
         context::DrawContext,
@@ -35,9 +33,7 @@ use crate::{
         renderer::{RenderData, StoryboardRenderer},
         texture::TextureData,
         PixelUnit,
-    },
-    observable::Observable,
-};
+    }, observable::Observable};
 
 pub struct RenderThread {
     handle: JoinHandle<Surface>,
@@ -73,7 +69,6 @@ impl RenderThread {
         let (producer, mut consumer) = RingBuffer::<RenderQueue>::new(2).split();
 
         let handle = thread::spawn(move || {
-            let mut elapsed_samples = ConstGenericRingBuffer::<u64, 64>::new();
             let render_fps_sample = render_fps_sample;
 
             let mut processor = SurfaceRenderProcessor {
@@ -94,9 +89,7 @@ impl RenderThread {
 
                     processor.process(render_queue);
 
-                    elapsed_samples.push(instant.elapsed().as_micros() as u64);
-
-                    render_fps_sample.store(elapsed_samples.iter().sum(), Ordering::Relaxed);
+                    render_fps_sample.store(instant.elapsed().as_micros() as u64, Ordering::Relaxed);
                 } else {
                     thread::yield_now();
                 }
@@ -132,7 +125,7 @@ impl RenderThread {
     }
 
     pub fn fps(&self) -> f64 {
-        64_000_000.0 / self.fps_sample.load(Ordering::Relaxed) as f64
+        1_000_000.0 / self.fps_sample.load(Ordering::Relaxed) as f64
     }
 
     pub fn interrupt(&mut self) {
