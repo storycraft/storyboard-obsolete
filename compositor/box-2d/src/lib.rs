@@ -10,15 +10,15 @@ use std::{borrow::Cow, sync::Arc};
 
 use bytemuck::{Pod, Zeroable};
 
-use storyboard::component::extent::ExtentUnit;
-use storyboard::renderer::RenderStateQueue;
-use storyboard::wgpu::{
+use storyboard_graphics::component::extent::ExtentUnit;
+use storyboard_graphics::renderer::RenderStateQueue;
+use storyboard_graphics::wgpu::{
     vertex_attr_array, BindGroupLayout, BufferAddress, CommandEncoder, Device, FragmentState,
     PipelineLayoutDescriptor, PrimitiveState, PrimitiveTopology, RenderPipeline,
     RenderPipelineDescriptor, ShaderSource, VertexBufferLayout, VertexState, VertexStepMode,
 };
 
-use storyboard::{
+use storyboard_graphics::{
     buffer::{index::IndexBuffer, stream::StreamSlice},
     color::Srgba,
     component::{color::ShapeColor, texture::ComponentTexture, DrawState, RenderState},

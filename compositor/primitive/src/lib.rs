@@ -10,17 +10,17 @@ pub mod triangle;
 
 use std::borrow::Cow;
 
-use storyboard::color::Srgba;
+use storyboard_graphics::color::Srgba;
 
-use storyboard::shader::RenderShaderDescriptor;
-use storyboard::{
+use storyboard_graphics::shader::RenderShaderDescriptor;
+use storyboard_graphics::{
     component::{color::ShapeColor, texture::ComponentTexture},
     pipeline::PipelineTargetDescriptor,
     shader::RenderShader,
 };
 
 use bytemuck::{Pod, Zeroable};
-use storyboard::wgpu::{BindGroupLayout, Device, FragmentState, PipelineLayoutDescriptor, PrimitiveState, PrimitiveTopology, RenderPipeline, RenderPipelineDescriptor, ShaderSource, VertexBufferLayout, VertexState, VertexStepMode, vertex_attr_array};
+use storyboard_graphics::wgpu::{BindGroupLayout, Device, FragmentState, PipelineLayoutDescriptor, PrimitiveState, PrimitiveTopology, RenderPipeline, RenderPipelineDescriptor, ShaderSource, VertexBufferLayout, VertexState, VertexStepMode, vertex_attr_array};
 
 pub type QuadShapeColor = ShapeColor<4>;
 

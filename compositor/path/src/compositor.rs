@@ -7,12 +7,12 @@
 use lyon::lyon_tessellation::{
     FillVertex, FillVertexConstructor, StrokeVertex, StrokeVertexConstructor, VertexBuffers,
 };
-use storyboard::color::LinSrgba;
-use storyboard::pipeline::PipelineTargetDescriptor;
-use storyboard::renderer::RenderStateQueue;
-use storyboard::wgpu::{CommandEncoder, Device, IndexFormat, RenderPipeline};
+use storyboard_graphics::color::LinSrgba;
+use storyboard_graphics::pipeline::PipelineTargetDescriptor;
+use storyboard_graphics::renderer::RenderStateQueue;
+use storyboard_graphics::wgpu::{CommandEncoder, Device, IndexFormat, RenderPipeline};
 
-use storyboard::{
+use storyboard_graphics::{
     buffer::stream::StreamSlice,
     component::{DrawBox, DrawSpace, DrawState, Drawable, RenderState},
     context::{DrawContext, RenderContext},

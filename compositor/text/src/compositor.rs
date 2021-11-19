@@ -6,7 +6,7 @@
 
 use std::sync::Arc;
 
-use storyboard::{
+use storyboard_graphics::{
     buffer::{index::IndexBuffer, stream::StreamSlice},
     component::{DrawSpace, DrawState, Drawable, RenderState},
     context::{DrawContext, RenderContext},
@@ -20,7 +20,7 @@ use storyboard::{
 };
 
 use crate::{
-    brush::GlyphBrush, init_text_pipeline, init_text_shader, layout::TextLayout, TextStyle,
+    store::GlyphStore, init_text_pipeline, init_text_shader, layout::PositionedGlyph, TextStyle,
     TextVertex,
 };
 
@@ -57,9 +57,8 @@ impl GlyphCompositor {
     pub fn text(
         &self,
         queue: &Queue,
-        brush: &mut GlyphBrush,
-        text: &str,
-        layout: &mut TextLayout,
+        brush: &mut GlyphStore,
+        text: &Vec<PositionedGlyph>,
         style: &TextStyle,
         space: &DrawSpace,
         point: Point2D<f32, PixelUnit>,
@@ -68,17 +67,21 @@ impl GlyphCompositor {
 
         let mut quads = Vec::with_capacity(text.len());
 
-        let size_multiplier = brush.draw_font().size_multiplier(brush.size());
+        let size_scale = style.size / brush.size();
 
-        for ch in text.chars() {
-            let item = layout.next_item(ch);
+        let size_multiplier = brush.draw_font().size_multiplier(style.size);
 
-            if let Some(tex_info) = brush.get_glyph_tex_info(queue, ch) {
+        for glyph in text {
+            if let Some(tex_info) = brush.get_glyph_tex_info(queue, glyph.glyph_id as u32) {
                 let glyph_box = space.inner_box(
                     tex_info
                         .raster_rect
                         .cast()
-                        .translate(item.offset.to_vector() * size_multiplier + point.to_vector()),
+                        .scale(size_scale, size_scale)
+                        .translate(
+                            glyph.position.to_vector().cast::<f32>().cast_unit() * size_multiplier
+                                + point.to_vector(),
+                        ),
                     None,
                 );
 

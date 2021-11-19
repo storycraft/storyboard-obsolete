@@ -6,6 +6,6 @@ edition = "2021"
 license = "MIT"
 
 [dependencies]
-storyboard = { path = "../../core" }
+storyboard-graphics = { path = "../../graphics" }
 
 bytemuck = { version = "1.7.2", features = [ "derive" ] }

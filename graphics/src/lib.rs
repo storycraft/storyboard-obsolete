@@ -14,12 +14,13 @@ pub mod pass;
 pub mod pipeline;
 pub mod renderer;
 pub mod shader;
+pub mod surface;
 pub mod texture;
 pub mod unit;
 
 #[cfg(test)]
 pub mod test;
 
-pub use wgpu;
 pub use euclid as math;
 pub use palette as color;
+pub use wgpu;

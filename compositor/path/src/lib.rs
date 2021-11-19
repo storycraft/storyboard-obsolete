@@ -11,15 +11,15 @@ pub extern crate lyon;
 use std::borrow::Cow;
 
 use lyon::lyon_tessellation::VertexBuffers;
-use storyboard::color::LinSrgba;
-use storyboard::math::Rect;
+use storyboard_graphics::color::LinSrgba;
+use storyboard_graphics::math::Rect;
 
-use storyboard::shader::RenderShaderDescriptor;
-use storyboard::unit::PixelUnit;
-use storyboard::{pipeline::PipelineTargetDescriptor, shader::RenderShader};
+use storyboard_graphics::shader::RenderShaderDescriptor;
+use storyboard_graphics::unit::PixelUnit;
+use storyboard_graphics::{pipeline::PipelineTargetDescriptor, shader::RenderShader};
 
 use bytemuck::{Pod, Zeroable};
-use storyboard::wgpu::{BufferAddress, Device, FragmentState, PipelineLayoutDescriptor, PrimitiveState, PrimitiveTopology, RenderPipeline, RenderPipelineDescriptor, ShaderSource, VertexBufferLayout, VertexState, VertexStepMode, vertex_attr_array};
+use storyboard_graphics::wgpu::{BufferAddress, Device, FragmentState, PipelineLayoutDescriptor, PrimitiveState, PrimitiveTopology, RenderPipeline, RenderPipelineDescriptor, ShaderSource, VertexBufferLayout, VertexState, VertexStepMode, vertex_attr_array};
 
 pub type Path = VertexBuffers<PathVertex, u16>;
 

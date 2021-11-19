@@ -10,12 +10,11 @@ use std::{iter, sync::Arc, time::Instant};
 
 use futures::executor::block_on;
 use logo::build_logo_path;
-use storyboard::wgpu::{
-    Backends, BlendState, BufferUsages, Color, ColorTargetState, ColorWrites,
-    CommandEncoderDescriptor, LoadOp, Operations, PresentMode, RenderPassColorAttachment,
-    RenderPassDepthStencilAttachment, RenderPassDescriptor, TextureFormat,
-};
-use storyboard::{
+use storyboard_box_2d::{compositor::BoxCompositor, BoxStyle};
+use storyboard_graphics::component::extent::ExtentSize2D;
+use storyboard_graphics::component::layout::ComponentLayout;
+use storyboard_graphics::wgpu::{Backends, BlendState, BufferUsages, Color, ColorTargetState, ColorWrites, CommandEncoderDescriptor, Features, LoadOp, Operations, PresentMode, RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor, TextureFormat};
+use storyboard_graphics::{
     backend::{BackendOptions, StoryboardBackend},
     buffer::stream::StreamBufferAllocator,
     component::{
@@ -33,11 +32,6 @@ use storyboard::{
     unit::PixelUnit,
     wgpu::{CompareFunction, DepthBiasState, DepthStencilState, StencilState},
 };
-use storyboard_box_2d::{compositor::BoxCompositor, BoxStyle};
-use storyboard_flex_layout::{
-    stretch::{geometry::Size, style::Dimension, Stretch},
-    FlexLayoutNode,
-};
 use storyboard_path::lyon::{
     lyon_tessellation::{BuffersBuilder, StrokeOptions, StrokeTessellator, VertexBuffers},
     path::Path,
@@ -47,11 +41,13 @@ use storyboard_path::{
     PathVertex, ScalablePath,
 };
 use storyboard_primitive::{compositor::PrimitiveCompositor, PrimitiveStyle};
+use storyboard_text::allsorts::font::MatchingPresentation;
+use storyboard_text::allsorts::glyph_position::TextDirection;
 use storyboard_text::font::DrawFont;
 use storyboard_text::layout::TextLayout;
 use storyboard_text::TextStyle;
 use storyboard_text::{
-    brush::GlyphBrush, compositor::GlyphCompositor, font_kit::source::SystemSource,
+    compositor::GlyphCompositor, font_kit::source::SystemSource, store::GlyphStore,
 };
 use winit::{
     dpi::PhysicalSize,
@@ -118,9 +114,7 @@ pub fn main() {
         }
     };
 
-    let mut stretch = Stretch::new();
-
-    let mut glyph_brush = GlyphBrush::init(
+    let mut glyph_brush = GlyphStore::init(
         &textures,
         Arc::new(DrawFont::new(
             SystemSource::new()
@@ -134,7 +128,7 @@ pub fn main() {
 
     let mut rect = BoxStyle::default();
 
-    rect.border_radius = 200.0;
+    rect.border_radius = ExtentUnit::Percent(0.5);
     rect.border_thickness = 5.0;
 
     rect.texture = Some(ComponentTexture {
@@ -151,11 +145,24 @@ pub fn main() {
 
     rect.border_color = ShapeColor::Single((1.0, 0.0, 1.0, 1.0).into());
 
-    let mut rect_node = FlexLayoutNode::new(&mut stretch);
-    rect_node.style_mut().size = Size {
-        width: Dimension::Percent(0.5),
-        height: Dimension::Percent(0.5),
-    };
+    let mut rect_node = ComponentLayout::new();
+    rect_node.set_position(Extent2D {
+        standard: ExtentStandard::Parent,
+        x: ExtentUnit::Percent(0.5),
+        y: ExtentUnit::Percent(0.5),
+    });
+
+    rect_node.set_anchor(Extent2D {
+        standard: ExtentStandard::Current,
+        x: ExtentUnit::Percent(0.5),
+        y: ExtentUnit::Percent(0.5),
+    });
+
+    rect_node.set_size(ExtentSize2D {
+        standard: ExtentStandard::Parent,
+        width: ExtentUnit::Percent(0.5),
+        height: ExtentUnit::Percent(0.5),
+    });
 
     rect_node.transform_mut().origin = Extent2D {
         standard: ExtentStandard::Current,
@@ -248,7 +255,7 @@ pub fn main() {
 
                     let view = current_texture
                         .texture
-                        .create_view(&storyboard::wgpu::TextureViewDescriptor::default());
+                        .create_view(&storyboard_graphics::wgpu::TextureViewDescriptor::default());
 
                     let rotation = &mut rect_node.transform_mut().rotation;
 
@@ -256,7 +263,7 @@ pub fn main() {
                     rotation.y = ExtentUnit::Percent(rotation.y.value() + 0.00001);
                     rotation.z = ExtentUnit::Percent(rotation.z.value() + 0.00002);
 
-                    rect_node.update_node(&mut stretch, &space);
+                    rect_node.update(&space);
 
                     renderer.append(box_compositor.box_2d(&rect, &rect_node.get_draw_box(&space)));
 
@@ -268,42 +275,48 @@ pub fn main() {
                     .into();
 
                     let font = glyph_brush.draw_font().clone();
-                    let mut layout = TextLayout::new(&font);
+
+                    /*
+                    let mut glyphs = {
+                        let mut vec = Vec::new();
+
+                        for text in TextLayout::new(
+                            &mut font,
+                            &text,
+                            TextDirection::LeftToRight,
+                            MatchingPresentation::Required,
+                            0,
+                            None,
+                            None,
+                            true,
+                        ) {
+                            for glyph in text.list {
+                                vec.push(glyph);
+                            }
+                        }
+
+                        vec
+                    };
 
                     renderer.append(text_compositor.text(
                         backend.queue(),
                         &mut glyph_brush,
-                        &text,
-                        &mut layout,
+                        &glyphs,
                         &TextStyle {
+                            size: 96.0,
                             color: ShapeColor::default(),
                         },
                         &space,
                         (150.0, 150.0).into(),
                     ));
-
-                    renderer.append(box_compositor.box_2d(
-                        &BoxStyle {
-                            border_thickness: 1.0,
-                            fill_color: ShapeColor::Single((0.0, 0.0, 0.0, 0.0).into()),
-                            ..BoxStyle::default()
-                        },
-                        &space.inner_box(
-                            Rect {
-                                origin: (150.0, 150.0).into(),
-                                size: layout.measure()
-                                    * glyph_brush.draw_font().size_multiplier(96.0),
-                            },
-                            None,
-                        ),
-                    ));
+                    */
 
                     renderer.append(path_compositor.path_scalable(
                         &path_style,
                         &space.inner_box(
                             Rect {
                                 origin: (0.0, 0.0).into(),
-                                size: (350.0, 350.0).into(),
+                                size: (900.0, 900.0).into(),
                             },
                             None,
                         ),

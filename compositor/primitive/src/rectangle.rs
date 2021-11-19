@@ -4,13 +4,13 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
-use storyboard::renderer::RenderStateQueue;
+use storyboard_graphics::renderer::RenderStateQueue;
 
 use std::sync::Arc;
 
-use storyboard::wgpu::{CommandEncoder, RenderPipeline};
+use storyboard_graphics::wgpu::{CommandEncoder, RenderPipeline};
 
-use storyboard::{
+use storyboard_graphics::{
     buffer::{index::IndexBuffer, stream::StreamSlice},
     component::{DrawState, RenderState},
     context::{DrawContext, RenderContext},

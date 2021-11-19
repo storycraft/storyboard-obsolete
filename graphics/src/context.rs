@@ -30,6 +30,15 @@ impl<'a> DrawContext<'a> {
             stream_buffer: self.stream_allocator.flush(self.device),
         }
     }
+
+    pub fn sub_context(&self, stream_allocator: &'a mut StreamBufferAllocator) -> DrawContext<'a> {
+        DrawContext {
+            device: self.device,
+            queue: self.queue,
+            textures: self.textures,
+            stream_allocator,
+        }
+    }
 }
 
 #[derive(Debug)]

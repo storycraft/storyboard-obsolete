@@ -4,12 +4,12 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
-use storyboard::color::LinSrgba;
-use storyboard::math::SideOffsets2D;
-use storyboard::pipeline::PipelineTargetDescriptor;
-use storyboard::wgpu::{BindGroupLayout, Device, RenderPipeline};
+use storyboard_graphics::color::LinSrgba;
+use storyboard_graphics::math::SideOffsets2D;
+use storyboard_graphics::pipeline::PipelineTargetDescriptor;
+use storyboard_graphics::wgpu::{BindGroupLayout, Device, RenderPipeline};
 
-use storyboard::{
+use storyboard_graphics::{
     buffer::index::IndexBuffer,
     component::{texture::TextureLayout, DrawBox, Drawable},
 };
@@ -71,7 +71,7 @@ impl BoxCompositor {
             .texture
             .as_ref()
             .map_or(TextureLayout::STRETCHED, |item| {
-                let mut space = draw_box.inner_space();
+                let mut space = draw_box.into_space();
                 if style.border_thickness != 0.0 {
                     space.parent.size.width += style.border_thickness * 2.0;
                     space.parent.size.height += style.border_thickness * 2.0;

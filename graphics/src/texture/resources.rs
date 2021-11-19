@@ -18,6 +18,8 @@ pub struct TextureResources {
     device: Arc<Device>,
     queue: Arc<Queue>,
 
+    framebuffer_format: TextureFormat,
+
     empty_texture: Texture2D,
     default_sampler: Sampler,
 
@@ -25,7 +27,7 @@ pub struct TextureResources {
 }
 
 impl TextureResources {
-    pub fn init(device: Arc<Device>, queue: Arc<Queue>) -> Self {
+    pub fn init(device: Arc<Device>, queue: Arc<Queue>, framebuffer_format: TextureFormat) -> Self {
         let texture2d_bind_group_layout = create_texture2d_bind_group_layout(&device);
 
         let default_sampler = init_default_sampler(&device);
@@ -43,6 +45,8 @@ impl TextureResources {
         Self {
             device,
             queue,
+
+            framebuffer_format,
 
             empty_texture,
             default_sampler,
@@ -68,6 +72,10 @@ impl TextureResources {
 
     pub fn empty_texture_bind_group(&self) -> &BindGroup {
         self.empty_texture.bind_group()
+    }
+
+    pub fn framebuffer_format(&self) -> TextureFormat {
+        self.framebuffer_format
     }
 
     pub fn create_texture(
@@ -105,14 +113,13 @@ impl TextureResources {
 
     pub fn create_framebuffer(
         &self,
-        format: TextureFormat,
         size: Size2D<u32, PixelUnit>,
         sampler: Option<&Sampler>,
     ) -> Framebuffer {
         Framebuffer::init(
             &self.device,
             &self.texture2d_bind_group_layout,
-            format,
+            self.framebuffer_format,
             size,
             sampler.unwrap_or(&self.default_sampler),
         )

@@ -5,10 +5,10 @@
  */
 
 use std::sync::Arc;
-use storyboard::renderer::RenderStateQueue;
-use storyboard::wgpu::{CommandEncoder, RenderPipeline};
+use storyboard_graphics::renderer::RenderStateQueue;
+use storyboard_graphics::wgpu::{CommandEncoder, RenderPipeline};
 
-use storyboard::{
+use storyboard_graphics::{
     buffer::stream::StreamSlice,
     component::{DrawState, RenderState},
     context::{DrawContext, RenderContext},

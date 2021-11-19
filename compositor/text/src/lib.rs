@@ -4,27 +4,40 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
-pub mod brush;
 pub mod compositor;
 pub mod font;
 pub mod layout;
+pub mod store;
 
+pub use allsorts;
 pub use font_kit;
 
 use bytemuck::{Pod, Zeroable};
 
 use std::borrow::Cow;
 
-use storyboard::{color::Srgba, component::color::ShapeColor, pipeline::PipelineTargetDescriptor, shader::{RenderShader, RenderShaderDescriptor}, wgpu::{BindGroupLayout, Device, FragmentState, PipelineLayoutDescriptor, PrimitiveState, PrimitiveTopology, RenderPipeline, RenderPipelineDescriptor, ShaderSource, VertexBufferLayout, VertexState, VertexStepMode, vertex_attr_array}};
+use storyboard_graphics::{
+    color::Srgba,
+    component::color::ShapeColor,
+    pipeline::PipelineTargetDescriptor,
+    shader::{RenderShader, RenderShaderDescriptor},
+    wgpu::{
+        vertex_attr_array, BindGroupLayout, Device, FragmentState, PipelineLayoutDescriptor,
+        PrimitiveState, PrimitiveTopology, RenderPipeline, RenderPipelineDescriptor, ShaderSource,
+        VertexBufferLayout, VertexState, VertexStepMode,
+    },
+};
 
 #[derive(Debug, Clone)]
 pub struct TextStyle {
+    pub size: f32,
     pub color: ShapeColor<4>,
 }
 
 impl TextStyle {
     pub fn new() -> Self {
         Self {
+            size: 16.0,
             color: ShapeColor::default(),
         }
     }
@@ -80,7 +93,9 @@ pub fn init_text_pipeline(
         }),
         depth_stencil: pipeline_desc.depth_stencil,
         primitive: PrimitiveState {
-            topology: pipeline_desc.topology.unwrap_or(PrimitiveTopology::TriangleList),
+            topology: pipeline_desc
+                .topology
+                .unwrap_or(PrimitiveTopology::TriangleList),
             polygon_mode: pipeline_desc.polygon_mode,
             ..PrimitiveState::default()
         },

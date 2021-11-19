@@ -8,6 +8,7 @@ pub mod color;
 pub mod extent;
 pub mod texture;
 pub mod transform;
+pub mod layout;
 
 use std::fmt::Debug;
 
@@ -50,7 +51,7 @@ pub struct DrawBox {
 }
 
 impl DrawBox {
-    pub fn inner_space(self) -> DrawSpace {
+    pub const fn into_space(self) -> DrawSpace {
         DrawSpace {
             screen: self.screen,
             parent: self.rect,
@@ -84,11 +85,11 @@ impl DrawBox {
 
 impl Into<DrawSpace> for DrawBox {
     fn into(self) -> DrawSpace {
-        self.inner_space()
+        self.into_space()
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct DrawSpace {
     pub screen: Rect<f32, PixelUnit>,
     pub parent: Rect<f32, PixelUnit>,
@@ -133,6 +134,14 @@ impl DrawSpace {
             screen: self.screen,
             rect,
             matrix,
+        }
+    }
+
+    pub const fn into_box(self) -> DrawBox {
+        DrawBox {
+            screen: self.screen,
+            rect: self.parent,
+            matrix: self.matrix,
         }
     }
 }

@@ -57,16 +57,12 @@ impl<T> Observable<T> {
             self.valid = false;
         }
     }
-}
 
-impl<T> AsRef<T> for Observable<T> {
-    fn as_ref(&self) -> &T {
+    pub fn inner_ref(&self) -> &T {
         &self.inner
     }
-}
 
-impl<T> AsMut<T> for Observable<T> {
-    fn as_mut(&mut self) -> &mut T {
+    pub fn inner_mut(&mut self) -> &mut T {
         self.mark();
         &mut self.inner
     }

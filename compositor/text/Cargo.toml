@@ -6,9 +6,12 @@ edition = "2021"
 license = "MIT"
 
 [dependencies]
-storyboard = { path = "../../core" }
+storyboard-graphics = { path = "../../graphics" }
 
 rect_packer = "0.2.1"
 pathfinder_geometry = "0.5.1"
 font-kit = "0.10.1"
 bytemuck = { version = "1.7.2", features = [ "derive" ] }
+rustc-hash = "1.1.0"
+ringbuffer = "0.8.3"
+allsorts = "0.6.0"

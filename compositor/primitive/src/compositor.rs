@@ -4,8 +4,8 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
-use storyboard::wgpu::RenderPipeline;
-use storyboard::{
+use storyboard_graphics::wgpu::RenderPipeline;
+use storyboard_graphics::{
     buffer::index::IndexBuffer,
     color::{LinSrgba, Mix},
     component::{texture::TextureLayout, DrawBox, Drawable},
@@ -71,7 +71,7 @@ impl PrimitiveCompositor {
             .as_ref()
             .map_or(TextureLayout::STRETCHED, |item| {
                 item.layout
-                    .texture_coord_quad(&draw_box.inner_space(), &item.texture.size())
+                    .texture_coord_quad(&draw_box.into_space(), &item.texture.size())
             });
 
         let primitive = [
@@ -135,7 +135,7 @@ impl PrimitiveCompositor {
             .as_ref()
             .map_or(TextureLayout::STRETCHED, |item| {
                 item.layout
-                    .texture_coord_quad(&draw_box.inner_space(), &item.texture.size())
+                    .texture_coord_quad(&draw_box.into_space(), &item.texture.size())
             });
 
         let primitive = [

@@ -6,11 +6,7 @@
 
 use std::collections::VecDeque;
 
-use smallbox::{
-    smallbox,
-    space::{S16, S64},
-    SmallBox,
-};
+use smallbox::{smallbox, SmallBox};
 use wgpu::{CommandEncoder, RenderPass};
 
 use crate::component::{DrawState, RenderState};
@@ -22,7 +18,7 @@ use super::{
 };
 
 pub struct StoryboardRenderer<'a> {
-    draw_states: VecDeque<(f32, SmallBox<dyn DrawState<'a> + 'a, S64>)>,
+    draw_states: VecDeque<(f32, SmallBox<dyn DrawState<'a> + 'a, [u64; 64]>)>,
     render_states: RenderStateQueue<'a>,
 }
 
@@ -55,14 +51,14 @@ impl<'a> StoryboardRenderer<'a> {
     }
 
     pub fn render(&mut self, context: &RenderContext, pass: RenderPass) {
-        let mut pass = StoryboardRenderPass::new(pass);
+        {
+            let mut pass = StoryboardRenderPass::new(pass);
 
-        for state in &mut self.render_states.0 {
-            state.render(context, &mut pass);
+            for state in &mut self.render_states.0 {
+                state.render(context, &mut pass);
+            }
         }
-    }
 
-    pub fn finish(&mut self) {
         self.render_states.clear();
     }
 
@@ -78,7 +74,7 @@ impl<'a> StoryboardRenderer<'a> {
     }
 }
 
-pub type BoxedRenderState<'a> = SmallBox<dyn RenderState + 'a, S16>;
+pub type BoxedRenderState<'a> = SmallBox<dyn RenderState + 'a, [u64; 16]>;
 
 pub struct RenderStateQueue<'a>(Vec<BoxedRenderState<'a>>);
 

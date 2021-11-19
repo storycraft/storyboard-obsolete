@@ -2,11 +2,12 @@
 resolver = "2"
 
 members = [
-    "core",
+    "graphics",
     "compositor/primitive",
     "compositor/path",
     "compositor/box-2d",
     "compositor/text",
-    "layout/flex",
-    "example"
+    "storyboard",
+    "example",
+    "visual-sample"
 ]

@@ -4,92 +4,162 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
-use storyboard::{
-    math::{Point2D, Size2D},
-    unit::PixelUnit,
+use std::str::Lines;
+
+use allsorts::{
+    font::MatchingPresentation,
+    glyph_position::{GlyphLayout, TextDirection},
+    gsub::{FeatureMask, Features},
+    tinyvec::TinyVec,
 };
+use storyboard_graphics::math::{Point2D, Rect, Size2D};
 
-use crate::font::DrawFont;
+use crate::font::{DrawFont, FontUnit};
 
-#[derive(Debug, Clone)]
 pub struct TextLayout<'a> {
-    draw_font: &'a DrawFont,
+    font: &'a mut DrawFont,
+    lines: Lines<'a>,
 
-    line_height: f32,
+    direction: TextDirection,
+    match_presentation: MatchingPresentation,
+    script_tag: u32,
+    opt_lang_tag: Option<u32>,
+    features: Features,
+    kerning: bool,
 
-    max_width: f32,
-    offset: Point2D<f32, PixelUnit>,
+    line_height: i32,
+
+    max_width: i32,
+    line_offset: i32,
 }
 
 impl<'a> TextLayout<'a> {
-    pub fn new(draw_font: &'a DrawFont) -> Self {
-        let metrics = draw_font.metrics();
-
-        let line_height = metrics.ascent - metrics.descent + metrics.line_gap;
+    pub fn new(
+        font: &'a mut DrawFont,
+        text: &'a str,
+        direction: TextDirection,
+        match_presentation: MatchingPresentation,
+        script_tag: u32,
+        opt_lang_tag: Option<u32>,
+        features: Option<Features>,
+        kerning: bool,
+    ) -> Self {
+        let metrics = font.metrics();
+        let line_height = (metrics.ascent - metrics.descent + metrics.line_gap) as i32;
 
         Self {
-            draw_font,
+            font,
+            lines: text.lines(),
+
+            direction,
+            match_presentation,
+            script_tag,
+            opt_lang_tag,
+            features: features.unwrap_or(Features::Mask(FeatureMask::default())),
+            kerning,
 
             line_height,
 
-            max_width: 0.0,
-            offset: Point2D::new(0.0, metrics.ascent),
+            max_width: 0,
+            line_offset: 0,
         }
     }
 
-    pub fn measure(&mut self) -> Size2D<f32, PixelUnit> {
-        self.max_width = self.max_width.max(self.offset.x);
-
-        let metrics = self.draw_font.metrics();
-
-        Size2D::new(self.max_width, self.offset.y - metrics.descent + metrics.line_gap)
+    pub fn line_height(&self) -> i32 {
+        self.line_height
     }
-    
-    pub fn next_item(&mut self, ch: char) -> TextGlyphItem {
-        let offset = self.offset;
 
-        let glyph_id = self.draw_font.font().glyph_for_char(ch);
-
-        let item_size = if let Some(glyph_id) = glyph_id {
-            Size2D::new(
-                self.draw_font.font().advance(glyph_id).unwrap().x(),
-                self.line_height,
-            )
-        } else {
-            Size2D::zero()
-        };
-
-        if item_size.width != 0.0 {
-            self.offset.x += item_size.width;
-        }
-
-        if ch == '\n' {
-            self.max_width = self.max_width.max(self.offset.x);
-            self.offset.x = 0.0;
-            self.offset.y += self.line_height;
-        }
-
-        TextGlyphItem {
-            ch,
-            glyph_id,
-            offset,
-            item_size,
-        }
+    pub fn currnet_bounds(&self) -> Size2D<i32, FontUnit> {
+        Size2D::new(self.max_width, self.line_offset)
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct TextGlyphItem {
-    pub ch: char,
-    pub glyph_id: Option<u32>,
-    pub offset: Point2D<f32, PixelUnit>,
-    pub item_size: Size2D<f32, PixelUnit>,
+impl Iterator for TextLayout<'_> {
+    type Item = PositionedText;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let line = self.lines.next()?;
+
+        let glyphs =
+            self.font
+                .shaper_mut()
+                .map_glyphs(line, self.script_tag, self.match_presentation);
+
+        let infos = self
+            .font
+            .shaper_mut()
+            .shape(
+                glyphs,
+                self.script_tag,
+                self.opt_lang_tag,
+                &self.features,
+                self.kerning,
+            )
+            .ok()?;
+
+        let mut line_layout =
+            GlyphLayout::new(self.font.shaper_mut(), &infos, self.direction, false);
+        let glyph_poses = line_layout.glyph_positions().ok()?;
+
+        let mut max_width = 0;
+
+        let list = infos
+            .into_iter()
+            .zip(glyph_poses)
+            .map(|(info, pos)| {
+                let position =
+                    Point2D::new(max_width + pos.x_offset, self.line_offset + pos.y_offset);
+                let advances = Size2D::new(pos.hori_advance, pos.vert_advance);
+
+                max_width = max_width.max(max_width + pos.x_offset + pos.hori_advance);
+
+                PositionedGlyph {
+                    glyph_id: info.glyph.glyph_index,
+                    unicodes: info.glyph.unicodes,
+                    position,
+                    advances,
+                    kerning: info.kerning,
+                }
+            })
+            .collect();
+
+        self.max_width = self.max_width.max(max_width);
+
+        let bounds = Rect::new(
+            Point2D::new(0, self.line_offset),
+            Size2D::new(max_width, self.line_height),
+        );
+
+        self.line_offset += self.line_height;
+
+        let positioned = PositionedText { bounds, list };
+
+        Some(positioned)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct PositionedText {
+    pub bounds: Rect<i32, FontUnit>,
+    pub list: Vec<PositionedGlyph>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PositionedGlyph {
+    pub glyph_id: u16,
+    pub unicodes: TinyVec<[char; 1]>,
+    pub position: Point2D<i32, FontUnit>,
+    pub advances: Size2D<i32, FontUnit>,
+    pub kerning: i16,
 }
 
 #[cfg(test)]
 #[test]
 pub fn test_layout() {
+    use allsorts::font::MatchingPresentation;
     use font_kit::source::SystemSource;
+
+    use crate::font::DrawFont;
 
     let font = SystemSource::new()
         .select_by_postscript_name("ArialMT")
@@ -97,12 +167,25 @@ pub fn test_layout() {
         .load()
         .unwrap();
 
-    let draw_font = DrawFont::new(font);
-    let mut layout = TextLayout::new(&draw_font);
+    let mut draw_font = DrawFont::new(font);
 
-    for ch in "Hello world!\nHello world!".chars() {
-        println!("item: {:?}", layout.next_item(ch));
+    let mut layout = TextLayout::new(
+        &mut draw_font,
+        "Hello world!\nHello world!",
+        TextDirection::LeftToRight,
+        MatchingPresentation::NotRequired,
+        0,
+        None,
+        None,
+        true,
+    );
+
+    for line in &mut layout {
+        println!("Bounds: {:?}", line.bounds);
+        for info in line.list {
+            println!("info: {:?}", info);
+        }
     }
 
-    println!("measure: {:?}", layout.measure());
+    println!("Bounding box: {:?}", layout.currnet_bounds())
 }
