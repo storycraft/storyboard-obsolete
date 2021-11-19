@@ -2,9 +2,6 @@
 resolver = "2"
 
 members = [
-    "graphics",
-    "compositor/text",
     "storyboard",
-    "example",
     "visual-test"
 ]
