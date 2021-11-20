@@ -6,3 +6,4 @@
 
 pub mod box2d;
 pub mod primitive;
+pub mod path;

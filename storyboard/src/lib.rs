@@ -151,7 +151,7 @@ impl Storyboard {
             render_thread,
         };
 
-        let mut state_system = StateSystem::new(Box::new(state), system_prop);
+        let mut state_system = StateSystem::new(Box::new(state), &system_prop);
 
         self.event_loop.run(move |event, _, control_flow| {
             let instant = Instant::now();
@@ -166,7 +166,7 @@ impl Storyboard {
                 system_state.events.push(event);
             }
 
-            state_system.run(&mut system_state);
+            state_system.run(&system_prop, &mut system_state);
 
             *control_flow = ControlFlow::Poll;
             system_state.elapsed = instant.elapsed();

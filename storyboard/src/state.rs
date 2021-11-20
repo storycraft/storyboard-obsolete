@@ -23,56 +23,51 @@ pub enum StateStatus<P = DefaultPropData, S = DefaultStateData> {
 }
 
 pub struct StateSystem<'a, P = DefaultPropData, S = DefaultStateData> {
-    stack: Vec<Box<dyn State<P, S> + 'a>>,
-    prop: P
+    stack: Vec<Box<dyn State<P, S> + 'a>>
 }
 
 impl<'a, P, S> StateSystem<'a, P, S> {
     #[inline]
-    pub fn new(inital_state: Box<dyn State<P, S> + 'a>, prop: P) -> Self {
-        Self::with_capacity(1, inital_state, prop)
+    pub fn new(inital_state: Box<dyn State<P, S> + 'a>, system_prop: &P) -> Self {
+        Self::with_capacity(1, inital_state, system_prop)
     }
 
     pub fn with_capacity(
         capacity: usize,
         mut inital_state: Box<dyn State<P, S> + 'a>,
-        prop: P
+        system_prop: &P
     ) -> Self {
         let mut stack = Vec::with_capacity(capacity);
 
-        inital_state.load(&prop);
+        inital_state.load(&system_prop);
         stack.push(inital_state);
 
-        Self { stack, prop }
+        Self { stack }
     }
 
-    pub const fn prop(&self) -> &P {
-        &self.prop
-    }
-
-    pub fn run(&mut self, system_state: &mut S) {
+    pub fn run(&mut self, system_prop: &P, system_state: &mut S) {
         if let Some(state) = self.stack.last_mut() {
-            match state.update(&self.prop, system_state) {
+            match state.update(system_prop, system_state) {
                 StateStatus::Poll => {}
 
                 StateStatus::PushState(mut next_state) => {
-                    next_state.load(&self.prop);
+                    next_state.load(system_prop);
                     self.stack.push(next_state);
                 }
 
                 StateStatus::TransitionState(mut next_state) => {
-                    self.stack.pop().unwrap().unload(&self.prop);
-                    next_state.load(&self.prop);
+                    self.stack.pop().unwrap().unload(system_prop);
+                    next_state.load(system_prop);
                     self.stack.push(next_state);
                 }
 
                 StateStatus::PopState => {
-                    self.stack.pop().unwrap().unload(&self.prop);
+                    self.stack.pop().unwrap().unload(system_prop);
                 }
 
                 StateStatus::Exit => {
                     for mut state in self.stack.drain(..) {
-                        state.unload(&self.prop);
+                        state.unload(system_prop);
                     }
                 }
             }
@@ -124,11 +119,11 @@ mod tests {
             }
         }
 
-        let mut system = StateSystem::new(Box::new(SampleA { num: 1 }), ());
+        let mut system = StateSystem::new(Box::new(SampleA { num: 1 }), &());
 
         let mut counter = 0;
         while !system.finished() {
-            system.run(&mut ());
+            system.run(&(), &mut ());
             counter += 1;
         }
 

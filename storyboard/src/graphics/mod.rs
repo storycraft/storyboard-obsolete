@@ -31,7 +31,10 @@ use self::{
     texture::TextureData,
 };
 
+#[derive(Debug, Clone, Copy)]
 pub struct PixelUnit;
+
+#[derive(Debug, Clone, Copy)]
 pub struct WgpuUnit;
 
 pub struct StoryboardProjector {

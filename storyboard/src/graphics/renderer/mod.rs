@@ -15,10 +15,7 @@ use wgpu::{
     TextureUsages, TextureViewDescriptor,
 };
 
-use self::{
-    box2d::{init_box_pipeline, init_box_pipeline_layout, init_box_shader},
-    primitive::{init_primitive_pipeline, init_primitive_pipeline_layout, init_primitive_shader},
-};
+use self::{box2d::{init_box_pipeline, init_box_pipeline_layout, init_box_shader}, path::{init_path_pipeline, init_path_pipeline_layout, init_path_shader}, primitive::{init_primitive_pipeline, init_primitive_pipeline_layout, init_primitive_shader}};
 
 use super::{buffer::index::IndexBuffer, context::{DrawContext, RenderContext}, pass::StoryboardRenderPass, texture::{TextureData, create_texture_bind_group}};
 
@@ -94,6 +91,7 @@ pub struct RenderData {
 
     pub primitive_pipeline: RenderPipeline,
     pub box_pipeline: RenderPipeline,
+    pub path_pipeline: RenderPipeline,
 }
 
 impl RenderData {
@@ -106,10 +104,12 @@ impl RenderData {
     ) -> Self {
         let primitive_shader = init_primitive_shader(device);
         let box_shader = init_box_shader(device);
+        let path_shader = init_path_shader(device);
 
         let primitive_pipeline_layout =
             init_primitive_pipeline_layout(device, texture_data.bind_group_layout());
         let box_pipeline_layout = init_box_pipeline_layout(device, texture_data.bind_group_layout());
+        let path_pipeline_layout = init_path_pipeline_layout(device);
 
         let primitive_pipeline = init_primitive_pipeline(
             device,
@@ -122,6 +122,13 @@ impl RenderData {
             device,
             &box_pipeline_layout,
             &box_shader,
+            fragment_targets,
+            depth_stencil.clone(),
+        );
+        let path_pipeline = init_path_pipeline(
+            device,
+            &path_pipeline_layout,
+            &path_shader,
             fragment_targets,
             depth_stencil,
         );
@@ -161,6 +168,7 @@ impl RenderData {
 
             primitive_pipeline,
             box_pipeline,
+            path_pipeline
         }
     }
 }
