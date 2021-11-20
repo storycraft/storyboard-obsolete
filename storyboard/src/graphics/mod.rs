@@ -13,6 +13,9 @@ pub mod renderer;
 pub mod surface;
 pub mod texture;
 
+pub use wgpu;
+pub use lyon;
+
 use std::sync::Arc;
 
 use wgpu::{

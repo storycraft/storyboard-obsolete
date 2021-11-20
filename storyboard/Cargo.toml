@@ -9,10 +9,14 @@ license = "MIT"
 winit = "0.25.0"
 wgpu = "0.11.0"
 euclid = "0.22.6"
-raw-window-handle = "0.3.3"
+raw-window-handle = "0.4.1"
 bytemuck = { version = "1.7.2", features = [ "derive" ] }
 palette = { version = "0.6.0", features = [ "bytemuck" ] }
 rustc-hash = "1.1.0"
 dynstack = "0.4.0"
 ringbuffer = "0.8.2"
 ring-channel = "0.9.0"
+
+rodio = "0.14.0"
+
+lyon = "0.17.5"

@@ -16,7 +16,7 @@ use storyboard::{
     ringbuffer::RingBufferRead,
     state::StateStatus,
     thread::render::{RenderOperation, RenderQueue},
-    wgpu::{Color, LoadOp, Operations, PresentMode},
+    graphics::wgpu::{Color, LoadOp, Operations, PresentMode},
     window::{
         dpi::PhysicalSize,
         event::{DeviceEvent, Event},
@@ -91,7 +91,7 @@ impl StoryboardState for VisualTestMainState {
 
     fn load(&mut self, prop: &StoryboardSystemProp) {
         println!("Loaded!");
-        prop.window.set_cursor_grab(true).unwrap();
+        // prop.window.set_cursor_grab(true).unwrap();
         prop.window.set_cursor_visible(false);
     }
 

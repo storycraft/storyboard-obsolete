@@ -4,9 +4,11 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
+pub mod animation;
 pub mod component;
 pub mod graphics;
 pub mod id_gen;
+pub mod input;
 pub mod observable;
 pub mod state;
 pub mod store;
@@ -24,7 +26,6 @@ use math::{Point2D, Rect, Size2D};
 pub use palette as color;
 pub use ringbuffer;
 use thread::render::{RenderConfiguration, RenderQueue, RenderThread};
-pub use wgpu;
 pub use winit as window;
 
 use wgpu::{
