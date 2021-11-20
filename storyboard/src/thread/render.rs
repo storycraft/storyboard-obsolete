@@ -9,7 +9,7 @@ use std::{
     iter,
     num::NonZeroUsize,
     sync::{
-        atomic::{AtomicBool, AtomicU64, Ordering},
+        atomic::{AtomicU64, Ordering},
         Arc, RwLock, RwLockReadGuard, RwLockWriteGuard,
     },
     thread::{self, JoinHandle},
@@ -40,16 +40,13 @@ use crate::{
 };
 
 pub struct RenderThread {
-    handle: JoinHandle<Surface>,
-
-    interrupt: Arc<AtomicBool>,
-    interrupted: bool,
+    handle: Option<JoinHandle<Surface>>,
 
     fps_sample: Arc<AtomicU64>,
 
     configuration: Arc<RwLock<Observable<RenderConfiguration>>>,
 
-    sender: RingSender<RenderQueue>,
+    sender: Option<RingSender<RenderQueue>>,
 }
 
 impl RenderThread {
@@ -61,9 +58,6 @@ impl RenderThread {
         texture_data: Arc<TextureData>,
         configuration: RenderConfiguration,
     ) -> Self {
-        let interrupt = Arc::new(AtomicBool::new(false));
-        let render_interrupt = interrupt.clone();
-
         let configuration = Arc::new(RwLock::new(Observable::new(configuration)));
         let render_configuration = configuration.clone();
 
@@ -87,37 +81,31 @@ impl RenderThread {
                 configuration: render_configuration,
             };
 
-            while !render_interrupt.load(Ordering::Relaxed) {
-                if let Ok(render_queue) = receiver.recv() {
-                    let instant = Instant::now();
+            while let Ok(render_queue) = receiver.recv() {
+                let instant = Instant::now();
 
-                    processor.process(render_queue);
+                processor.process(render_queue);
 
-                    render_fps_sample
-                        .store(instant.elapsed().as_micros() as u64, Ordering::Relaxed);
-                }
+                render_fps_sample.store(instant.elapsed().as_micros() as u64, Ordering::Relaxed);
             }
 
             processor.inner()
         });
 
         Self {
-            handle,
-
-            interrupt,
-            interrupted: false,
+            handle: Some(handle),
 
             fps_sample,
 
             configuration,
 
-            sender,
+            sender: Some(sender),
         }
     }
 
     pub fn submit_queue(&mut self, queue: RenderQueue) -> bool {
-        if !self.interrupted {
-            self.sender.send(queue).is_ok()
+        if let Some(sender) = &mut self.sender {
+            sender.send(queue).is_ok()
         } else {
             false
         }
@@ -136,16 +124,19 @@ impl RenderThread {
     }
 
     pub fn interrupt(&mut self) {
-        self.interrupted = true;
-        self.interrupt.store(true, Ordering::Relaxed);
+        self.sender.take();
     }
 
     pub const fn interrupted(&self) -> bool {
-        self.interrupted
+        self.sender.is_none()
     }
 
-    pub fn join(self) -> Result<Surface, Box<dyn Any + Send + 'static>> {
-        self.handle.join()
+    pub fn join(&mut self) -> Option<Result<Surface, Box<dyn Any + Send + 'static>>> {
+        if let Some(handle) = self.handle.take() {
+            Some(handle.join())
+        } else {
+            None
+        }
     }
 }
 
@@ -153,11 +144,16 @@ impl Debug for RenderThread {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("RenderThread")
             .field("handle", &self.handle)
-            .field("interrupt", &self.interrupt)
-            .field("interrupted", &self.interrupted)
             .field("fps_sample", &self.fps_sample)
             .field("configuration", &self.configuration)
             .finish()
+    }
+}
+
+impl Drop for RenderThread {
+    fn drop(&mut self) {
+        self.interrupt();
+        self.join();
     }
 }
 
