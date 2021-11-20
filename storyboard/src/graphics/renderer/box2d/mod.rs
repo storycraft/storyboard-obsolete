@@ -8,7 +8,7 @@ use std::borrow::Cow;
 
 use bytemuck::{Pod, Zeroable};
 use euclid::{SideOffsets2D, Size2D};
-use palette::Srgba;
+use palette::LinSrgba;
 use wgpu::{
     vertex_attr_array, BindGroupLayout, BufferAddress, ColorTargetState, DepthStencilState, Device,
     FragmentState, MultisampleState, PipelineLayout, PipelineLayoutDescriptor, PrimitiveState,
@@ -31,8 +31,8 @@ pub struct Box2DPipelineData {
 #[repr(C)]
 pub struct BoxVertex {
     pub position: [f32; 3],
-    pub fill_color: Srgba<f32>,
-    pub border_color: Srgba<f32>,
+    pub fill_color: LinSrgba<f32>,
+    pub border_color: LinSrgba<f32>,
     pub tex_coord: [f32; 2],
     pub rect_coord: [f32; 2],
 }

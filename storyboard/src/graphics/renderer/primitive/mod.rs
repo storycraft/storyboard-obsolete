@@ -8,7 +8,7 @@ use std::borrow::Cow;
 
 use bytemuck::{Pod, Zeroable};
 use euclid::Size2D;
-use palette::{Mix, Srgba};
+use palette::{Mix, LinSrgba};
 use wgpu::{
     vertex_attr_array, BindGroupLayout, ColorTargetState, DepthStencilState, Device, FragmentState,
     MultisampleState, PipelineLayout, PipelineLayoutDescriptor, PrimitiveState, PrimitiveTopology,
@@ -25,7 +25,7 @@ use crate::{
 #[repr(C)]
 pub struct PrimitiveVertex {
     pub position: [f32; 3],
-    pub color: Srgba<f32>,
+    pub color: LinSrgba<f32>,
     pub texure_coord: [f32; 2],
 }
 
