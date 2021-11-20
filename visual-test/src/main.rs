@@ -84,16 +84,20 @@ impl StoryboardState for VisualTestMainState {
 
         system_state.submit_render_queue(render_queue);
 
-        println!("Update: {}, FPS: {}", 1000000.0 / system_state.elapsed.as_micros() as f64, system_state.render_thread().fps());
+        // println!("Update: {}, FPS: {}", 1000000.0 / system_state.elapsed.as_micros() as f64, system_state.render_thread().fps());
 
         StateStatus::Poll
     }
 
-    fn load(&mut self, _: &StoryboardSystemProp) {
+    fn load(&mut self, prop: &StoryboardSystemProp) {
         println!("Loaded!");
+        prop.window.set_cursor_grab(true).unwrap();
+        prop.window.set_cursor_visible(false);
     }
 
-    fn unload(&mut self, _: &StoryboardSystemProp) {
+    fn unload(&mut self, prop: &StoryboardSystemProp) {
         println!("Unloaded!");
+        prop.window.set_cursor_grab(false).unwrap();
+        prop.window.set_cursor_visible(true);
     }
 }

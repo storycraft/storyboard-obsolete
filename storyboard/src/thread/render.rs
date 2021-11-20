@@ -7,6 +7,7 @@
 use std::{
     any::Any,
     iter,
+    num::NonZeroUsize,
     sync::{
         atomic::{AtomicBool, AtomicU64, Ordering},
         Arc, RwLock, RwLockReadGuard, RwLockWriteGuard,
@@ -18,14 +19,15 @@ use std::{
 use std::fmt::Debug;
 
 use euclid::Size2D;
-use ringbuf::{Producer, RingBuffer};
+use ring_channel::{ring_channel, RingSender};
 use wgpu::{
     BufferUsages, Color, CommandEncoderDescriptor, Operations, PresentMode,
     RenderPassColorAttachment, RenderPassDescriptor, Surface, SurfaceConfiguration, TextureFormat,
     TextureUsages, TextureView, TextureViewDescriptor,
 };
 
-use crate::{graphics::{
+use crate::{
+    graphics::{
         backend::StoryboardBackend,
         buffer::stream::StreamBufferAllocator,
         context::DrawContext,
@@ -33,7 +35,9 @@ use crate::{graphics::{
         renderer::{RenderData, StoryboardRenderer},
         texture::TextureData,
         PixelUnit,
-    }, observable::Observable};
+    },
+    observable::Observable,
+};
 
 pub struct RenderThread {
     handle: JoinHandle<Surface>,
@@ -45,7 +49,7 @@ pub struct RenderThread {
 
     configuration: Arc<RwLock<Observable<RenderConfiguration>>>,
 
-    producer: Producer<RenderQueue>,
+    sender: RingSender<RenderQueue>,
 }
 
 impl RenderThread {
@@ -66,7 +70,7 @@ impl RenderThread {
         let fps_sample = Arc::new(AtomicU64::new(0));
         let render_fps_sample = fps_sample.clone();
 
-        let (producer, mut consumer) = RingBuffer::<RenderQueue>::new(2).split();
+        let (sender, mut receiver) = ring_channel(NonZeroUsize::new(1).unwrap());
 
         let handle = thread::spawn(move || {
             let render_fps_sample = render_fps_sample;
@@ -84,14 +88,13 @@ impl RenderThread {
             };
 
             while !render_interrupt.load(Ordering::Relaxed) {
-                if let Some(render_queue) = consumer.pop() {
+                if let Ok(render_queue) = receiver.recv() {
                     let instant = Instant::now();
 
                     processor.process(render_queue);
 
-                    render_fps_sample.store(instant.elapsed().as_micros() as u64, Ordering::Relaxed);
-                } else {
-                    thread::yield_now();
+                    render_fps_sample
+                        .store(instant.elapsed().as_micros() as u64, Ordering::Relaxed);
                 }
             }
 
@@ -108,12 +111,16 @@ impl RenderThread {
 
             configuration,
 
-            producer,
+            sender,
         }
     }
 
     pub fn submit_queue(&mut self, queue: RenderQueue) -> bool {
-        self.producer.push(queue).is_ok()
+        if !self.interrupted {
+            self.sender.send(queue).is_ok()
+        } else {
+            false
+        }
     }
 
     pub fn configuration(&self) -> RwLockReadGuard<Observable<RenderConfiguration>> {
