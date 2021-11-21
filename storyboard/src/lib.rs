@@ -44,7 +44,7 @@ use ringbuffer::{ConstGenericRingBuffer, RingBufferWrite};
 
 use state::{State, StateStatus, StateSystem};
 use window::{
-    event::Event,
+    event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     window::{Window, WindowBuilder},
 };
@@ -143,7 +143,7 @@ impl Storyboard {
         let mut system_state = StoryboardSystemState {
             events: ConstGenericRingBuffer::new(),
             screen: DrawSpace::new_screen(Rect::new(
-                Point2D::zero(),
+                Point2D::new(0.0, 0.0),
                 Size2D::new(win_size.width as f32, win_size.height as f32),
             )),
             elapsed: Duration::ZERO,
@@ -163,13 +163,35 @@ impl Storyboard {
             }
 
             if let Some(event) = event.to_static() {
-                system_state.events.push(event);
+                match &event {
+                    Event::WindowEvent {
+                        window_id: _,
+                        event,
+                    } => {
+                        if let WindowEvent::Resized(size) = event {
+                            system_state.screen = DrawSpace::new_screen(Rect::new(
+                                Point2D::new(0.0, 0.0),
+                                Size2D::new(size.width as f32, size.height as f32),
+                            ));
+
+                            system_state
+                                .render_thread
+                                .resize_surface(Size2D::new(size.width, size.height));
+                        }
+                    }
+
+                    Event::MainEventsCleared => {
+                        state_system.run(&system_prop, &mut system_state);
+                        system_state.elapsed = instant.elapsed();
+                    }
+
+                    _ => {
+                        system_state.events.push(event);
+                    }
+                }
             }
 
-            state_system.run(&system_prop, &mut system_state);
-
             *control_flow = ControlFlow::Poll;
-            system_state.elapsed = instant.elapsed();
         })
     }
 }
@@ -186,6 +208,7 @@ pub trait StoryboardState: State<StoryboardSystemProp, StoryboardSystemState> {
 }
 
 impl<T: StoryboardState> State<StoryboardSystemProp, StoryboardSystemState> for T {
+    #[inline(always)]
     fn update(
         &mut self,
         system_prop: &StoryboardSystemProp,
@@ -194,10 +217,12 @@ impl<T: StoryboardState> State<StoryboardSystemProp, StoryboardSystemState> for 
         StoryboardState::update(self, system_prop, system_state)
     }
 
+    #[inline(always)]
     fn load(&mut self, system_prop: &StoryboardSystemProp) {
         StoryboardState::load(self, system_prop)
     }
 
+    #[inline(always)]
     fn unload(&mut self, system_prop: &StoryboardSystemProp) {
         StoryboardState::unload(self, system_prop)
     }

@@ -1,5 +1,6 @@
 [package]
 name = "storyboard"
+description = "wgpu 2D rendering engine"
 version = "0.1.0"
 authors = ["storycraft <storycraft@pancake.sh>"]
 edition = "2021"
@@ -17,7 +18,4 @@ dynstack = "0.4.0"
 ringbuffer = "0.8.2"
 ring-channel = "0.9.0"
 log = "0.4"
-
-rodio = "0.14.0"
-
 lyon = "0.17.5"

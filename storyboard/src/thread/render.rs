@@ -4,17 +4,7 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
-use std::{
-    any::Any,
-    iter,
-    num::NonZeroUsize,
-    sync::{
-        atomic::{AtomicU64, Ordering},
-        Arc, RwLock, RwLockReadGuard, RwLockWriteGuard,
-    },
-    thread::{self, JoinHandle},
-    time::Instant,
-};
+use std::{any::Any, cell::Cell, iter, num::NonZeroUsize, sync::{Arc, Mutex, atomic::{AtomicU64, Ordering}}, thread::{self, JoinHandle}, time::Instant};
 
 use std::fmt::Debug;
 
@@ -44,7 +34,8 @@ pub struct RenderThread {
 
     fps_sample: Arc<AtomicU64>,
 
-    configuration: Arc<RwLock<Observable<RenderConfiguration>>>,
+    configuration: Arc<Mutex<Observable<RenderConfiguration>>>,
+    current_present_mode: Cell<PresentMode>,
 
     sender: Option<RingSender<RenderQueue>>,
 }
@@ -58,7 +49,8 @@ impl RenderThread {
         texture_data: Arc<TextureData>,
         configuration: RenderConfiguration,
     ) -> Self {
-        let configuration = Arc::new(RwLock::new(Observable::new(configuration)));
+        let current_present_mode = Cell::new(configuration.present_mode);
+        let configuration = Arc::new(Mutex::new(Observable::new(configuration)));
         let render_configuration = configuration.clone();
 
         let fps_sample = Arc::new(AtomicU64::new(0));
@@ -98,6 +90,7 @@ impl RenderThread {
             fps_sample,
 
             configuration,
+            current_present_mode,
 
             sender: Some(sender),
         }
@@ -111,12 +104,21 @@ impl RenderThread {
         }
     }
 
-    pub fn configuration(&self) -> RwLockReadGuard<Observable<RenderConfiguration>> {
-        self.configuration.read().unwrap()
+    pub fn resize_surface(&self, size: Size2D<u32, PixelUnit>) {
+        if let Ok(mut config) = self.configuration.lock() {
+            config.inner_mut().size = size;
+        }
     }
 
-    pub fn configuration_mut(&self) -> RwLockWriteGuard<Observable<RenderConfiguration>> {
-        self.configuration.write().unwrap()
+    pub fn set_present_mode(&self, present_mode: PresentMode) {
+        if let Ok(mut config) = self.configuration.lock() {
+            config.inner_mut().present_mode = present_mode;
+            self.current_present_mode.set(present_mode);
+        }
+    }
+
+    pub fn present_mode(&self) -> PresentMode {
+        self.current_present_mode.get()
     }
 
     pub fn fps(&self) -> f64 {
@@ -168,7 +170,7 @@ pub struct SurfaceRenderProcessor {
 
     stream_allocator: StreamBufferAllocator,
 
-    configuration: Arc<RwLock<Observable<RenderConfiguration>>>,
+    configuration: Arc<Mutex<Observable<RenderConfiguration>>>,
 }
 
 impl SurfaceRenderProcessor {
@@ -209,7 +211,6 @@ impl SurfaceRenderProcessor {
                         ops: operation.operations,
                     }],
 
-                    // TODO
                     depth_stencil_attachment: None,
                 });
 
@@ -219,7 +220,7 @@ impl SurfaceRenderProcessor {
             }
 
             if let Some(mut surface_operation) = render_queue.surface_task {
-                if let Ok(mut configuration) = self.configuration.write() {
+                if let Ok(mut configuration) = self.configuration.lock() {
                     if configuration.unmark() {
                         let config = configuration.inner_ref();
                         self.surface.configure(
@@ -248,7 +249,6 @@ impl SurfaceRenderProcessor {
                             ops: surface_operation.operations,
                         }],
 
-                        // TODO
                         depth_stencil_attachment: None,
                     });
 
