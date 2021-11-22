@@ -8,8 +8,8 @@ use std::{hash::BuildHasherDefault, ops::Range};
 
 use rustc_hash::FxHashMap;
 use wgpu::{
-    BindGroup, Buffer, BufferAddress, BufferSlice, Color, DynamicOffset, IndexFormat, RenderBundle,
-    RenderPass, RenderPipeline,
+    BindGroup, Buffer, BufferAddress, BufferSlice, Color, ComputePass, ComputePipeline,
+    DynamicOffset, IndexFormat, RenderBundle, RenderPass, RenderPipeline,
 };
 
 #[derive(Debug)]
@@ -60,12 +60,15 @@ impl<'a> StoryboardRenderPass<'a> {
         let offsets_ptr = offsets.as_ptr() as usize;
 
         if let Some((current_group, current_offsets_ptr)) = self.current_bind_groups.get(&index) {
-            if std::ptr::eq(bind_group, *current_group) && offsets.as_ptr() as usize == *current_offsets_ptr {
+            if std::ptr::eq(bind_group, *current_group)
+                && offsets.as_ptr() as usize == *current_offsets_ptr
+            {
                 return;
             }
         }
 
-        self.current_bind_groups.insert(index, (bind_group, offsets_ptr));
+        self.current_bind_groups
+            .insert(index, (bind_group, offsets_ptr));
 
         self.pass.set_bind_group(index, bind_group, offsets)
     }
@@ -156,7 +159,11 @@ pub struct RenderBufferSlice<'a> {
 }
 
 impl<'a> RenderBufferSlice<'a> {
-    pub const fn new(buffer: &'a Buffer, offset: BufferAddress, size: Option<BufferAddress>) -> Self {
+    pub const fn new(
+        buffer: &'a Buffer,
+        offset: BufferAddress,
+        size: Option<BufferAddress>,
+    ) -> Self {
         Self {
             buffer,
             offset,
@@ -183,3 +190,82 @@ impl<'a> PartialEq for RenderBufferSlice<'a> {
 }
 
 impl<'a> Eq for RenderBufferSlice<'a> {}
+
+#[derive(Debug)]
+pub struct StoryboardComputePass<'a> {
+    pass: ComputePass<'a>,
+
+    current_bind_groups: FxHashMap<u32, (&'a BindGroup, usize)>,
+
+    current_pipeline: Option<&'a ComputePipeline>,
+}
+
+impl<'a> StoryboardComputePass<'a> {
+    pub fn new(pass: ComputePass<'a>) -> Self {
+        Self {
+            pass,
+
+            current_pipeline: None,
+
+            current_bind_groups: FxHashMap::with_capacity_and_hasher(
+                16,
+                BuildHasherDefault::default(),
+            ),
+        }
+    }
+
+    pub fn set_pipeline(&mut self, pipeline: &'a ComputePipeline) {
+        if let Some(current_pipeline) = &self.current_pipeline {
+            if std::ptr::eq(*current_pipeline, pipeline) {
+                return;
+            }
+        }
+
+        self.current_pipeline = Some(pipeline.clone());
+
+        self.reset_pipeline_desc();
+
+        self.pass.set_pipeline(pipeline)
+    }
+
+    pub fn set_bind_group(
+        &mut self,
+        index: u32,
+        bind_group: &'a BindGroup,
+        offsets: &[DynamicOffset],
+    ) {
+        let offsets_ptr = offsets.as_ptr() as usize;
+
+        if let Some((current_group, current_offsets_ptr)) = self.current_bind_groups.get(&index) {
+            if std::ptr::eq(bind_group, *current_group)
+                && offsets.as_ptr() as usize == *current_offsets_ptr
+            {
+                return;
+            }
+        }
+
+        self.current_bind_groups
+            .insert(index, (bind_group, offsets_ptr));
+
+        self.pass.set_bind_group(index, bind_group, offsets)
+    }
+
+    #[inline]
+    pub fn dispatch(&mut self, x: u32, y: u32, z: u32) {
+        self.pass.dispatch(x, y, z)
+    }
+
+    #[inline]
+    pub fn dispatch_indirect(&mut self, indirect_buffer: &'a Buffer, indirect_offset: BufferAddress) {
+        self.pass.dispatch_indirect(indirect_buffer, indirect_offset)
+    }
+
+    #[inline]
+    fn reset_pipeline_desc(&mut self) {
+        self.current_bind_groups.clear();
+    }
+
+    pub fn into_inner(self) -> ComputePass<'a> {
+        self.pass
+    }
+}

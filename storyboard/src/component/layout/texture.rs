@@ -4,11 +4,17 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
-use std::marker::PhantomData;
+use std::{marker::PhantomData, sync::Arc};
 
 use euclid::{Point2D, Rect, Size2D, Transform3D};
 
-use crate::{component::{DrawSpace, extent::{Extent2D, ExtentStandard, ExtentUnit}}, graphics::{PixelUnit, WgpuUnit}};
+use crate::{component::{DrawSpace, extent::{Extent2D, ExtentStandard, ExtentUnit}}, graphics::{PixelUnit, WgpuUnit, texture::Texture2D}};
+
+#[derive(Debug, Clone)]
+pub struct ComponentTexture {
+    pub texture: Arc<Texture2D>,
+    pub layout: TextureLayout
+}
 
 #[derive(Debug, Clone, Copy)]
 pub enum TextureLayout {

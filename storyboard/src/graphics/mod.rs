@@ -12,6 +12,7 @@ pub mod pass;
 pub mod renderer;
 pub mod surface;
 pub mod texture;
+pub mod computer;
 
 pub use wgpu;
 pub use lyon;

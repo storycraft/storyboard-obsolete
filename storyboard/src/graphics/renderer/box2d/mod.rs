@@ -18,14 +18,8 @@ use wgpu::{
 
 use crate::{
     component::{color::ShapeColor, layout::texture::TextureLayout, DrawBox},
-    graphics::{buffer::index::IndexBuffer, PixelUnit},
+    graphics::PixelUnit,
 };
-
-#[derive(Debug)]
-pub struct Box2DPipelineData {
-    pub pipeline: RenderPipeline,
-    pub quad_index_buffer: IndexBuffer,
-}
 
 #[derive(Debug, Clone, Copy, Pod, Zeroable)]
 #[repr(C)]

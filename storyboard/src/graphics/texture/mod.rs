@@ -67,6 +67,21 @@ impl TextureData {
     ) -> Texture2D {
         Texture2D::init(device, &self.bind_group_layout, format, size, &self.sampler)
     }
+
+    pub fn create_texture_data(
+        &self,
+        device: &Device,
+        queue: &Queue,
+        format: TextureFormat,
+        size: Size2D<u32, PixelUnit>,
+        data: &[u8],
+    ) -> Texture2D {
+        let texture = self.create_texture(device, format, size);
+
+        texture.write(queue, None, data);
+
+        texture
+    }
 }
 
 #[derive(Debug)]

@@ -21,11 +21,11 @@ use crate::graphics::{
 };
 
 #[derive(Debug, Clone)]
-pub struct PathBuilder {
+pub struct PathVertexBuilder {
     pub color: LinSrgba<f32>,
 }
 
-impl FillVertexConstructor<PathVertex> for PathBuilder {
+impl FillVertexConstructor<PathVertex> for PathVertexBuilder {
     fn new_vertex(&mut self, vertex: FillVertex) -> PathVertex {
         let pos = vertex.position().to_array();
         PathVertex {
@@ -35,7 +35,7 @@ impl FillVertexConstructor<PathVertex> for PathBuilder {
     }
 }
 
-impl StrokeVertexConstructor<PathVertex> for PathBuilder {
+impl StrokeVertexConstructor<PathVertex> for PathVertexBuilder {
     fn new_vertex(&mut self, vertex: StrokeVertex) -> PathVertex {
         let pos = vertex.position().to_array();
 

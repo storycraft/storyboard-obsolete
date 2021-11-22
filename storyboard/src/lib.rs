@@ -158,6 +158,7 @@ impl Storyboard {
 
             if state_system.finished() {
                 system_state.render_thread.interrupt();
+                system_state.render_thread.join();
                 *control_flow = ControlFlow::Exit;
                 return;
             }
@@ -166,28 +167,26 @@ impl Storyboard {
                 match &event {
                     Event::WindowEvent {
                         window_id: _,
-                        event,
+                        event: WindowEvent::Resized(size),
                     } => {
-                        if let WindowEvent::Resized(size) = event {
-                            system_state.screen = DrawSpace::new_screen(Rect::new(
-                                Point2D::new(0.0, 0.0),
-                                Size2D::new(size.width as f32, size.height as f32),
-                            ));
+                        system_state.screen = DrawSpace::new_screen(Rect::new(
+                            Point2D::new(0.0, 0.0),
+                            Size2D::new(size.width as f32, size.height as f32),
+                        ));
 
-                            system_state
-                                .render_thread
-                                .resize_surface(Size2D::new(size.width, size.height));
-                        }
+                        system_state
+                            .render_thread
+                            .resize_surface(Size2D::new(size.width, size.height));
                     }
 
-                    Event::MainEventsCleared => {
-                        state_system.run(&system_prop, &mut system_state);
-                        system_state.elapsed = instant.elapsed();
-                    }
+                    _ => {}
+                }
 
-                    _ => {
-                        system_state.events.push(event);
-                    }
+                if let Event::MainEventsCleared = event {
+                    state_system.run(&system_prop, &mut system_state);
+                    system_state.elapsed = instant.elapsed();
+                } else {
+                    system_state.events.push(event);
                 }
             }
 
@@ -259,8 +258,25 @@ pub struct GraphicsData {
 }
 
 impl GraphicsData {
+    #[inline]
     pub fn create_texture(&self, format: TextureFormat, size: Size2D<u32, PixelUnit>) -> Texture2D {
         self.texture_data
             .create_texture(self.backend.device(), format, size)
+    }
+
+    #[inline]
+    pub fn create_texture_data(
+        &self,
+        format: TextureFormat,
+        size: Size2D<u32, PixelUnit>,
+        data: &[u8],
+    ) -> Texture2D {
+        self.texture_data.create_texture_data(
+            self.backend.device(),
+            self.backend.queue(),
+            format,
+            size,
+            data,
+        )
     }
 }

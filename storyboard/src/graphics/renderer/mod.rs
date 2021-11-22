@@ -5,8 +5,8 @@
  */
 
 pub mod box2d;
-pub mod primitive;
 pub mod path;
+pub mod primitive;
 
 use dynstack::{dyn_push, DynStack};
 use wgpu::{
@@ -15,9 +15,18 @@ use wgpu::{
     TextureUsages, TextureViewDescriptor,
 };
 
-use self::{box2d::{init_box_pipeline, init_box_pipeline_layout, init_box_shader}, path::{init_path_pipeline, init_path_pipeline_layout, init_path_shader}, primitive::{init_primitive_pipeline, init_primitive_pipeline_layout, init_primitive_shader}};
+use self::{
+    box2d::{init_box_pipeline, init_box_pipeline_layout, init_box_shader},
+    path::{init_path_pipeline, init_path_pipeline_layout, init_path_shader},
+    primitive::{init_primitive_pipeline, init_primitive_pipeline_layout, init_primitive_shader},
+};
 
-use super::{buffer::index::IndexBuffer, context::{DrawContext, RenderContext}, pass::StoryboardRenderPass, texture::{TextureData, create_texture_bind_group}};
+use super::{
+    buffer::index::IndexBuffer,
+    context::{DrawContext, RenderContext},
+    pass::StoryboardRenderPass,
+    texture::{create_texture_bind_group, TextureData},
+};
 
 pub trait DrawState: Send + Sync {
     fn prepare(
@@ -30,7 +39,11 @@ pub trait DrawState: Send + Sync {
 }
 
 pub trait RenderState: Send + Sync {
-    fn render<'r>(&'r mut self, context: &'r RenderContext<'r>, pass: &mut StoryboardRenderPass<'r>);
+    fn render<'r>(
+        &'r mut self,
+        context: &'r RenderContext<'r>,
+        pass: &mut StoryboardRenderPass<'r>,
+    );
 }
 
 pub struct StoryboardRenderer<'a> {
@@ -108,7 +121,8 @@ impl RenderData {
 
         let primitive_pipeline_layout =
             init_primitive_pipeline_layout(device, texture_data.bind_group_layout());
-        let box_pipeline_layout = init_box_pipeline_layout(device, texture_data.bind_group_layout());
+        let box_pipeline_layout =
+            init_box_pipeline_layout(device, texture_data.bind_group_layout());
         let path_pipeline_layout = init_path_pipeline_layout(device);
 
         let primitive_pipeline = init_primitive_pipeline(
@@ -168,7 +182,7 @@ impl RenderData {
 
             primitive_pipeline,
             box_pipeline,
-            path_pipeline
+            path_pipeline,
         }
     }
 }

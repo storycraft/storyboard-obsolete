@@ -3,5 +3,6 @@ resolver = "2"
 
 members = [
     "storyboard",
-    "visual-test"
+    "visual-test",
+    "compute-test"
 ]

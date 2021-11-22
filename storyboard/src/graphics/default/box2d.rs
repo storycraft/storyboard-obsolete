@@ -4,16 +4,24 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
+use std::sync::Arc;
+
 use euclid::Size2D;
 use wgpu::CommandEncoder;
 
 use crate::{
-    component::{color::ShapeColor, extent::ExtentUnit, layout::texture::TextureLayout, DrawBox},
+    component::{
+        color::ShapeColor,
+        extent::ExtentUnit,
+        layout::texture::{ComponentTexture, TextureLayout},
+        DrawBox,
+    },
     graphics::{
         buffer::{index::IndexBuffer, stream::StreamSlice},
         context::{DrawContext, RenderContext},
         pass::StoryboardRenderPass,
         renderer::{box2d::draw_box2d, DrawState, RenderState, RenderStateQueue},
+        texture::Texture2D,
     },
 };
 
@@ -25,7 +33,7 @@ pub struct BoxStyle {
     pub border_thickness: f32,
     pub border_radius: ExtentUnit,
 
-    // pub texture: Option<ComponentTexture>,
+    pub texture: Option<ComponentTexture>,
 }
 
 impl Default for BoxStyle {
@@ -35,7 +43,9 @@ impl Default for BoxStyle {
             border_color: ShapeColor::default(),
 
             border_thickness: 0.0,
-            border_radius: ExtentUnit::default()
+            border_radius: ExtentUnit::default(),
+
+            texture: None,
         }
     }
 }
@@ -66,7 +76,9 @@ impl DrawState for Box2DDrawState {
                     .min(self.draw_box.rect.size.height),
             ),
             self.style.border_thickness,
-            &TextureLayout::Stretch,
+            self.style.texture.as_ref()
+                .map(|component_texture| &component_texture.layout)
+                .unwrap_or(&TextureLayout::Stretch),
             &Size2D::zero(),
         );
 
@@ -89,6 +101,8 @@ impl DrawState for Box2DDrawState {
         state_queue.push(Box2DRenderState {
             vertex_slice,
             instance_slice,
+            texture: self.style.texture.take()
+            .map(|component_texture| component_texture.texture),
         });
     }
 }
@@ -96,6 +110,7 @@ impl DrawState for Box2DDrawState {
 pub struct Box2DRenderState {
     pub vertex_slice: StreamSlice,
     pub instance_slice: StreamSlice,
+    pub texture: Option<Arc<Texture2D>>,
 }
 
 impl RenderState for Box2DRenderState {
@@ -114,7 +129,14 @@ impl RenderState for Box2DRenderState {
         );
 
         // TODO::
-        pass.set_bind_group(0, &context.render_data.empty_texture_bind_group, &[]);
+        pass.set_bind_group(
+            0,
+            self.texture
+                .as_ref()
+                .map(|texture| texture.bind_group())
+                .unwrap_or(&context.render_data.empty_texture_bind_group),
+            &[],
+        );
 
         pass.draw_indexed(0..6, 0, 0..1);
     }

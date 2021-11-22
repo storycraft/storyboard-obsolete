@@ -4,16 +4,34 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
+use std::sync::Arc;
+
 use euclid::Size2D;
 use wgpu::CommandEncoder;
 
-use crate::{component::{color::ShapeColor, layout::texture::TextureLayout, DrawBox}, graphics::{buffer::{index::IndexBuffer, stream::StreamSlice}, context::{DrawContext, RenderContext}, pass::StoryboardRenderPass, renderer::{DrawState, RenderState, RenderStateQueue, primitive::{draw_rect, draw_triangle}}}};
+use crate::{
+    component::{
+        color::ShapeColor,
+        layout::texture::{ComponentTexture, TextureLayout},
+        DrawBox,
+    },
+    graphics::{
+        buffer::{index::IndexBuffer, stream::StreamSlice},
+        context::{DrawContext, RenderContext},
+        pass::StoryboardRenderPass,
+        renderer::{
+            primitive::{draw_rect, draw_triangle},
+            DrawState, RenderState, RenderStateQueue,
+        },
+        texture::Texture2D,
+    },
+};
 
 #[derive(Debug, Clone)]
 pub struct PrimitiveStyle {
     pub fill_color: ShapeColor<4>,
     pub opacity: f32,
-    // pub texture: Option<ComponentTexture>,
+    pub texture: Option<ComponentTexture>,
 }
 
 impl Default for PrimitiveStyle {
@@ -21,6 +39,7 @@ impl Default for PrimitiveStyle {
         Self {
             fill_color: ShapeColor::default(),
             opacity: 1.0,
+            texture: None,
         }
     }
 }
@@ -42,7 +61,11 @@ impl DrawState for RectDrawState {
             &self.draw_box,
             depth,
             &self.style.fill_color,
-            &TextureLayout::Stretch,
+            self.style
+                .texture
+                .as_ref()
+                .map(|component_texture| &component_texture.layout)
+                .unwrap_or(&TextureLayout::Stretch),
             &Size2D::zero(),
         );
 
@@ -54,12 +77,22 @@ impl DrawState for RectDrawState {
             vertex_entry.finish()
         };
 
-        state_queue.push(RectRenderState { vertex_slice });
+        let texture = self
+            .style
+            .texture
+            .take()
+            .map(|component_texture| component_texture.texture);
+
+        state_queue.push(RectRenderState {
+            vertex_slice,
+            texture,
+        });
     }
 }
 
 pub struct RectRenderState {
     pub vertex_slice: StreamSlice,
+    pub texture: Option<Arc<Texture2D>>,
 }
 
 impl RenderState for RectRenderState {
@@ -76,8 +109,14 @@ impl RenderState for RectRenderState {
             IndexBuffer::FORMAT,
         );
 
-        // TODO::
-        pass.set_bind_group(0, &context.render_data.empty_texture_bind_group, &[]);
+        pass.set_bind_group(
+            0,
+            self.texture
+                .as_ref()
+                .map(|texture| texture.bind_group())
+                .unwrap_or(&context.render_data.empty_texture_bind_group),
+            &[],
+        );
 
         pass.draw_indexed(0..6, 0, 0..1);
     }
@@ -100,7 +139,11 @@ impl DrawState for TriangleDrawState {
             &self.draw_box,
             depth,
             &self.style.fill_color,
-            &TextureLayout::Stretch,
+            self.style
+                .texture
+                .as_ref()
+                .map(|component_texture| &component_texture.layout)
+                .unwrap_or(&TextureLayout::Stretch),
             &Size2D::zero(),
         );
 
@@ -112,12 +155,22 @@ impl DrawState for TriangleDrawState {
             vertex_entry.finish()
         };
 
-        state_queue.push(RectRenderState { vertex_slice });
+        let texture = self
+            .style
+            .texture
+            .take()
+            .map(|component_texture| component_texture.texture);
+
+        state_queue.push(TriangleRenderState {
+            vertex_slice,
+            texture,
+        });
     }
 }
 
 pub struct TriangleRenderState {
     pub vertex_slice: StreamSlice,
+    pub texture: Option<Arc<Texture2D>>,
 }
 
 impl RenderState for TriangleRenderState {
@@ -130,8 +183,14 @@ impl RenderState for TriangleRenderState {
 
         pass.set_vertex_buffer(0, context.stream_buffer.slice(&self.vertex_slice));
 
-        // TODO::
-        pass.set_bind_group(0, &context.render_data.empty_texture_bind_group, &[]);
+        pass.set_bind_group(
+            0,
+            self.texture
+                .as_ref()
+                .map(|texture| texture.bind_group())
+                .unwrap_or(&context.render_data.empty_texture_bind_group),
+            &[],
+        );
 
         pass.draw(0..3, 0..1);
     }
