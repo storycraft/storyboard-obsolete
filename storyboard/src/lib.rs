@@ -8,7 +8,6 @@ pub mod animation;
 pub mod component;
 pub mod graphics;
 pub mod id_gen;
-pub mod input;
 pub mod observable;
 pub mod state;
 pub mod store;
@@ -48,6 +47,8 @@ use window::{
     event_loop::{ControlFlow, EventLoop},
     window::{Window, WindowBuilder},
 };
+
+use crate::state::SystemStatus;
 
 #[derive(Debug)]
 pub struct Storyboard {
@@ -152,6 +153,7 @@ impl Storyboard {
         };
 
         let mut state_system = StateSystem::new(Box::new(state), &system_prop);
+        let mut flow = ControlFlow::Poll;
 
         self.event_loop.run(move |event, _, control_flow| {
             let instant = Instant::now();
@@ -183,14 +185,20 @@ impl Storyboard {
                 }
 
                 if let Event::MainEventsCleared = event {
-                    state_system.run(&system_prop, &mut system_state);
+                    let system_status = state_system.run(&system_prop, &mut system_state);
                     system_state.elapsed = instant.elapsed();
+
+                    flow = match system_status {
+                        SystemStatus::Poll => ControlFlow::Poll,
+                        SystemStatus::Wait => ControlFlow::Wait,
+                    };
                 } else {
                     system_state.events.push(event);
                 }
+                
+                *control_flow = flow;
             }
 
-            *control_flow = ControlFlow::Poll;
         })
     }
 }
