@@ -6,7 +6,7 @@
 
 pub mod depth;
 
-use std::num::NonZeroU32;
+use std::{num::NonZeroU32, sync::Arc};
 
 use euclid::{Rect, Size2D};
 use wgpu::{
@@ -21,6 +21,9 @@ use super::PixelUnit;
 
 #[derive(Debug)]
 pub struct TextureData {
+    device: Arc<Device>,
+    queue: Arc<Queue>,
+
     bind_group_layout: BindGroupLayout,
     sampler: Sampler,
 
@@ -28,7 +31,11 @@ pub struct TextureData {
 }
 
 impl TextureData {
-    pub fn init(device: &Device, framebuffer_texture_format: TextureFormat) -> Self {
+    pub fn init(
+        device: Arc<Device>,
+        queue: Arc<Queue>,
+        framebuffer_texture_format: TextureFormat,
+    ) -> Self {
         let bind_group_layout = create_texture2d_bind_group_layout(&device);
 
         let sampler = device.create_sampler(&SamplerDescriptor {
@@ -40,6 +47,9 @@ impl TextureData {
         });
 
         Self {
+            device,
+            queue,
+
             bind_group_layout,
             sampler,
 
@@ -61,26 +71,38 @@ impl TextureData {
 
     pub fn create_texture(
         &self,
-        device: &Device,
         format: TextureFormat,
         size: Size2D<u32, PixelUnit>,
-        sampler: Option<&Sampler>
+        sampler: Option<&Sampler>,
     ) -> Texture2D {
-        Texture2D::init(device, &self.bind_group_layout, format, size, sampler.unwrap_or(&self.sampler))
+        Texture2D::init(
+            &self.device,
+            &self.bind_group_layout,
+            format,
+            size,
+            sampler.unwrap_or(&self.sampler),
+        )
+    }
+
+    pub fn write_texture(
+        &self,
+        texture: &Texture2D,
+        rect: Option<&Rect<u32, PixelUnit>>,
+        data: &[u8],
+    ) {
+        texture.write(&self.queue, rect, data);
     }
 
     pub fn create_texture_data(
         &self,
-        device: &Device,
-        queue: &Queue,
         format: TextureFormat,
         size: Size2D<u32, PixelUnit>,
         sampler: Option<&Sampler>,
         data: &[u8],
     ) -> Texture2D {
-        let texture = self.create_texture(device, format, size, sampler);
+        let texture = self.create_texture(format, size, sampler);
 
-        texture.write(queue, None, data);
+        texture.write(&self.queue, None, data);
 
         texture
     }

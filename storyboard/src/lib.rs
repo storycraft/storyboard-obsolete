@@ -4,7 +4,6 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
-pub mod animation;
 pub mod component;
 pub mod graphics;
 pub mod id_gen;
@@ -29,14 +28,13 @@ pub use winit as window;
 
 use wgpu::{
     Backends, BlendState, ColorTargetState, ColorWrites, CompareFunction, DepthBiasState,
-    DepthStencilState, Instance, PresentMode, Sampler, StencilState, Surface, TextureFormat,
+    DepthStencilState, Instance, PresentMode, StencilState, Surface, TextureFormat,
 };
 
 use graphics::{
     backend::{BackendOptions, StoryboardBackend},
     renderer::RenderData,
-    texture::{Texture2D, TextureData},
-    PixelUnit,
+    texture::TextureData,
 };
 
 use ringbuffer::{ConstGenericRingBuffer, RingBufferWrite};
@@ -79,7 +77,11 @@ impl Storyboard {
 
         let framebuffer_format = surface.get_preferred_format(backend.adapter()).unwrap();
 
-        let texture_data = TextureData::init(backend.device(), framebuffer_format);
+        let texture_data = TextureData::init(
+            backend.device().clone(),
+            backend.queue().clone(),
+            framebuffer_format,
+        );
         let render_data = RenderData::init(
             backend.device(),
             backend.queue(),
@@ -270,33 +272,4 @@ pub struct GraphicsData {
     pub backend: Arc<StoryboardBackend>,
 }
 
-impl GraphicsData {
-    #[inline]
-    pub fn create_texture(
-        &self,
-        format: TextureFormat,
-        size: Size2D<u32, PixelUnit>,
-        sampler: Option<&Sampler>,
-    ) -> Texture2D {
-        self.texture_data
-            .create_texture(self.backend.device(), format, size, sampler)
-    }
-
-    #[inline]
-    pub fn create_texture_data(
-        &self,
-        format: TextureFormat,
-        size: Size2D<u32, PixelUnit>,
-        sampler: Option<&Sampler>,
-        data: &[u8],
-    ) -> Texture2D {
-        self.texture_data.create_texture_data(
-            self.backend.device(),
-            self.backend.queue(),
-            format,
-            size,
-            sampler,
-            data,
-        )
-    }
-}
+impl GraphicsData {}

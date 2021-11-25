@@ -4,7 +4,7 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
-use std::{error::Error, fmt::Display};
+use std::{error::Error, fmt::Display, sync::Arc};
 
 use wgpu::{
     Adapter, Device, Features, Limits, PowerPreference, Queue, RequestDeviceError, Surface,
@@ -12,8 +12,8 @@ use wgpu::{
 
 #[derive(Debug)]
 pub struct StoryboardBackend {
-    device: Device,
-    queue: Queue,
+    device: Arc<Device>,
+    queue: Arc<Queue>,
 
     features: Features,
 
@@ -55,8 +55,8 @@ impl StoryboardBackend {
             .await?;
 
         Ok(Self {
-            device,
-            queue,
+            device: Arc::new(device),
+            queue: Arc::new(queue),
 
             features,
 
@@ -72,11 +72,11 @@ impl StoryboardBackend {
         self.features
     }
 
-    pub const fn device(&self) -> &Device {
+    pub const fn device(&self) -> &Arc<Device> {
         &self.device
     }
 
-    pub const fn queue(&self) -> &Queue {
+    pub const fn queue(&self) -> &Arc<Queue> {
         &self.queue
     }
 }

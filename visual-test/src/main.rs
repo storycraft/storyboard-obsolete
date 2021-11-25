@@ -113,13 +113,13 @@ impl StoryboardState for VisualTestMainState {
 
         // println!("Update: {}, FPS: {}", 1000000.0 / system_state.elapsed.as_micros() as f64, system_state.render_thread().fps());
 
-        StateStatus::Wait
+        StateStatus::Poll
     }
 
     fn load(&mut self, prop: &StoryboardSystemProp) {
         println!("Loaded!");
         prop.window.set_cursor_visible(false);
-        self.cursor_image = Some(Arc::new(prop.graphics.create_texture_data(
+        self.cursor_image = Some(Arc::new(prop.graphics.texture_data.create_texture_data(
             TextureFormat::Rgba8Unorm,
             Size2D::new(2, 2),
             None,
