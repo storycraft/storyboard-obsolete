@@ -11,7 +11,6 @@ pub mod id_gen;
 pub mod observable;
 pub mod state;
 pub mod store;
-pub mod text;
 pub mod thread;
 pub mod time_sampler;
 
@@ -30,7 +29,7 @@ pub use winit as window;
 
 use wgpu::{
     Backends, BlendState, ColorTargetState, ColorWrites, CompareFunction, DepthBiasState,
-    DepthStencilState, Instance, PresentMode, StencilState, Surface, TextureFormat,
+    DepthStencilState, Instance, PresentMode, Sampler, StencilState, Surface, TextureFormat,
 };
 
 use graphics::{
@@ -273,9 +272,14 @@ pub struct GraphicsData {
 
 impl GraphicsData {
     #[inline]
-    pub fn create_texture(&self, format: TextureFormat, size: Size2D<u32, PixelUnit>) -> Texture2D {
+    pub fn create_texture(
+        &self,
+        format: TextureFormat,
+        size: Size2D<u32, PixelUnit>,
+        sampler: Option<&Sampler>,
+    ) -> Texture2D {
         self.texture_data
-            .create_texture(self.backend.device(), format, size)
+            .create_texture(self.backend.device(), format, size, sampler)
     }
 
     #[inline]
@@ -283,6 +287,7 @@ impl GraphicsData {
         &self,
         format: TextureFormat,
         size: Size2D<u32, PixelUnit>,
+        sampler: Option<&Sampler>,
         data: &[u8],
     ) -> Texture2D {
         self.texture_data.create_texture_data(
@@ -290,6 +295,7 @@ impl GraphicsData {
             self.backend.queue(),
             format,
             size,
+            sampler,
             data,
         )
     }

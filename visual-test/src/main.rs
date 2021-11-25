@@ -122,6 +122,7 @@ impl StoryboardState for VisualTestMainState {
         self.cursor_image = Some(Arc::new(prop.graphics.create_texture_data(
             TextureFormat::Rgba8Unorm,
             Size2D::new(2, 2),
+            None,
             &[
                 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0xff, 0xff, 0x00, 0x00, 0xff, 0xff, 0xff,
                 0xff, 0xff,
