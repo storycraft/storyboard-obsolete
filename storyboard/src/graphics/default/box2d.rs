@@ -56,7 +56,7 @@ pub struct Box2DDrawState {
 }
 
 impl DrawState for Box2DDrawState {
-    fn prepare(
+    fn prepare<'a>(
         &mut self,
         ctx: &mut DrawContext,
         depth: f32,
@@ -115,8 +115,8 @@ pub struct Box2DRenderState {
 
 impl RenderState for Box2DRenderState {
     fn render<'r>(
-        &'r mut self,
-        context: &'r RenderContext<'r>,
+        &'r self,
+        context: &RenderContext<'r>,
         pass: &mut StoryboardRenderPass<'r>,
     ) {
         pass.set_pipeline(&context.render_data.box_pipeline);

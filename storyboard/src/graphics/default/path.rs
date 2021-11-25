@@ -109,7 +109,7 @@ pub struct PathRenderState {
 }
 
 impl RenderState for PathRenderState {
-    fn render<'r>(&'r mut self, context: &'r RenderContext, pass: &mut StoryboardRenderPass<'r>) {
+    fn render<'r>(&'r self, context: &RenderContext<'r>, pass: &mut StoryboardRenderPass<'r>) {
         pass.set_pipeline(&context.render_data.path_pipeline);
 
         pass.set_vertex_buffer(0, context.stream_buffer.slice(&self.vertex));

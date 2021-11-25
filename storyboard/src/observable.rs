@@ -35,7 +35,7 @@ impl<T> Observable<T> {
         self.mark();
     }
 
-    pub fn inner(self) -> T {
+    pub fn into_inner(self) -> T {
         self.inner
     }
 

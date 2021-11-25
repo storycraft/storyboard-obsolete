@@ -97,8 +97,8 @@ pub struct RectRenderState {
 
 impl RenderState for RectRenderState {
     fn render<'r>(
-        &'r mut self,
-        context: &'r RenderContext<'r>,
+        &'r self,
+        context: &RenderContext<'r>,
         pass: &mut StoryboardRenderPass<'r>,
     ) {
         pass.set_pipeline(&context.render_data.primitive_pipeline);
@@ -175,8 +175,8 @@ pub struct TriangleRenderState {
 
 impl RenderState for TriangleRenderState {
     fn render<'r>(
-        &'r mut self,
-        context: &'r RenderContext<'r>,
+        &'r self,
+        context: &RenderContext<'r>,
         pass: &mut StoryboardRenderPass<'r>,
     ) {
         pass.set_pipeline(&context.render_data.primitive_pipeline);

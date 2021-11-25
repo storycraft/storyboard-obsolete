@@ -4,16 +4,16 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
-use std::{any::Any, cell::Cell, iter, num::NonZeroUsize, sync::{Arc, Mutex, atomic::{AtomicU64, Ordering}}, thread::{self, JoinHandle}, time::Instant};
+use std::{any::Any, cell::Cell, iter, num::NonZeroUsize, sync::{Arc, LockResult, Mutex, MutexGuard, atomic::{AtomicU64, Ordering}}, thread::{self, JoinHandle}, time::Instant};
 
 use std::fmt::Debug;
 
 use euclid::Size2D;
 use ring_channel::{ring_channel, RingSender};
 use wgpu::{
-    BufferUsages, Color, CommandEncoderDescriptor, Operations, PresentMode,
-    RenderPassColorAttachment, RenderPassDescriptor, Surface, SurfaceConfiguration, TextureFormat,
-    TextureUsages, TextureView, TextureViewDescriptor,
+    BufferUsages, Color, CommandEncoderDescriptor, LoadOp, Operations, PresentMode,
+    RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor, Surface,
+    SurfaceConfiguration, TextureFormat, TextureUsages, TextureViewDescriptor,
 };
 
 use crate::{
@@ -23,21 +23,22 @@ use crate::{
         context::DrawContext,
         pass::StoryboardRenderPass,
         renderer::{RenderData, StoryboardRenderer},
-        texture::TextureData,
+        texture::{depth::DepthStencilTexture, TextureData},
         PixelUnit,
     },
     observable::Observable,
 };
 
 pub struct RenderThread {
-    handle: Option<JoinHandle<Surface>>,
+    handle: Option<JoinHandle<()>>,
 
     fps_sample: Arc<AtomicU64>,
 
-    configuration: Arc<Mutex<Observable<RenderConfiguration>>>,
+    projector: Option<Arc<Mutex<SurfaceProjector>>>,
+
     current_present_mode: Cell<PresentMode>,
 
-    sender: Option<RingSender<RenderQueue>>,
+    sender: Option<RingSender<RenderOperation>>,
 }
 
 impl RenderThread {
@@ -50,38 +51,35 @@ impl RenderThread {
         configuration: RenderConfiguration,
     ) -> Self {
         let current_present_mode = Cell::new(configuration.present_mode);
-        let configuration = Arc::new(Mutex::new(Observable::new(configuration)));
-        let render_configuration = configuration.clone();
 
         let fps_sample = Arc::new(AtomicU64::new(0));
         let render_fps_sample = fps_sample.clone();
 
         let (sender, mut receiver) = ring_channel(NonZeroUsize::new(1).unwrap());
 
+        let projector = Arc::new(Mutex::new(SurfaceProjector::init(
+            backend,
+            texture_data,
+            render_data,
+            surface,
+            surface_format,
+            configuration,
+        )));
+        let render_projector = projector.clone();
+
         let handle = thread::spawn(move || {
-            let render_fps_sample = render_fps_sample;
+            let projector = render_projector;
+            let fps_sample = render_fps_sample;
 
-            let mut processor = SurfaceRenderProcessor {
-                backend,
-                texture_data,
-                render_data,
-                surface,
-                surface_format,
-                stream_allocator: StreamBufferAllocator::new(
-                    BufferUsages::INDEX | BufferUsages::VERTEX,
-                ),
-                configuration: render_configuration,
-            };
-
-            while let Ok(render_queue) = receiver.recv() {
+            while let Ok(operation) = receiver.recv() {
                 let instant = Instant::now();
 
-                processor.process(render_queue);
+                if let Ok(mut projector) = projector.lock() {
+                    projector.process(operation);
+                }
 
-                render_fps_sample.store(instant.elapsed().as_micros() as u64, Ordering::Relaxed);
+                fps_sample.store(instant.elapsed().as_micros() as u64, Ordering::Relaxed);
             }
-
-            processor.inner()
         });
 
         Self {
@@ -89,30 +87,34 @@ impl RenderThread {
 
             fps_sample,
 
-            configuration,
+            projector: Some(projector),
             current_present_mode,
 
             sender: Some(sender),
         }
     }
 
-    pub fn submit_queue(&mut self, queue: RenderQueue) -> bool {
+    pub fn submit(&mut self, operation: RenderOperation) -> bool {
         if let Some(sender) = &mut self.sender {
-            sender.send(queue).is_ok()
+            sender.send(operation).is_ok()
         } else {
             false
         }
     }
 
+    fn try_get_projector(&self) -> Option<LockResult<MutexGuard<SurfaceProjector>>> {
+        self.projector.as_ref().map(|projector| projector.lock())
+    }
+
     pub fn resize_surface(&self, size: Size2D<u32, PixelUnit>) {
-        if let Ok(mut config) = self.configuration.lock() {
-            config.inner_mut().size = size;
+        if let Some(Ok(mut projector)) = self.try_get_projector() {
+            projector.configuration_mut().size = size;
         }
     }
 
     pub fn set_present_mode(&self, present_mode: PresentMode) {
-        if let Ok(mut config) = self.configuration.lock() {
-            config.inner_mut().present_mode = present_mode;
+        if let Some(Ok(mut projector)) = self.try_get_projector() {
+            projector.configuration_mut().present_mode = present_mode;
             self.current_present_mode.set(present_mode);
         }
     }
@@ -133,11 +135,25 @@ impl RenderThread {
         self.sender.is_none()
     }
 
+    pub const fn finished(&self) -> bool {
+        self.handle.is_none()
+    }
+
     pub fn join(&mut self) -> Option<Result<Surface, Box<dyn Any + Send + 'static>>> {
-        if let Some(handle) = self.handle.take() {
-            Some(handle.join())
-        } else {
-            None
+        match self.handle.take()?.join() {
+            Ok(_) => {
+                if let Some(projector) = self.projector.take() {
+                    Some(Ok(Arc::try_unwrap(projector)
+                        .unwrap()
+                        .into_inner()
+                        .unwrap()
+                        .into_inner()))
+                } else {
+                    None
+                }
+            }
+
+            Err(err) => Some(Err(err)),
         }
     }
 }
@@ -147,7 +163,6 @@ impl Debug for RenderThread {
         f.debug_struct("RenderThread")
             .field("handle", &self.handle)
             .field("fps_sample", &self.fps_sample)
-            .field("configuration", &self.configuration)
             .finish()
     }
 }
@@ -155,11 +170,11 @@ impl Debug for RenderThread {
 impl Drop for RenderThread {
     fn drop(&mut self) {
         self.interrupt();
-        self.join();
     }
 }
 
-pub struct SurfaceRenderProcessor {
+#[derive(Debug)]
+pub struct SurfaceProjector {
     backend: Arc<StoryboardBackend>,
 
     texture_data: Arc<TextureData>,
@@ -170,104 +185,131 @@ pub struct SurfaceRenderProcessor {
 
     stream_allocator: StreamBufferAllocator,
 
-    configuration: Arc<Mutex<Observable<RenderConfiguration>>>,
+    surface_depth_stencil: DepthStencilTexture,
+
+    configuration: Observable<RenderConfiguration>,
 }
 
-impl SurfaceRenderProcessor {
-    pub fn process(&mut self, mut render_queue: RenderQueue) {
-        if !render_queue.is_empty() {
-            let mut encoder =
-                self.backend
-                    .device()
-                    .create_command_encoder(&CommandEncoderDescriptor {
-                        label: Some("RenderThread main encoder"),
-                    });
+impl SurfaceProjector {
+    pub fn init(
+        backend: Arc<StoryboardBackend>,
 
-            let mut draw_ctx = DrawContext {
-                device: self.backend.device(),
-                queue: self.backend.queue(),
-                textures: &self.texture_data,
-                stream_allocator: &mut self.stream_allocator,
-            };
+        texture_data: Arc<TextureData>,
+        render_data: Arc<RenderData>,
 
-            for (_, operation) in &mut render_queue.tasks {
-                operation.renderer.prepare(&mut draw_ctx, &mut encoder);
-            }
+        surface: Surface,
+        surface_format: TextureFormat,
 
-            if let Some(surface_operation) = &mut render_queue.surface_task {
-                surface_operation
-                    .renderer
-                    .prepare(&mut draw_ctx, &mut encoder);
-            }
+        configuration: RenderConfiguration,
+    ) -> Self {
+        let surface_depth_stencil = DepthStencilTexture::init(backend.device(), configuration.size);
 
-            let render_ctx = draw_ctx.into_render_context(&self.render_data);
+        Self {
+            backend,
 
-            for (view, mut operation) in render_queue.tasks {
-                let pass = encoder.begin_render_pass(&RenderPassDescriptor {
-                    label: Some("Storyboard RenderThread texture render pass"),
-                    color_attachments: &[RenderPassColorAttachment {
-                        view: &view,
-                        resolve_target: None,
-                        ops: operation.operations,
-                    }],
+            texture_data,
+            render_data,
 
-                    depth_stencil_attachment: None,
-                });
+            surface,
+            surface_format,
 
-                operation
-                    .renderer
-                    .render(&render_ctx, &mut StoryboardRenderPass::new(pass));
-            }
+            stream_allocator: StreamBufferAllocator::new(
+                BufferUsages::INDEX | BufferUsages::VERTEX,
+            ),
 
-            if let Some(mut surface_operation) = render_queue.surface_task {
-                if let Ok(mut configuration) = self.configuration.lock() {
-                    if configuration.unmark() {
-                        let config = configuration.inner_ref();
-                        self.surface.configure(
-                            self.backend.device(),
-                            &SurfaceConfiguration {
-                                usage: TextureUsages::RENDER_ATTACHMENT,
-                                format: self.surface_format,
-                                width: config.size.width,
-                                height: config.size.height,
-                                present_mode: config.present_mode,
-                            },
-                        );
-                    }
-                }
+            surface_depth_stencil,
 
-                if let Ok(surface_texture) = self.surface.get_current_texture() {
-                    let view = surface_texture
-                        .texture
-                        .create_view(&TextureViewDescriptor::default());
-
-                    let pass = encoder.begin_render_pass(&RenderPassDescriptor {
-                        label: Some("Storyboard RenderThread surface render pass"),
-                        color_attachments: &[RenderPassColorAttachment {
-                            view: &view,
-                            resolve_target: None,
-                            ops: surface_operation.operations,
-                        }],
-
-                        depth_stencil_attachment: None,
-                    });
-
-                    surface_operation
-                        .renderer
-                        .render(&render_ctx, &mut StoryboardRenderPass::new(pass));
-
-                    self.backend.queue().submit(iter::once(encoder.finish()));
-
-                    surface_texture.present();
-                    return;
-                }
-            }
-
-            self.backend.queue().submit(iter::once(encoder.finish()));
+            configuration: Observable::new(configuration),
         }
     }
 
-    pub fn inner(self) -> Surface {
+    pub fn configuration(&self) -> &RenderConfiguration {
+        self.configuration.inner_ref()
+    }
+
+    pub fn configuration_mut(&mut self) -> &mut RenderConfiguration {
+        self.configuration.inner_mut()
+    }
+
+    pub fn set_configuration(&mut self, configuration: RenderConfiguration) {
+        self.configuration.set(configuration);
+    }
+
+    pub fn process(&mut self, mut surface_operation: RenderOperation) {
+        let mut encoder = self
+            .backend
+            .device()
+            .create_command_encoder(&CommandEncoderDescriptor {
+                label: Some("RenderThread main encoder"),
+            });
+
+        let mut draw_ctx = DrawContext {
+            device: self.backend.device(),
+            queue: self.backend.queue(),
+            textures: &self.texture_data,
+            stream_allocator: &mut self.stream_allocator,
+        };
+
+        surface_operation
+            .renderer
+            .prepare(&mut draw_ctx, &mut encoder);
+
+        let render_ctx = draw_ctx.into_render_context(&self.render_data);
+
+        if self.configuration.unmark() {
+            let config = self.configuration.inner_ref();
+
+            self.surface.configure(
+                self.backend.device(),
+                &SurfaceConfiguration {
+                    usage: TextureUsages::RENDER_ATTACHMENT,
+                    format: self.surface_format,
+                    width: config.size.width,
+                    height: config.size.height,
+                    present_mode: config.present_mode,
+                },
+            );
+            self.surface_depth_stencil =
+                DepthStencilTexture::init(self.backend.device(), config.size);
+        }
+
+        if let Ok(surface_texture) = self.surface.get_current_texture() {
+            let view = surface_texture
+                .texture
+                .create_view(&TextureViewDescriptor::default());
+
+            let pass = encoder.begin_render_pass(&RenderPassDescriptor {
+                label: Some("Storyboard RenderThread surface render pass"),
+                color_attachments: &[RenderPassColorAttachment {
+                    view: &view,
+                    resolve_target: None,
+                    ops: surface_operation.operations,
+                }],
+
+                depth_stencil_attachment: Some(RenderPassDepthStencilAttachment {
+                    view: self.surface_depth_stencil.view(),
+                    depth_ops: Some(Operations {
+                        load: LoadOp::Clear(1.0),
+                        store: true,
+                    }),
+                    stencil_ops: Some(Operations {
+                        load: LoadOp::Clear(0),
+                        store: true,
+                    }),
+                }),
+            });
+
+            surface_operation
+                .renderer
+                .render(&render_ctx, &mut StoryboardRenderPass::new(pass));
+
+            self.backend.queue().submit(iter::once(encoder.finish()));
+
+            surface_texture.present();
+        }
+    }
+
+    pub fn into_inner(self) -> Surface {
         self.surface
     }
 }
@@ -288,32 +330,5 @@ impl Debug for RenderOperation {
         f.debug_struct("RenderOperation")
             .field("operations", &self.operations)
             .finish()
-    }
-}
-
-#[derive(Debug)]
-pub struct RenderQueue {
-    surface_task: Option<RenderOperation>,
-    tasks: Vec<(TextureView, RenderOperation)>,
-}
-
-impl RenderQueue {
-    pub const fn new() -> Self {
-        Self {
-            surface_task: None,
-            tasks: Vec::new(),
-        }
-    }
-
-    pub fn push_texture_task(&mut self, view: TextureView, operation: RenderOperation) {
-        self.tasks.push((view, operation));
-    }
-
-    pub fn set_surface_task(&mut self, operation: RenderOperation) {
-        self.surface_task = Some(operation);
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.surface_task.is_none() && self.tasks.is_empty()
     }
 }

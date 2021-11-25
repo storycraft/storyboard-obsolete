@@ -87,14 +87,14 @@ pub struct StreamBuffer<'a> {
     buffer: &'a Buffer,
 }
 
-impl StreamBuffer<'_> {
-    pub fn slice(&self, slice: &StreamSlice) -> RenderBufferSlice {
-        RenderBufferSlice::new(&self.buffer, slice.offset, Some(slice.size))
+impl<'a> StreamBuffer<'a> {
+    pub fn slice(&self, slice: &StreamSlice) -> RenderBufferSlice<'a> {
+        RenderBufferSlice::new(self.buffer, slice.offset, Some(slice.size))
     }
 
-    pub fn binding(&self, slice: &StreamSlice) -> BufferBinding {
+    pub fn binding(&self, slice: &StreamSlice) -> BufferBinding<'a> {
         BufferBinding {
-            buffer: &self.buffer,
+            buffer: self.buffer,
             offset: slice.offset,
             size: NonZeroU64::new(slice.size),
         }

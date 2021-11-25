@@ -11,6 +11,7 @@ pub mod id_gen;
 pub mod observable;
 pub mod state;
 pub mod store;
+pub mod text;
 pub mod thread;
 pub mod time_sampler;
 
@@ -24,12 +25,12 @@ pub use euclid as math;
 use math::{Point2D, Rect, Size2D};
 pub use palette as color;
 pub use ringbuffer;
-use thread::render::{RenderConfiguration, RenderQueue, RenderThread};
+use thread::render::{RenderConfiguration, RenderOperation, RenderThread};
 pub use winit as window;
 
 use wgpu::{
-    Backends, BlendState, ColorTargetState, ColorWrites, Instance, PresentMode, Surface,
-    TextureFormat,
+    Backends, BlendState, ColorTargetState, ColorWrites, CompareFunction, DepthBiasState,
+    DepthStencilState, Instance, PresentMode, StencilState, Surface, TextureFormat,
 };
 
 use graphics::{
@@ -89,7 +90,13 @@ impl Storyboard {
                 blend: Some(BlendState::ALPHA_BLENDING),
                 write_mask: ColorWrites::all(),
             }],
-            None,
+            Some(DepthStencilState {
+                format: TextureFormat::Depth24PlusStencil8,
+                depth_write_enabled: true,
+                depth_compare: CompareFunction::LessEqual,
+                stencil: StencilState::default(),
+                bias: DepthBiasState::default(),
+            }),
         );
 
         Self {
@@ -195,10 +202,9 @@ impl Storyboard {
                 } else {
                     system_state.events.push(event);
                 }
-                
+
                 *control_flow = flow;
             }
-
         })
     }
 }
@@ -249,8 +255,8 @@ pub struct StoryboardSystemState {
 }
 
 impl StoryboardSystemState {
-    pub fn submit_render_queue(&mut self, render_queue: RenderQueue) -> bool {
-        self.render_thread.submit_queue(render_queue)
+    pub fn submit_render(&mut self, operation: RenderOperation) -> bool {
+        self.render_thread.submit(operation)
     }
 
     pub const fn render_thread(&self) -> &RenderThread {

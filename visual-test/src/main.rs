@@ -7,15 +7,29 @@
 use std::sync::Arc;
 
 use futures::executor::block_on;
-use storyboard::{Storyboard, StoryboardState, StoryboardSystemProp, StoryboardSystemState, component::layout::texture::{ComponentTexture, TextureLayout}, graphics::{
+use storyboard::{
+    component::layout::texture::{ComponentTexture, TextureLayout},
+    graphics::{
         backend::BackendOptions,
         default::primitive::{PrimitiveStyle, RectDrawState},
         renderer::StoryboardRenderer,
         PixelUnit,
-    }, graphics::{
+    },
+    graphics::{
         texture::Texture2D,
         wgpu::{Color, LoadOp, Operations, PresentMode, TextureFormat},
-    }, math::{Point2D, Rect, Size2D}, ringbuffer::RingBufferRead, state::StateStatus, thread::render::{RenderOperation, RenderQueue}, window::{dpi::PhysicalSize, event::{DeviceEvent, Event, WindowEvent}, window::WindowBuilder}};
+    },
+    math::{Point2D, Rect, Size2D},
+    ringbuffer::RingBufferRead,
+    state::StateStatus,
+    thread::render::RenderOperation,
+    window::{
+        dpi::PhysicalSize,
+        event::{Event, WindowEvent},
+        window::WindowBuilder,
+    },
+    Storyboard, StoryboardState, StoryboardSystemProp, StoryboardSystemState,
+};
 
 fn main() {
     // simple_logger::SimpleLogger::new().init().unwrap();
@@ -52,14 +66,23 @@ impl StoryboardState for VisualTestMainState {
         system_state: &mut StoryboardSystemState,
     ) -> StateStatus<StoryboardSystemProp, StoryboardSystemState> {
         for event in system_state.events.drain() {
-            if let Event::WindowEvent { window_id: _, event } = event {
-                if let WindowEvent::CursorMoved { device_id: _, position, modifiers: _ } = event {
+            if let Event::WindowEvent {
+                window_id: _,
+                event,
+            } = event
+            {
+                if let WindowEvent::CursorMoved {
+                    device_id: _,
+                    position,
+                    modifiers: _,
+                } = event
+                {
                     self.cursor_position = Point2D::new(position.x as f32, position.y as f32)
+                } else if let WindowEvent::CloseRequested = event {
+                    return StateStatus::PopState;
                 }
             }
         }
-
-        let mut render_queue = RenderQueue::new();
 
         let mut renderer = StoryboardRenderer::new();
 
@@ -74,12 +97,13 @@ impl StoryboardState for VisualTestMainState {
                     }),
                 ..Default::default()
             },
-            draw_box: system_state
-                .screen
-                .inner_box(Rect::new(self.cursor_position, Size2D::new(32.0, 32.0)), None),
+            draw_box: system_state.screen.inner_box(
+                Rect::new(self.cursor_position, Size2D::new(32.0, 32.0)),
+                None,
+            ),
         });
 
-        render_queue.set_surface_task(RenderOperation {
+        system_state.submit_render(RenderOperation {
             operations: Operations {
                 load: LoadOp::Clear(Color::BLACK),
                 store: true,
@@ -87,11 +111,9 @@ impl StoryboardState for VisualTestMainState {
             renderer,
         });
 
-        system_state.submit_render_queue(render_queue);
-
         // println!("Update: {}, FPS: {}", 1000000.0 / system_state.elapsed.as_micros() as f64, system_state.render_thread().fps());
 
-        StateStatus::Poll
+        StateStatus::Wait
     }
 
     fn load(&mut self, prop: &StoryboardSystemProp) {

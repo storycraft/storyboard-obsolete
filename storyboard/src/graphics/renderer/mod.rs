@@ -40,8 +40,8 @@ pub trait DrawState: Send + Sync {
 
 pub trait RenderState: Send + Sync {
     fn render<'r>(
-        &'r mut self,
-        context: &'r RenderContext<'r>,
+        &'r self,
+        context: &RenderContext<'r>,
         pass: &mut StoryboardRenderPass<'r>,
     );
 }
@@ -75,24 +75,40 @@ impl<'a> StoryboardRenderer<'a> {
 
     pub fn render<'rpass>(
         &'rpass mut self,
-        ctx: &'rpass RenderContext<'rpass>,
+        ctx: &RenderContext<'rpass>,
         pass: &mut StoryboardRenderPass<'rpass>,
     ) {
-        for render_state in self.render_state_queue.0.iter_mut() {
+        let opaque_len = self.render_state_queue.opaque.len();
+        for i in 0..opaque_len {
+            let render_state = &self.render_state_queue.opaque[opaque_len - i];
+            render_state.render(ctx, pass);
+        }
+
+        for render_state in self.render_state_queue.normal.iter() {
             render_state.render(ctx, pass);
         }
     }
 }
 
-pub struct RenderStateQueue<'a>(DynStack<dyn RenderState + 'a>);
+pub struct RenderStateQueue<'a> {
+    opaque: DynStack<dyn RenderState + 'a>,
+    normal: DynStack<dyn RenderState + 'a>,
+}
 
 impl<'a> RenderStateQueue<'a> {
     pub fn new() -> Self {
-        Self(DynStack::new())
+        Self {
+            opaque: DynStack::new(),
+            normal: DynStack::new(),
+        }
     }
 
     pub fn push(&mut self, state: impl RenderState + 'a) {
-        dyn_push!(self.0, state);
+        dyn_push!(self.normal, state);
+    }
+
+    pub fn push_opaque(&mut self, state: impl RenderState + 'a) {
+        dyn_push!(self.opaque, state);
     }
 }
 
