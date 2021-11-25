@@ -48,6 +48,8 @@ use window::{
 
 use crate::state::SystemStatus;
 
+/// Main struct for constructing storyboard app.
+/// Prepare graphic resources for app event loop.
 #[derive(Debug)]
 pub struct Storyboard {
     event_loop: EventLoop<()>,
@@ -64,6 +66,8 @@ pub struct Storyboard {
 }
 
 impl Storyboard {
+
+    /// Initalize GPU resources for storyboard
     pub async fn init(builder: WindowBuilder, options: &BackendOptions) -> Self {
         let event_loop = EventLoop::new();
         let instance = Instance::new(Backends::all());
@@ -119,6 +123,10 @@ impl Storyboard {
         &self.window
     }
 
+    /// Initialize event loop for app
+    /// 
+    /// Start render thread and run given inital [StoryboardState].
+    /// The state system will block on event loop when it should wait.
     pub fn run(self, state: impl StoryboardState + 'static) -> ! {
         let win_size = self.window.inner_size();
 
@@ -210,6 +218,7 @@ impl Storyboard {
     }
 }
 
+/// State trait for [Storyboard] app
 pub trait StoryboardState: State<StoryboardSystemProp, StoryboardSystemState> {
     fn update(
         &mut self,
@@ -242,11 +251,19 @@ impl<T: StoryboardState> State<StoryboardSystemProp, StoryboardSystemState> for 
     }
 }
 
+/// System properties for [StoryboardState].
+/// 
+/// Contains [winit::window::Window], [GraphicsData] of app
 pub struct StoryboardSystemProp {
     pub window: Window,
     pub graphics: GraphicsData,
 }
 
+/// Mutable system state for [StoryboardState].
+/// 
+/// Contains elapsed time, events, [DrawSpace] for rendering.
+/// Events are stored in ring buffer with size 32.
+/// Submit [RenderOperation] to app [RenderThread].
 pub struct StoryboardSystemState {
     pub events: ConstGenericRingBuffer<Event<'static, ()>, 32>,
     pub screen: DrawSpace,
@@ -256,6 +273,7 @@ pub struct StoryboardSystemState {
 }
 
 impl StoryboardSystemState {
+    /// Submit new rendering operation
     pub fn submit_render(&mut self, operation: RenderOperation) -> bool {
         self.render_thread.submit(operation)
     }
@@ -265,6 +283,7 @@ impl StoryboardSystemState {
     }
 }
 
+/// Contains wgpu backend, pipeline, texture manager
 pub struct GraphicsData {
     pub render_data: Arc<RenderData>,
     pub texture_data: Arc<TextureData>,
