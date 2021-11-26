@@ -5,6 +5,7 @@
  */
 
 pub mod box2d;
+pub mod mask;
 pub mod path;
 pub mod primitive;
 
@@ -17,6 +18,7 @@ use wgpu::{
 
 use self::{
     box2d::{init_box_pipeline, init_box_pipeline_layout, init_box_shader},
+    mask::{init_mask_pipeline, init_mask_pipeline_layout, init_mask_shader},
     path::{init_path_pipeline, init_path_pipeline_layout, init_path_shader},
     primitive::{init_primitive_pipeline, init_primitive_pipeline_layout, init_primitive_shader},
 };
@@ -39,11 +41,7 @@ pub trait DrawState: Send + Sync {
 }
 
 pub trait RenderState: Send + Sync {
-    fn render<'r>(
-        &'r self,
-        context: &RenderContext<'r>,
-        pass: &mut StoryboardRenderPass<'r>,
-    );
+    fn render<'r>(&'r self, context: &RenderContext<'r>, pass: &mut StoryboardRenderPass<'r>);
 }
 
 pub struct StoryboardRenderer<'a> {
@@ -121,6 +119,7 @@ pub struct RenderData {
     pub primitive_pipeline: RenderPipeline,
     pub box_pipeline: RenderPipeline,
     pub path_pipeline: RenderPipeline,
+    pub mask_pipeline: RenderPipeline,
 }
 
 impl RenderData {
@@ -134,12 +133,15 @@ impl RenderData {
         let primitive_shader = init_primitive_shader(device);
         let box_shader = init_box_shader(device);
         let path_shader = init_path_shader(device);
+        let mask_shader = init_mask_shader(device);
 
         let primitive_pipeline_layout =
             init_primitive_pipeline_layout(device, texture_data.bind_group_layout());
         let box_pipeline_layout =
             init_box_pipeline_layout(device, texture_data.bind_group_layout());
         let path_pipeline_layout = init_path_pipeline_layout(device);
+        let mask_pipeline_layout =
+            init_mask_pipeline_layout(device, texture_data.bind_group_layout());
 
         let primitive_pipeline = init_primitive_pipeline(
             device,
@@ -159,6 +161,13 @@ impl RenderData {
             device,
             &path_pipeline_layout,
             &path_shader,
+            fragment_targets,
+            depth_stencil.clone(),
+        );
+        let mask_pipeline = init_mask_pipeline(
+            device,
+            &mask_pipeline_layout,
+            &mask_shader,
             fragment_targets,
             depth_stencil,
         );
@@ -199,6 +208,7 @@ impl RenderData {
             primitive_pipeline,
             box_pipeline,
             path_pipeline,
+            mask_pipeline,
         }
     }
 }
