@@ -6,7 +6,6 @@
 
 use std::sync::Arc;
 
-use euclid::Size2D;
 use wgpu::CommandEncoder;
 
 use crate::{
@@ -37,7 +36,7 @@ pub struct PrimitiveStyle {
 impl Default for PrimitiveStyle {
     fn default() -> Self {
         Self {
-            fill_color: ShapeColor::default(),
+            fill_color: ShapeColor::white(),
             opacity: 1.0,
             texture: None,
         }
@@ -57,16 +56,21 @@ impl DrawState for RectDrawState {
         _: &mut CommandEncoder,
         state_queue: &mut RenderStateQueue,
     ) {
+        let texture_coords = match &self.style.texture {
+            Some(component_texture) => {
+                component_texture.layout.texture_coord_quad(
+                    &self.draw_box.into_space(),
+                    component_texture.texture.size(),
+                )
+            }
+            None => TextureLayout::STRETCHED,
+        };
+
         let quad = draw_rect(
             &self.draw_box,
             depth,
             &self.style.fill_color,
-            self.style
-                .texture
-                .as_ref()
-                .map(|component_texture| &component_texture.layout)
-                .unwrap_or(&TextureLayout::Stretch),
-            &Size2D::zero(),
+            &texture_coords,
         );
 
         let vertex_slice = {
@@ -96,11 +100,7 @@ pub struct RectRenderState {
 }
 
 impl RenderState for RectRenderState {
-    fn render<'r>(
-        &'r self,
-        context: &RenderContext<'r>,
-        pass: &mut StoryboardRenderPass<'r>,
-    ) {
+    fn render<'r>(&'r self, context: &RenderContext<'r>, pass: &mut StoryboardRenderPass<'r>) {
         pass.set_pipeline(&context.render_data.primitive_pipeline);
 
         pass.set_vertex_buffer(0, context.stream_buffer.slice(&self.vertex_slice));
@@ -135,16 +135,21 @@ impl DrawState for TriangleDrawState {
         _: &mut CommandEncoder,
         state_queue: &mut RenderStateQueue,
     ) {
+        let texture_coords = match &self.style.texture {
+            Some(component_texture) => {
+                component_texture.layout.texture_coord_quad(
+                    &self.draw_box.into_space(),
+                    component_texture.texture.size(),
+                )
+            }
+            None => TextureLayout::STRETCHED,
+        };
+
         let triangle = draw_triangle(
             &self.draw_box,
             depth,
             &self.style.fill_color,
-            self.style
-                .texture
-                .as_ref()
-                .map(|component_texture| &component_texture.layout)
-                .unwrap_or(&TextureLayout::Stretch),
-            &Size2D::zero(),
+            &texture_coords,
         );
 
         let vertex_slice = {
@@ -174,11 +179,7 @@ pub struct TriangleRenderState {
 }
 
 impl RenderState for TriangleRenderState {
-    fn render<'r>(
-        &'r self,
-        context: &RenderContext<'r>,
-        pass: &mut StoryboardRenderPass<'r>,
-    ) {
+    fn render<'r>(&'r self, context: &RenderContext<'r>, pass: &mut StoryboardRenderPass<'r>) {
         pass.set_pipeline(&context.render_data.primitive_pipeline);
 
         pass.set_vertex_buffer(0, context.stream_buffer.slice(&self.vertex_slice));

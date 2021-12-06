@@ -35,7 +35,10 @@ use self::{
 pub struct PixelUnit;
 
 #[derive(Debug, Clone, Copy)]
-pub struct WgpuUnit;
+pub struct RenderUnit;
+
+#[derive(Debug, Clone, Copy)]
+pub struct TextureUnit;
 
 pub struct StoryboardProjector {
     render_data: Arc<RenderData>,

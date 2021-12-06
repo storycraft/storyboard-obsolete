@@ -7,13 +7,18 @@
 use std::borrow::Cow;
 
 use bytemuck::{Pod, Zeroable};
-use euclid::Size2D;
-use palette::{LinSrgba, Mix};
+use euclid::Point2D;
+use palette::LinSrgba;
 use wgpu::{
     vertex_attr_array, BindGroupLayout, ColorTargetState, DepthStencilState, Device, FragmentState,
     MultisampleState, PipelineLayout, PipelineLayoutDescriptor, PrimitiveState, PrimitiveTopology,
     RenderPipeline, RenderPipelineDescriptor, ShaderModule, ShaderModuleDescriptor, ShaderSource,
     VertexBufferLayout, VertexState, VertexStepMode,
+};
+
+use crate::{
+    component::{color::ShapeColor, DrawBox},
+    graphics::TextureUnit,
 };
 
 #[derive(Debug, Clone, Copy, Pod, Zeroable)]
@@ -23,6 +28,43 @@ pub struct MaskingVertex {
     pub color: LinSrgba<f32>,
     pub texure_coord: [f32; 2],
     pub mask_texure_coord: [f32; 2],
+}
+
+pub fn draw_masked_rect(
+    draw_box: &DrawBox,
+    depth: f32,
+    fill_color: &ShapeColor<4>,
+    texture_coords: &[Point2D<f32, TextureUnit>; 4],
+    masking_coords: &[Point2D<f32, TextureUnit>; 4],
+) -> [MaskingVertex; 4] {
+    let quad = draw_box.get_quad_2d(&draw_box.rect);
+
+    [
+        MaskingVertex {
+            position: quad[0].extend(depth).to_array(),
+            color: fill_color[0].into_encoding(),
+            texure_coord: texture_coords[0].to_array(),
+            mask_texure_coord: masking_coords[0].to_array(),
+        },
+        MaskingVertex {
+            position: quad[1].extend(depth).to_array(),
+            color: fill_color[1].into_encoding(),
+            texure_coord: texture_coords[1].to_array(),
+            mask_texure_coord: masking_coords[1].to_array(),
+        },
+        MaskingVertex {
+            position: quad[2].extend(depth).to_array(),
+            color: fill_color[2].into_encoding(),
+            texure_coord: texture_coords[2].to_array(),
+            mask_texure_coord: masking_coords[2].to_array(),
+        },
+        MaskingVertex {
+            position: quad[3].extend(depth).to_array(),
+            color: fill_color[3].into_encoding(),
+            texure_coord: texture_coords[3].to_array(),
+            mask_texure_coord: masking_coords[3].to_array(),
+        },
+    ]
 }
 
 pub fn init_mask_shader(device: &Device) -> ShaderModule {

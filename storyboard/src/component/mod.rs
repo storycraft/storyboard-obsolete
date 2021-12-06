@@ -13,7 +13,7 @@ use std::fmt::Debug;
 
 use euclid::{Point2D, Rect, Transform3D};
 
-use crate::graphics::{PixelUnit, WgpuUnit};
+use crate::graphics::{PixelUnit, RenderUnit};
 
 #[derive(Debug, Clone, Copy)]
 pub struct DrawBox {
@@ -21,7 +21,7 @@ pub struct DrawBox {
 
     pub rect: Rect<f32, PixelUnit>,
 
-    pub matrix: Transform3D<f32, PixelUnit, WgpuUnit>,
+    pub matrix: Transform3D<f32, PixelUnit, RenderUnit>,
 }
 
 impl DrawBox {
@@ -33,7 +33,7 @@ impl DrawBox {
         }
     }
 
-    pub fn get_quad_2d(&self, rect: &Rect<f32, PixelUnit>) -> [Point2D<f32, WgpuUnit>; 4] {
+    pub fn get_quad_2d(&self, rect: &Rect<f32, PixelUnit>) -> [Point2D<f32, RenderUnit>; 4] {
         let min_x = rect.min_x();
         let min_y = rect.min_y();
 
@@ -67,7 +67,7 @@ impl Into<DrawSpace> for DrawBox {
 pub struct DrawSpace {
     pub screen: Rect<f32, PixelUnit>,
     pub parent: Rect<f32, PixelUnit>,
-    pub matrix: Transform3D<f32, PixelUnit, WgpuUnit>,
+    pub matrix: Transform3D<f32, PixelUnit, RenderUnit>,
 }
 
 impl DrawSpace {

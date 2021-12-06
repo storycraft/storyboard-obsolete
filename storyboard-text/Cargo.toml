@@ -1,0 +1,13 @@
+[package]
+name = "storyboard-text"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+storyboard = { path = "../storyboard" }
+rect_packer = "0.2.1"
+pathfinder_geometry = "0.5.1"
+font-kit = "0.10.1"
+rustc-hash = "1.1.0"
+ringbuffer = "0.8.2"
+allsorts = "0.6.0"

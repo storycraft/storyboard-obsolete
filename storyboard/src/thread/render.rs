@@ -4,14 +4,25 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
-use std::{any::Any, cell::Cell, iter, num::NonZeroUsize, sync::{Arc, LockResult, Mutex, MutexGuard, atomic::{AtomicU64, Ordering}}, thread::{self, JoinHandle}, time::Instant};
+use std::{
+    any::Any,
+    cell::Cell,
+    iter,
+    num::NonZeroUsize,
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc, LockResult, Mutex, MutexGuard,
+    },
+    thread::{self, JoinHandle},
+    time::Instant,
+};
 
 use std::fmt::Debug;
 
 use euclid::Size2D;
 use ring_channel::{ring_channel, RingSender};
 use wgpu::{
-    BufferUsages, Color, CommandEncoderDescriptor, LoadOp, Operations, PresentMode,
+    BufferUsages, Color, CommandEncoderDescriptor, Device, LoadOp, Operations, PresentMode, Queue,
     RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor, Surface,
     SurfaceConfiguration, TextureFormat, TextureUsages, TextureViewDescriptor,
 };
@@ -43,7 +54,7 @@ pub struct RenderThread {
 
 impl RenderThread {
     pub fn run(
-        backend: Arc<StoryboardBackend>,
+        backend: &StoryboardBackend,
         surface: Surface,
         surface_format: TextureFormat,
         render_data: Arc<RenderData>,
@@ -58,7 +69,8 @@ impl RenderThread {
         let (sender, mut receiver) = ring_channel(NonZeroUsize::new(1).unwrap());
 
         let projector = Arc::new(Mutex::new(SurfaceProjector::init(
-            backend,
+            backend.device().clone(),
+            backend.queue().clone(),
             texture_data,
             render_data,
             surface,
@@ -175,7 +187,8 @@ impl Drop for RenderThread {
 
 #[derive(Debug)]
 pub struct SurfaceProjector {
-    backend: Arc<StoryboardBackend>,
+    device: Arc<Device>,
+    queue: Arc<Queue>,
 
     texture_data: Arc<TextureData>,
     render_data: Arc<RenderData>,
@@ -192,7 +205,8 @@ pub struct SurfaceProjector {
 
 impl SurfaceProjector {
     pub fn init(
-        backend: Arc<StoryboardBackend>,
+        device: Arc<Device>,
+        queue: Arc<Queue>,
 
         texture_data: Arc<TextureData>,
         render_data: Arc<RenderData>,
@@ -202,10 +216,11 @@ impl SurfaceProjector {
 
         configuration: RenderConfiguration,
     ) -> Self {
-        let surface_depth_stencil = DepthStencilTexture::init(backend.device(), configuration.size);
+        let surface_depth_stencil = DepthStencilTexture::init(&device, configuration.size);
 
         Self {
-            backend,
+            device,
+            queue,
 
             texture_data,
             render_data,
@@ -237,15 +252,14 @@ impl SurfaceProjector {
 
     pub fn process(&mut self, mut surface_operation: RenderOperation) {
         let mut encoder = self
-            .backend
-            .device()
+            .device
             .create_command_encoder(&CommandEncoderDescriptor {
                 label: Some("RenderThread main encoder"),
             });
 
         let mut draw_ctx = DrawContext {
-            device: self.backend.device(),
-            queue: self.backend.queue(),
+            device: &self.device,
+            queue: &self.queue,
             textures: &self.texture_data,
             stream_allocator: &mut self.stream_allocator,
         };
@@ -260,7 +274,7 @@ impl SurfaceProjector {
             let config = self.configuration.inner_ref();
 
             self.surface.configure(
-                self.backend.device(),
+                &self.device,
                 &SurfaceConfiguration {
                     usage: TextureUsages::RENDER_ATTACHMENT,
                     format: self.surface_format,
@@ -269,8 +283,7 @@ impl SurfaceProjector {
                     present_mode: config.present_mode,
                 },
             );
-            self.surface_depth_stencil =
-                DepthStencilTexture::init(self.backend.device(), config.size);
+            self.surface_depth_stencil = DepthStencilTexture::init(&self.device, config.size);
         }
 
         if let Ok(surface_texture) = self.surface.get_current_texture() {
@@ -303,7 +316,7 @@ impl SurfaceProjector {
                 .renderer
                 .render(&render_ctx, &mut StoryboardRenderPass::new(pass));
 
-            self.backend.queue().submit(iter::once(encoder.finish()));
+            self.queue.submit(iter::once(encoder.finish()));
 
             surface_texture.present();
         }

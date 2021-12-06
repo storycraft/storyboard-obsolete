@@ -7,8 +7,8 @@
 use std::borrow::Cow;
 
 use bytemuck::{Pod, Zeroable};
-use euclid::Size2D;
-use palette::{Mix, LinSrgba};
+use euclid::{Point2D, Size2D};
+use palette::{LinSrgba, Mix};
 use wgpu::{
     vertex_attr_array, BindGroupLayout, ColorTargetState, DepthStencilState, Device, FragmentState,
     MultisampleState, PipelineLayout, PipelineLayoutDescriptor, PrimitiveState, PrimitiveTopology,
@@ -17,8 +17,8 @@ use wgpu::{
 };
 
 use crate::{
-    component::{color::ShapeColor, layout::texture::TextureLayout, DrawBox},
-    graphics::PixelUnit,
+    component::{color::ShapeColor, DrawBox},
+    graphics::TextureUnit,
 };
 
 #[derive(Debug, Clone, Copy, Pod, Zeroable)]
@@ -33,12 +33,9 @@ pub fn draw_triangle(
     draw_box: &DrawBox,
     depth: f32,
     fill_color: &ShapeColor<4>,
-    texture_layout: &TextureLayout,
-    texture_size: &Size2D<u32, PixelUnit>,
+    texture_coords: &[Point2D<f32, TextureUnit>; 4],
 ) -> [PrimitiveVertex; 3] {
     let quad = draw_box.get_quad_2d(&draw_box.rect);
-
-    let texture_coords = texture_layout.texture_coord_quad(&draw_box.into_space(), texture_size);
 
     let top_color = {
         let left_top = fill_color[0];
@@ -74,12 +71,9 @@ pub fn draw_rect(
     draw_box: &DrawBox,
     depth: f32,
     fill_color: &ShapeColor<4>,
-    texture_layout: &TextureLayout,
-    texture_size: &Size2D<u32, PixelUnit>,
+    texture_coords: &[Point2D<f32, TextureUnit>; 4],
 ) -> [PrimitiveVertex; 4] {
     let quad = draw_box.get_quad_2d(&draw_box.rect);
-
-    let texture_coords = texture_layout.texture_coord_quad(&draw_box.into_space(), texture_size);
 
     [
         PrimitiveVertex {

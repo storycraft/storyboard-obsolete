@@ -14,9 +14,17 @@ pub enum ShapeColor<const VERTICES: usize> {
     Gradient([LinSrgba; VERTICES]),
 }
 
-impl<const VERTICES: usize> Default for ShapeColor<VERTICES> {
-    fn default() -> Self {
+impl<const VERTICES: usize> ShapeColor<VERTICES> {
+    pub fn white() -> ShapeColor<VERTICES> {
         ShapeColor::Single(named::WHITE.into_format().into_linear().into())
+    }
+
+    pub fn black() -> ShapeColor<VERTICES> {
+        ShapeColor::Single(named::BLACK.into_format().into_linear().into())
+    }
+
+    pub fn transparent() -> ShapeColor<VERTICES> {
+        ShapeColor::Single(LinSrgba::new(0.0, 0.0, 0.0, 0.0))
     }
 }
 
@@ -24,9 +32,7 @@ impl<const VERTICES: usize> ShapeColor<VERTICES> {
     pub fn partial_transparent(&self) -> bool {
         match self {
             ShapeColor::Single(color) => color.alpha < 1.0,
-            ShapeColor::Gradient(colors) => {
-                colors.iter().any(|color| color.alpha < 1.0)
-            },
+            ShapeColor::Gradient(colors) => colors.iter().any(|color| color.alpha < 1.0),
         }
     }
 }
@@ -54,7 +60,7 @@ impl<const VERTICES: usize> Index<usize> for ShapeColor<VERTICES> {
                 }
 
                 color
-            },
+            }
 
             ShapeColor::Gradient(gradient) => &gradient[index],
         }

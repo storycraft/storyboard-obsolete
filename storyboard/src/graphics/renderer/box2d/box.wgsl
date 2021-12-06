@@ -76,7 +76,7 @@ fn fs_main(in: VertexOutput) -> [[location(0)]] vec4<f32> {
         distance > in.border_radius && distance <= border_all
     );
 
-    color.w = color.w * smoothing_alpha;
+    color.a = color.a * smoothing_alpha;
 
     return color;
 }

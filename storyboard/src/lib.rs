@@ -9,7 +9,6 @@ pub mod graphics;
 pub mod id_gen;
 pub mod observable;
 pub mod state;
-pub mod store;
 pub mod thread;
 pub mod time_sampler;
 
@@ -25,6 +24,7 @@ pub use palette as color;
 pub use ringbuffer;
 use thread::render::{RenderConfiguration, RenderOperation, RenderThread};
 pub use winit as window;
+pub use bytemuck;
 
 use wgpu::{
     Backends, BlendState, ColorTargetState, ColorWrites, CompareFunction, DepthBiasState,
@@ -143,7 +143,7 @@ impl Storyboard {
         };
 
         let render_thread = RenderThread::run(
-            system_prop.graphics.backend.clone(),
+            &system_prop.graphics.backend,
             self.surface,
             system_prop
                 .graphics

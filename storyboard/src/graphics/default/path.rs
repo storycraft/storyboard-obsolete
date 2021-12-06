@@ -17,7 +17,7 @@ use crate::graphics::{
         path::{PathInstance, PathVertex},
         DrawState, RenderState, RenderStateQueue,
     },
-    PixelUnit, WgpuUnit,
+    PixelUnit, RenderUnit,
 };
 
 #[derive(Debug, Clone)]
@@ -50,7 +50,7 @@ impl StrokeVertexConstructor<PathVertex> for PathVertexBuilder {
 pub struct PathDrawState {
     pub path: VertexBuffers<PathVertex, u16>,
 
-    pub matrix: Transform3D<f32, PixelUnit, WgpuUnit>,
+    pub matrix: Transform3D<f32, PixelUnit, RenderUnit>,
 }
 
 impl DrawState for PathDrawState {

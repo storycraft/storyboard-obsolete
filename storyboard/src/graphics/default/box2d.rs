@@ -39,8 +39,8 @@ pub struct BoxStyle {
 impl Default for BoxStyle {
     fn default() -> Self {
         Self {
-            fill_color: ShapeColor::default(),
-            border_color: ShapeColor::default(),
+            fill_color: ShapeColor::white(),
+            border_color: ShapeColor::transparent(),
 
             border_thickness: 0.0,
             border_radius: ExtentUnit::default(),

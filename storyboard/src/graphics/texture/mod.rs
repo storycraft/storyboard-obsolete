@@ -8,7 +8,7 @@ pub mod depth;
 
 use std::{num::NonZeroU32, sync::Arc};
 
-use euclid::{Rect, Size2D};
+use euclid::{Point2D, Rect, Size2D};
 use wgpu::{
     AddressMode, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
     BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType, Device,
@@ -17,7 +17,9 @@ use wgpu::{
     TextureSampleType, TextureUsages, TextureView, TextureViewDescriptor, TextureViewDimension,
 };
 
-use super::PixelUnit;
+use crate::component::layout::texture::QuadTextureCoord;
+
+use super::{PixelUnit, TextureUnit};
 
 #[derive(Debug)]
 pub struct TextureData {
@@ -39,7 +41,7 @@ impl TextureData {
         let bind_group_layout = create_texture2d_bind_group_layout(&device);
 
         let sampler = device.create_sampler(&SamplerDescriptor {
-            label: Some("Texture2D sampler"),
+            label: Some("Texture2D default sampler"),
             address_mode_u: AddressMode::Repeat,
             address_mode_v: AddressMode::Repeat,
 
@@ -193,6 +195,27 @@ impl Texture2D {
         self.texture.create_view(&TextureViewDescriptor::default())
     }
 
+    pub fn to_tex_unit(&self, point: Point2D<u32, PixelUnit>) -> Point2D<f32, TextureUnit> {
+        Point2D::new(point.x as f32 / self.size.width as f32, point.y as f32 / self.size.height as f32)
+    }
+
+    pub fn to_tex_rect(&self, rect: Rect<u32, PixelUnit>) -> Rect<f32, TextureUnit> {
+        rect.cast().cast_unit().scale(1.0 / self.size.width as f32, 1.0 / self.size.height as f32)
+    }
+
+    pub fn to_tex_coords(&self, rect: Rect<u32, PixelUnit>) -> QuadTextureCoord {
+        let rect = self.to_tex_rect(rect);
+
+        let (start, end) = (rect.origin, (rect.origin + rect.size));
+
+        [
+            start,
+            Point2D::new(start.x, end.y),
+            end,
+            Point2D::new(end.x, start.y)
+        ]
+    }
+
     pub const fn as_image_copy(&self, origin: Origin3d) -> ImageCopyTexture {
         ImageCopyTexture {
             texture: &self.texture,
@@ -254,7 +277,7 @@ pub fn create_texture_bind_group(
 ) -> BindGroup {
     device.create_bind_group(&BindGroupDescriptor {
         label: Some("Texture2D bind group"),
-        layout: layout,
+        layout,
         entries: &[
             BindGroupEntry {
                 binding: 0,

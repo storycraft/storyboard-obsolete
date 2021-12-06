@@ -8,7 +8,7 @@ use std::{marker::PhantomData, sync::Arc};
 
 use euclid::{Point2D, Rect, Size2D, Transform3D};
 
-use crate::{component::{DrawSpace, extent::{Extent2D, ExtentStandard, ExtentUnit}}, graphics::{PixelUnit, WgpuUnit, texture::Texture2D}};
+use crate::{component::{DrawSpace, extent::{Extent2D, ExtentStandard, ExtentUnit}}, graphics::{PixelUnit, RenderUnit, texture::Texture2D, TextureUnit}};
 
 #[derive(Debug, Clone)]
 pub struct ComponentTexture {
@@ -49,7 +49,7 @@ impl Default for TextureCustomLayout {
     }
 }
 
-pub type QuadTextureCoord = [Point2D<f32, WgpuUnit>; 4];
+pub type QuadTextureCoord = [Point2D<f32, TextureUnit>; 4];
 
 impl TextureLayout {
     pub const STRETCHED: QuadTextureCoord = [
@@ -170,7 +170,7 @@ impl TextureLayout {
             }
         };
 
-        let matrix: Transform3D<f32, PixelUnit, WgpuUnit> = Transform3D::ortho(
+        let matrix: Transform3D<f32, PixelUnit, RenderUnit> = Transform3D::ortho(
             texture_rect.origin.x,
             texture_rect.max_x(),
             texture_rect.origin.y,

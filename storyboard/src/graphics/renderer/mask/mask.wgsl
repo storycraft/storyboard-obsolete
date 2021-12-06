@@ -39,8 +39,9 @@ var mask_sampler: sampler;
 [[stage(fragment)]]
 fn fs_main(in: VertexOutput) -> [[location(0)]] vec4<f32> {
     var color = in.color * textureSample(texture, texture_sampler, in.tex_coord);
+    let mask_sample = textureSample(mask, mask_sampler, in.mask_coord);
 
-    color.a = color.a * textureSample(mask, mask_sampler, in.mask_coord).r;
+    color.a = color.a * mask_sample.r;
 
     return color;
 }
