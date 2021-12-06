@@ -9,4 +9,5 @@ edition = "2021"
 storyboard = { path = "../storyboard" }
 storyboard-text = { path = "../storyboard-text" }
 futures = "0.3.17"
+mimalloc = "0.1.27"
 simple_logger = "1.13.0"

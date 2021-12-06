@@ -25,6 +25,7 @@ use crate::{
 /// Store glyph texture atlas.
 #[derive(Debug)]
 pub struct GlyphStore {
+    texture_data: Arc<TextureData>,
     textures: Vec<Arc<Texture2D>>,
     mappings: Vec<GlyphStoreMappingData>,
 }
@@ -37,8 +38,9 @@ impl GlyphStore {
     /// Maximum glyph size
     pub const MAX_GLYPH_HEIGHT: u32 = 1024;
 
-    pub fn new() -> Self {
+    pub fn new(texture_data: Arc<TextureData>) -> Self {
         Self {
+            texture_data,
             textures: Vec::new(),
             mappings: Vec::new(),
         }
@@ -52,7 +54,6 @@ impl GlyphStore {
         &mut self,
         font: &DrawFont,
         key: GlyphKey,
-        texture_data: &TextureData,
     ) -> Option<StoreGlyphTexInfo> {
         if key.size > Self::MAX_GLYPH_HEIGHT {
             return None;
@@ -86,7 +87,7 @@ impl GlyphStore {
         let rect = glyph_map.cache_rasterized(font, key)?;
 
         self.textures.push(Arc::new(
-            texture_data.create_texture(TextureFormat::R8Unorm, glyph_map.get_size(), None),
+            self.texture_data.create_texture(TextureFormat::R8Unorm, glyph_map.get_size(), None),
         ));
 
         self.mappings.push(GlyphStoreMappingData {
@@ -100,13 +101,13 @@ impl GlyphStore {
         })
     }
 
-    pub fn prepare(&mut self, texture_data: &TextureData) {
+    pub fn prepare(&mut self) {
         for (i, entry) in self.mappings.iter_mut().enumerate() {
             if entry.mapping.unmark() {
                 let mapping = entry.mapping.inner_ref();
 
                 if let Some(texture) = self.textures.get_mut(i) {
-                    texture_data.write_texture(&texture, None, &mapping.canvas().pixels);
+                    self.texture_data.write_texture(&texture, None, &mapping.canvas().pixels);
                 }
             }
         }
@@ -138,7 +139,7 @@ pub struct GlyphStoreMappingData {
     mapping: Observable<GlyphMappingData>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct StoreGlyphTexInfo {
     pub index: usize,
     pub rect: Rect<u32, PixelUnit>,

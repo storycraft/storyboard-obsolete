@@ -7,6 +7,7 @@
 use std::sync::Arc;
 
 use futures::executor::block_on;
+use mimalloc::MiMalloc;
 use storyboard::{
     component::{
         color::ShapeColor,
@@ -17,7 +18,7 @@ use storyboard::{
     graphics::{
         default::box2d::{Box2DDrawState, BoxStyle},
         texture::Texture2D,
-        wgpu::{Color, LoadOp, Operations, PresentMode},
+        wgpu::{Color, LoadOp, Operations, PresentMode, TextureFormat},
     },
     math::{Point2D, Rect, Size2D},
     ringbuffer::RingBufferRead,
@@ -32,8 +33,11 @@ use storyboard::{
 };
 use storyboard_text::{
     font::DrawFont, font_kit::source::SystemSource, mapping::GlyphKey, store::GlyphStore,
-    TextDrawState,
+    TextDrawState, TextStyle,
 };
+
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
 
 fn main() {
     // simple_logger::SimpleLogger::new().init().unwrap();
@@ -51,7 +55,7 @@ fn main() {
 
 struct VisualTestMainState {
     test_font: DrawFont,
-    glyph_store: GlyphStore,
+    glyph_store: Option<GlyphStore>,
 
     cursor_position: Point2D<f32, PixelUnit>,
     cursor_image: Option<Arc<Texture2D>>,
@@ -67,7 +71,7 @@ impl VisualTestMainState {
                     .load()
                     .unwrap(),
             ),
-            glyph_store: GlyphStore::new(),
+            glyph_store: None,
             cursor_position: Point2D::zero(),
             cursor_image: None,
         }
@@ -77,7 +81,7 @@ impl VisualTestMainState {
 impl StoryboardState for VisualTestMainState {
     fn update(
         &mut self,
-        system_prop: &StoryboardSystemProp,
+        _: &StoryboardSystemProp,
         system_state: &mut StoryboardSystemState,
     ) -> StateStatus<StoryboardSystemProp, StoryboardSystemState> {
         for event in system_state.events.drain() {
@@ -101,9 +105,9 @@ impl StoryboardState for VisualTestMainState {
 
         let mut renderer = StoryboardRenderer::new();
 
-        /*renderer.append(Box2DDrawState {
+        renderer.append(Box2DDrawState {
             style: BoxStyle {
-                border_radius: ExtentUnit::Percent(0.0),
+                border_radius: ExtentUnit::Percent(0.1),
                 border_thickness: 1.0,
                 border_color: ShapeColor::white(),
                 texture: self
@@ -116,38 +120,43 @@ impl StoryboardState for VisualTestMainState {
                 ..Default::default()
             },
             draw_box: system_state.screen.inner_box(
-                Rect::new(self.cursor_position, Size2D::new(256.0, 256.0)),
+                Rect::new(self.cursor_position, Size2D::new(32.0, 32.0)),
                 None,
             ),
-        });*/
+        });
 
-        let glyph = self.glyph_store
-        .get_glyph(
-            &self.test_font,
-            GlyphKey {
-                id: self.test_font.char_to_glyph('가').unwrap(),
-                size: 64,
-            },
-            &system_prop.graphics.texture_data
-        )
-        .unwrap();
+        let glyph = self
+            .glyph_store
+            .as_mut()
+            .unwrap()
+            .get_glyph(
+                &self.test_font,
+                GlyphKey {
+                    id: self.test_font.char_to_glyph('가').unwrap(),
+                    size: 64,
+                },
+            )
+            .unwrap();
+
+        let glyph_rect = glyph.rect.size.cast::<f32>();
 
         renderer.append(TextDrawState {
-            color: ShapeColor::white(),
+            style: TextStyle {
+                color: ShapeColor::white(),
+            },
             glyphs: vec![
                 (
-                    system_state.screen.inner_box(
-                        Rect::new(self.cursor_position, glyph.rect.size.cast()),
-                        None,
-                    ),
+                    system_state
+                        .screen
+                        .inner_box(Rect::new(self.cursor_position, glyph_rect), None,),
                     glyph
                 );
                 1
             ],
-            textures: self.glyph_store.textures().clone(),
+            textures: self.glyph_store.as_ref().unwrap().textures().clone(),
         });
 
-        self.glyph_store.prepare(&system_prop.graphics.texture_data);
+        self.glyph_store.as_mut().unwrap().prepare();
 
         system_state.submit_render(RenderOperation {
             operations: Operations {
@@ -157,7 +166,7 @@ impl StoryboardState for VisualTestMainState {
             renderer,
         });
 
-        self.glyph_store.finish();
+        self.glyph_store.as_mut().unwrap().finish();
 
         // println!("Update: {}, FPS: {}", 1000000.0 / system_state.elapsed.as_micros() as f64, system_state.render_thread().fps());
 
@@ -165,28 +174,20 @@ impl StoryboardState for VisualTestMainState {
     }
 
     fn load(&mut self, prop: &StoryboardSystemProp) {
+        self.glyph_store = Some(GlyphStore::new(prop.graphics.texture_data.clone()));
         prop.window.set_cursor_visible(false);
 
-        for ch in "Hello world!".chars() {
-            self.glyph_store.get_glyph(
-                &self.test_font,
-                GlyphKey {
-                    id: self.test_font.char_to_glyph(ch).unwrap(),
-                    size: 256,
-                },
-                &prop.graphics.texture_data,
-            );
-        }
-
-        self.glyph_store.prepare(&prop.graphics.texture_data);
-
-        self.cursor_image = Some(self.glyph_store.textures()[0].clone());
-
-        self.glyph_store.finish();
+        self.cursor_image = Some(Arc::new(prop.graphics.texture_data.create_texture_data(TextureFormat::Rgba8Unorm, Size2D::new(2, 2), None, &[
+            0xff, 0x00, 0xff, 0xff,
+            0xff, 0xff, 0xff, 0xff,
+            0xff, 0xff, 0xff, 0xff,
+            0xff, 0x00, 0xff, 0xff,
+        ])));
     }
 
     fn unload(&mut self, prop: &StoryboardSystemProp) {
         prop.window.set_cursor_visible(true);
+        self.glyph_store.take();
         self.cursor_image.take();
 
         println!("Unloaded!");

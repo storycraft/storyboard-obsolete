@@ -22,11 +22,26 @@ use storyboard::{
         renderer::{mask::draw_masked_rect, DrawState, RenderState, RenderStateQueue},
         texture::Texture2D,
         wgpu::CommandEncoder,
+        PixelUnit,
     },
+    math::Rect,
 };
 
-pub struct TextDrawState {
+#[derive(Debug, Clone)]
+pub struct TextStyle {
     pub color: ShapeColor<4>,
+}
+
+impl Default for TextStyle {
+    fn default() -> Self {
+        Self {
+            color: ShapeColor::white(),
+        }
+    }
+}
+
+pub struct TextDrawState {
+    pub style: TextStyle,
     pub glyphs: Vec<(DrawBox, StoreGlyphTexInfo)>,
     pub textures: Vec<Arc<Texture2D>>,
 }
@@ -39,22 +54,34 @@ impl DrawState for TextDrawState {
         _: &mut CommandEncoder,
         state_queue: &mut RenderStateQueue,
     ) {
-        let mut map: FxHashMap<usize, Vec<StreamSlice>> = FxHashMap::default();
+        let mut map: FxHashMap<usize, (StreamSlice, u32)> = FxHashMap::default();
 
+        let mut group: FxHashMap<usize, Vec<(DrawBox, Rect<u32, PixelUnit>)>> =
+            FxHashMap::default();
         for (draw_box, tex_info) in &self.glyphs {
-            if let Some(texture) = self.textures.get(tex_info.index) {
+            group
+                .entry(tex_info.index)
+                .or_default()
+                .push((draw_box.clone(), tex_info.rect));
+        }
+
+        for (index, glyphs) in group.into_iter() {
+            if let Some(texture) = self.textures.get(index) {
                 let mut entry = ctx.stream_allocator.start_entry();
 
-                entry.write(&storyboard::bytemuck::cast_slice(
-                    &draw_masked_rect(
-                        draw_box,
+                let instances = glyphs.len();
+
+                for (draw_box, tex_rect) in glyphs {
+                    entry.write(storyboard::bytemuck::cast_slice(&draw_masked_rect(
+                        &draw_box,
                         depth,
-                        &self.color,
+                        &self.style.color,
                         &TextureLayout::STRETCHED,
-                        &texture.to_tex_coords(tex_info.rect),
+                        &texture.to_tex_coords(tex_rect),
                     )));
-                
-                map.entry(tex_info.index).or_default().push(entry.finish());
+                }
+
+                map.insert(index, (entry.finish(), instances as u32));
             }
         }
 
@@ -66,7 +93,7 @@ impl DrawState for TextDrawState {
 }
 
 pub struct TextRenderState {
-    pub glyphs: FxHashMap<usize, Vec<StreamSlice>>,
+    pub glyphs: FxHashMap<usize, (StreamSlice, u32)>,
     pub textures: Vec<Arc<Texture2D>>,
 }
 
@@ -81,14 +108,12 @@ impl RenderState for TextRenderState {
             IndexBuffer::FORMAT,
         );
 
-        for (i, slices) in self.glyphs.iter() {
+        for (i, (slice, instances)) in self.glyphs.iter() {
             if let Some(texture) = self.textures.get(*i) {
                 pass.set_bind_group(1, texture.bind_group(), &[]);
 
-                for slice in slices {
-                    pass.set_vertex_buffer(0, context.stream_buffer.slice(slice));
-                    pass.draw_indexed(0..6, 0, 0..1);
-                }
+                pass.set_vertex_buffer(0, context.stream_buffer.slice(slice));
+                pass.draw_indexed(0..6, 0, 0..*instances);
             }
         }
     }
