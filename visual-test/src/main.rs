@@ -140,6 +140,21 @@ impl StoryboardState for VisualTestMainState {
 
         let glyph_rect = glyph.rect.size.cast::<f32>();
 
+        let glyph2 = self
+            .glyph_store
+            .as_mut()
+            .unwrap()
+            .get_glyph(
+                &self.test_font,
+                GlyphKey {
+                    id: self.test_font.char_to_glyph('나').unwrap(),
+                    size: 64,
+                },
+            )
+            .unwrap();
+
+        let glyph_rect2 = glyph2.rect.size.cast::<f32>();
+
         renderer.append(TextDrawState {
             style: TextStyle {
                 color: ShapeColor::white(),
@@ -148,10 +163,16 @@ impl StoryboardState for VisualTestMainState {
                 (
                     system_state
                         .screen
-                        .inner_box(Rect::new(self.cursor_position, glyph_rect), None,),
-                    glyph
-                );
-                1
+                        .inner_box(Rect::new(self.cursor_position, glyph_rect), None),
+                    glyph,
+                ),
+                (
+                    system_state.screen.inner_box(
+                        Rect::new(self.cursor_position + Size2D::new(50.0, 0.0), glyph_rect2),
+                        None,
+                    ),
+                    glyph2,
+                ),
             ],
             textures: self.glyph_store.as_ref().unwrap().textures().clone(),
         });
@@ -177,12 +198,15 @@ impl StoryboardState for VisualTestMainState {
         self.glyph_store = Some(GlyphStore::new(prop.graphics.texture_data.clone()));
         prop.window.set_cursor_visible(false);
 
-        self.cursor_image = Some(Arc::new(prop.graphics.texture_data.create_texture_data(TextureFormat::Rgba8Unorm, Size2D::new(2, 2), None, &[
-            0xff, 0x00, 0xff, 0xff,
-            0xff, 0xff, 0xff, 0xff,
-            0xff, 0xff, 0xff, 0xff,
-            0xff, 0x00, 0xff, 0xff,
-        ])));
+        self.cursor_image = Some(Arc::new(prop.graphics.texture_data.create_texture_data(
+            TextureFormat::Rgba8Unorm,
+            Size2D::new(2, 2),
+            None,
+            &[
+                0xff, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00,
+                0xff, 0xff,
+            ],
+        )));
     }
 
     fn unload(&mut self, prop: &StoryboardSystemProp) {

@@ -69,7 +69,7 @@ impl DrawState for TextDrawState {
             if let Some(texture) = self.textures.get(index) {
                 let mut entry = ctx.stream_allocator.start_entry();
 
-                let instances = glyphs.len();
+                let count = glyphs.len();
 
                 for (draw_box, tex_rect) in glyphs {
                     entry.write(storyboard::bytemuck::cast_slice(&draw_masked_rect(
@@ -81,7 +81,7 @@ impl DrawState for TextDrawState {
                     )));
                 }
 
-                map.insert(index, (entry.finish(), instances as u32));
+                map.insert(index, (entry.finish(), count as u32));
             }
         }
 
@@ -101,19 +101,20 @@ impl RenderState for TextRenderState {
     fn render<'r>(&'r self, context: &RenderContext<'r>, pass: &mut StoryboardRenderPass<'r>) {
         pass.set_pipeline(&context.render_data.mask_pipeline);
 
-        // TODO
         pass.set_bind_group(0, &context.render_data.empty_texture_bind_group, &[]);
         pass.set_index_buffer(
             context.render_data.quad_index_buffer.slice(),
             IndexBuffer::FORMAT,
         );
 
-        for (i, (slice, instances)) in self.glyphs.iter() {
+        for (i, (slice, count)) in self.glyphs.iter() {
             if let Some(texture) = self.textures.get(*i) {
                 pass.set_bind_group(1, texture.bind_group(), &[]);
 
                 pass.set_vertex_buffer(0, context.stream_buffer.slice(slice));
-                pass.draw_indexed(0..6, 0, 0..*instances);
+                for c in 0..*count {
+                    pass.draw_indexed(0..6, c as i32 * 4, 0..1);
+                }
             }
         }
     }
