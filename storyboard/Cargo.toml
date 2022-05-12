@@ -1,0 +1,13 @@
+[package]
+name = "storyboard"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+storyboard-core = { path = "../storyboard-core" }
+
+winit = "0.26.1"
+bytemuck = { version = "1.9.1", features = ["derive"] }
+font-kit = "0.11.0"
+wasmi = "0.11.0"
+rustc-hash = "1.1.0"
