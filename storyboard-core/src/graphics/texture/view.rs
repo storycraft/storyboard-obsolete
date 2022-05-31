@@ -87,6 +87,13 @@ impl TextureView2D {
         }
     }
 
+    pub const fn rect(&self) -> Rect<u32, PixelUnit> {
+        match self {
+            TextureView2D::All(view) => Rect::new(Point2D::new(0, 0), view.size),
+            TextureView2D::Partial(partial) => partial.rect,
+        }
+    }
+
     pub fn render_rect(&self) -> Rect<f32, TextureUnit> {
         match self {
             TextureView2D::All(view) => view.render_rect(),

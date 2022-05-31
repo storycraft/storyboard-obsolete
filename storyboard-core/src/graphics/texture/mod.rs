@@ -79,6 +79,13 @@ impl SizedTexture2D {
         SizedTextureView2D::init(self, desc)
     }
 
+    pub fn create_view_default(&self, label: Option<&str>) -> SizedTextureView2D {
+        self.create_view(&TextureViewDescriptor {
+            label,
+            ..Default::default()
+        })
+    }
+
     pub fn write(&self, queue: &Queue, rect: Option<&Rect<u32, PixelUnit>>, data: &[u8]) {
         let (origin, extent) = match rect {
             Some(rect) => rect_to_origin_extent(&rect),

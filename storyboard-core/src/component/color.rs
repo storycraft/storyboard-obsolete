@@ -15,16 +15,26 @@ pub enum ShapeColor<const VERTICES: usize> {
 }
 
 impl<const VERTICES: usize> ShapeColor<VERTICES> {
+
+    #[inline]
     pub fn white() -> ShapeColor<VERTICES> {
         ShapeColor::Single(named::WHITE.into_format().into_linear().into())
     }
 
+    #[inline]
     pub fn black() -> ShapeColor<VERTICES> {
         ShapeColor::Single(named::BLACK.into_format().into_linear().into())
     }
 
+    #[inline]
     pub fn transparent() -> ShapeColor<VERTICES> {
         ShapeColor::Single(LinSrgba::new(0.0, 0.0, 0.0, 0.0))
+    }
+}
+
+impl<const VERTICES: usize> Default for ShapeColor<VERTICES> {
+    fn default() -> Self {
+        Self::white()
     }
 }
 

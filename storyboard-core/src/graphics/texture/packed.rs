@@ -7,10 +7,7 @@
 use euclid::{Point2D, Rect, Size2D};
 use rect_packer::DensePacker;
 use std::{fmt::Debug, num::NonZeroU32};
-use wgpu::{
-    Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, TextureAspect,
-    TextureViewDescriptor,
-};
+use wgpu::{Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, TextureAspect};
 
 use crate::unit::PixelUnit;
 
@@ -36,6 +33,7 @@ impl PackedTexture {
         queue: &Queue,
         size: Size2D<i32, PixelUnit>,
         data: &[u8],
+        label: Option<&str>
     ) -> Option<TextureView2D> {
         let rect = self.packer.pack(size.width, size.height, false)?;
 
@@ -63,14 +61,10 @@ impl PackedTexture {
             },
         );
 
-        Some(
-            self.texture
-                .create_view(&TextureViewDescriptor::default())
-                .slice(Rect::new(
-                    Point2D::new(rect.x as u32, rect.y as u32),
-                    size.cast(),
-                )),
-        )
+        Some(self.texture.create_view_default(label).slice(Rect::new(
+            Point2D::new(rect.x as u32, rect.y as u32),
+            size.cast(),
+        )))
     }
 
     pub fn reset(&mut self) {

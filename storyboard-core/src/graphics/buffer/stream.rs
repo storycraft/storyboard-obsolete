@@ -40,6 +40,13 @@ impl<'a> BufferStream<'a> {
         }
     }
 
+    /// Write slice of data and return written range
+    pub fn write_slice(&mut self, data: &[u8]) -> StreamRange {
+        let mut writer = self.next_writer();
+        writer.write(data);
+        writer.finish()
+    }
+
     /// Finish streaming and upload memory buffer to gpu
     pub fn finish(&mut self, device: &Device) -> StreamBuffer {
         let size = self.data.len() as BufferAddress;
