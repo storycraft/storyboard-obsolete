@@ -11,3 +11,4 @@ bytemuck = "1.9.1"
 palette = { version = "0.6.0", features = ["bytemuck"] }
 euclid = { version = "0.22.7", features = ["bytemuck"] }
 smallvec = "1.8.0"
+rustc-hash = "1.1.0"
