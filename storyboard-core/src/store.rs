@@ -4,12 +4,13 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
-use std::{any::TypeId, fmt::Debug, marker::PhantomData, sync::RwLock};
+use std::{any::TypeId, fmt::Debug, marker::PhantomData};
 
+use parking_lot::RwLock;
 use rustc_hash::FxHashMap;
 
 #[derive(Debug, Default)]
-/// Concurrent resource store for storing local resource data
+/// Concurrent resource store for storing type erased local resource data
 pub struct Store<Context> {
     map: RwLock<FxHashMap<TypeId, *mut usize>>,
     phantom: PhantomData<Context>,
@@ -32,15 +33,14 @@ impl<Context> Store<Context> {
     }
 
     pub fn get<T: StoreResources<Context> + Sized + 'static>(&self, ctx: &Context) -> &T {
-        if let Some(item) = self.map.read().unwrap().get(&TypeId::of::<T>()) {
-            // SAFETY: Value was created with valid type and was type erasure.
+        if let Some(item) = self.map.read().get(&TypeId::of::<T>()) {
+            // SAFETY: Value was created with valid type and was type erased.
             return unsafe { &*(*item as *mut T) };
         }
 
         let item = Box::new(T::initialize(ctx));
         self.map
             .write()
-            .unwrap()
             .insert(TypeId::of::<T>(), Box::into_raw(item) as *mut usize);
 
         self.get(ctx)
@@ -51,7 +51,7 @@ impl<T> Drop for Store<T> {
     fn drop(&mut self) {
         // SAFETY: pointer created with [Box::into_raw]
         unsafe {
-            for (_, value) in self.map.write().unwrap().drain() {
+            for (_, value) in self.map.write().drain() {
                 Box::from_raw(value);
             }
         }
