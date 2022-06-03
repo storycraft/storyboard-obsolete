@@ -5,37 +5,45 @@
  */
 
 //! Prop and States implemention for storyboard app.
-
-use std::{marker::PhantomData, sync::Arc, time::Duration};
+use std::{
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 use storyboard_core::{
     euclid::Size2D,
-    graphics::texture::SizedTexture2D,
+    graphics::texture::{view::TextureView2D, SizedTexture2D},
     state::{StateData, StateStatus},
     unit::PixelUnit,
-    wgpu::{TextureFormat, TextureUsages},
+    wgpu::{Sampler, TextureFormat, TextureUsages},
 };
 use winit::{event::Event, window::Window};
 
 use crate::{
-    graphics::{backend::StoryboardBackend, compositor::ComponentCompositor, texture::TextureData},
-    DefaultCompositor,
+    graphics::{
+        backend::StoryboardBackend,
+        component::Drawable,
+        texture::{RenderTexture2D, TextureData},
+    },
+    task::render::SurfaceRenderTask,
 };
 
 /// System properties for [StoryboardState].
 ///
 /// Contains [winit::window::Window], [GraphicsData] of app
 #[derive(Debug)]
-pub struct StoryboardSystemProp {
+pub struct StoryboardSystemProp<'a> {
     pub backend: Arc<StoryboardBackend>,
     pub texture_data: Arc<TextureData>,
     pub window: Window,
     pub elapsed: Duration,
+
+    pub(crate) render_task: Arc<Mutex<SurfaceRenderTask<'a>>>,
 }
 
-impl StoryboardSystemProp {
+impl StoryboardSystemProp<'_> {
     /// Create [SizedTexture2D] from descriptor
-    pub fn init_texture(
+    pub fn create_texture(
         &self,
         label: Option<&str>,
         size: Size2D<u32, PixelUnit>,
@@ -44,32 +52,77 @@ impl StoryboardSystemProp {
     ) -> SizedTexture2D {
         SizedTexture2D::init(self.backend.device(), label, size, format, usage)
     }
+
+    /// Create [SizedTexture2D] from descriptor and upload entire data
+    pub fn create_texture_with_data(
+        &self,
+        label: Option<&str>,
+        size: Size2D<u32, PixelUnit>,
+        format: TextureFormat,
+        usage: TextureUsages,
+        data: &[u8],
+    ) -> SizedTexture2D {
+        let tex = SizedTexture2D::init(self.backend.device(), label, size, format, usage);
+        tex.write(self.backend.queue(), None, data);
+
+        tex
+    }
+
+    /// Create Framebuffer capable texture, having same texture format as surface
+    pub fn create_frame_buffer_texture(
+        &self,
+        label: Option<&str>,
+        size: Size2D<u32, PixelUnit>,
+    ) -> SizedTexture2D {
+        SizedTexture2D::init(
+            self.backend.device(),
+            label,
+            size,
+            self.texture_data.framebuffer_texture_format(),
+            TextureUsages::TEXTURE_BINDING
+                | TextureUsages::RENDER_ATTACHMENT
+                | TextureUsages::COPY_SRC,
+        )
+    }
+
+    /// Create [RenderTexture2D] from [TextureView2D] using texture_data
+    pub fn create_render_texture(
+        &self,
+        view: TextureView2D,
+        sampler: Option<&Sampler>,
+    ) -> RenderTexture2D {
+        RenderTexture2D::init(
+            self.backend.device(),
+            view,
+            self.texture_data.bind_group_layout(),
+            sampler.unwrap_or(self.texture_data.default_sampler()),
+        )
+    }
+
+    pub fn draw(&self, drawable: impl Drawable + 'static) {
+        self.render_task.lock().unwrap().push(drawable);
+    }
+
+    pub fn request_redraw(&self) {
+        self.window.request_redraw()
+    }
 }
 
 /// Mutable system state for [StoryboardState].
 ///
 /// Contains event.
 #[derive(Debug)]
-pub struct StoryboardSystemState<'a, Compositor: ComponentCompositor = DefaultCompositor> {
+pub struct StoryboardSystemState<'a> {
     pub event: Event<'a, ()>,
-
-    pub(crate) components: Vec<Compositor::Component>,
 }
 
-impl<'a, Compositor: ComponentCompositor> StoryboardSystemState<'a, Compositor> {
-    pub fn render_component(&mut self, component: impl Into<Compositor::Component>) {
-        self.components.push(component.into());
-    }
+impl<'a> StoryboardSystemState<'a> {}
+
+pub struct StoryboardStateData {}
+
+impl StateData for StoryboardStateData {
+    type Prop<'p> = StoryboardSystemProp<'p>;
+    type State<'s> = StoryboardSystemState<'s>;
 }
 
-pub struct StoryboardStateData<T = DefaultCompositor> {
-    phantom: PhantomData<T>,
-}
-
-impl<Compositor: ComponentCompositor> StateData for StoryboardStateData<Compositor> {
-    type Prop<'p> = StoryboardSystemProp;
-    type State<'s> = StoryboardSystemState<'s, Compositor>;
-}
-
-pub type StoryboardStateStatus<Compositor = DefaultCompositor> =
-    StateStatus<StoryboardStateData<Compositor>>;
+pub type StoryboardStateStatus = StateStatus<StoryboardStateData>;

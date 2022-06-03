@@ -5,15 +5,32 @@
  */
 
 use storyboard_core::{
+    euclid::Transform3D,
     graphics::buffer::stream::{BufferStream, StreamBuffer},
-    wgpu::{Device, Queue},
+    store::Store,
+    unit::{PixelUnit, RenderUnit},
+    wgpu::{DepthStencilState, Device, Queue},
 };
 
-/// [DrawContext] contains gpu device and stream for component data preparing
-#[derive(Debug)]
-pub struct DrawContext<'a, 'label> {
+use super::texture::TextureData;
+
+#[derive(Debug, Clone)]
+pub struct BackendContext<'a> {
     pub device: &'a Device,
     pub queue: &'a Queue,
+
+    pub textures: &'a TextureData,
+    pub depth_stencil: Option<&'a DepthStencilState>,
+}
+
+/// [DrawContext] contains reference to gpu backend, resources store, and stream for component data preparing
+#[derive(Debug)]
+pub struct DrawContext<'a, 'label> {
+    pub backend: BackendContext<'a>,
+
+    pub resources: &'a Store<BackendContext<'a>>,
+
+    pub screen_matrix: &'a Transform3D<f32, PixelUnit, RenderUnit>,
 
     pub vertex_stream: &'a mut BufferStream<'label>,
     pub index_stream: &'a mut BufferStream<'label>,
@@ -21,11 +38,14 @@ pub struct DrawContext<'a, 'label> {
 
 impl<'a, 'label> DrawContext<'a, 'label> {
     pub fn into_render_context(self) -> RenderContext<'a> {
+        let vertex_stream = self.vertex_stream.finish(self.backend.device);
+        let index_stream = self.index_stream.finish(self.backend.device);
+
         RenderContext {
-            device: self.device,
-            queue: self.queue,
-            vertex_stream: self.vertex_stream.finish(self.device),
-            index_stream: self.index_stream.finish(self.device),
+            backend: self.backend,
+            resources: self.resources,
+            vertex_stream,
+            index_stream,
         }
     }
 }
@@ -33,8 +53,9 @@ impl<'a, 'label> DrawContext<'a, 'label> {
 /// [RenderContext] contains gpu device and stream for component rendering
 #[derive(Debug)]
 pub struct RenderContext<'a> {
-    pub device: &'a Device,
-    pub queue: &'a Queue,
+    pub backend: BackendContext<'a>,
+
+    pub resources: &'a Store<BackendContext<'a>>,
 
     pub vertex_stream: StreamBuffer<'a>,
     pub index_stream: StreamBuffer<'a>,

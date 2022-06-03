@@ -18,28 +18,25 @@ pub use winit;
 
 use graphics::{
     backend::{BackendInitError, BackendOptions, StoryboardBackend},
-    compositor::{ComponentCompositor, StoryboardCompositor},
     renderer::StoryboardRenderer,
     texture::TextureData,
 };
 use state::{StoryboardStateData, StoryboardSystemProp, StoryboardSystemState};
 use std::{
-    sync::Arc,
+    sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
 use storyboard_core::euclid::Size2D;
 use storyboard_core::{
     state::{State, StateSystem, SystemStatus},
+    store::Store,
     wgpu::{Backends, Features, Instance, PresentMode, Surface},
 };
 use winit::{
-    dpi::PhysicalSize,
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     window::{Window, WindowBuilder},
 };
-
-pub type DefaultCompositor = StoryboardCompositor;
 
 /// Storyboard app.
 /// Holds graphics, windows resources for app before start.
@@ -98,54 +95,48 @@ impl Storyboard {
         &self.texture_data
     }
 
-    /// Start app with default compositor
+    /// Start app
     ///
     /// Start render thread and run given inital [StoryboardState].
     /// The state system will wait for event loop event when the state returns [SystemStatus::Wait].
-    pub fn run(self, state: impl State<StoryboardStateData<DefaultCompositor>> + 'static) {
-        let compositor = DefaultCompositor::init(&self.backend, &self.texture_data);
+    pub fn run(self, state: impl State<StoryboardStateData> + 'static) -> ! {
+        let backend = Arc::new(self.backend);
+        let texture_data = Arc::new(self.texture_data);
 
-        self.run_with_compositor(state, compositor)
-    }
+        let draw_resources = Arc::new(Store::new());
 
-    /// Start app with custom compositor
-    pub fn run_with_compositor<Compositor: ComponentCompositor + Send + Sync + 'static>(
-        self,
-        state: impl State<StoryboardStateData<Compositor>> + 'static,
-        compositor: Compositor,
-    ) {
-        let compositor = Arc::new(compositor);
+        let surface_render_task = Arc::new(Mutex::new(SurfaceRenderTask::new(
+            backend.clone(),
+            texture_data.clone(),
+            self.surface,
+            StoryboardRenderer::new(draw_resources.clone()),
+        )));
 
         let mut system_prop = StoryboardSystemProp {
-            backend: Arc::new(self.backend),
-            texture_data: Arc::new(self.texture_data),
+            backend,
+            texture_data,
             elapsed: Duration::ZERO,
             window: self.window,
+            render_task: surface_render_task.clone(),
         };
 
         let mut state_system = StateSystem::new(Box::new(state), &system_prop);
-
-        let mut render_task = SurfaceRenderTask::new(
-            system_prop.backend.clone(),
-            self.surface,
-            system_prop.texture_data.framebuffer_texture_format(),
-            StoryboardRenderer::new(compositor),
-        );
 
         let win_size = {
             let (width, height) = system_prop.window.inner_size().into();
 
             Size2D::new(width, height)
         };
-        render_task.reconfigure(win_size, self.render_present_mode);
+
+        surface_render_task
+            .lock()
+            .unwrap()
+            .reconfigure(win_size, self.render_present_mode);
 
         self.event_loop.run(move |event, _, control_flow| {
             let instant = Instant::now();
 
-            let mut system_state = StoryboardSystemState {
-                event,
-                components: Vec::new(),
-            };
+            let mut system_state = StoryboardSystemState { event };
 
             // TODO:: Threading
             if let Event::WindowEvent {
@@ -153,15 +144,16 @@ impl Storyboard {
                 event: WindowEvent::Resized(size),
             } = &system_state.event
             {
-                if *size != PhysicalSize::new(0, 0) {
-                    let win_size = {
-                        let (width, height) = (*size).into();
-    
-                        Size2D::new(width, height)
-                    };
-                    
-                    render_task.reconfigure(win_size, self.render_present_mode);
-                }
+                let win_size = {
+                    let (width, height) = (*size).into();
+
+                    Size2D::new(width, height)
+                };
+
+                surface_render_task
+                    .lock()
+                    .unwrap()
+                    .reconfigure(win_size, self.render_present_mode);
             }
 
             let status = state_system.run(&system_prop, &mut system_state);
@@ -177,14 +169,11 @@ impl Storyboard {
             };
 
             // TODO:: Threading
-            if system_state.components.len() > 0 {
-                if system_prop.window.inner_size() != PhysicalSize::new(0, 0) {
-                    render_task.render(&system_state.components);
-                }
-                system_state.components.clear();
+            if let Event::RedrawRequested(_) = system_state.event {
+                surface_render_task.lock().unwrap().render();
             }
 
             system_prop.elapsed = instant.elapsed();
-        });
+        })
     }
 }

@@ -7,6 +7,6 @@
 pub mod backend;
 pub mod context;
 pub mod pass;
-pub mod compositor;
+pub mod component;
 pub mod texture;
 pub mod renderer;

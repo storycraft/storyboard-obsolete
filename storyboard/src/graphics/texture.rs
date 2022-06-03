@@ -15,12 +15,23 @@ use storyboard_core::{
 };
 
 #[derive(Debug)]
-pub struct Texture2D {
+pub struct RenderTexture2D {
     view: TextureView2D,
     bind_group: BindGroup,
 }
 
-impl Texture2D {
+impl RenderTexture2D {
+    pub fn init(device: &Device, view: TextureView2D, layout: &BindGroupLayout, sampler: &Sampler) -> Self {
+        let bind_group = create_texture_bind_group(
+            device,
+            layout,
+            view.inner().inner(),
+            sampler,
+        );
+
+        RenderTexture2D::new_from_bind_group(view, bind_group)
+    }
+
     pub const fn new_from_bind_group(view: TextureView2D, bind_group: BindGroup) -> Self {
         Self { view, bind_group }
     }
@@ -29,7 +40,7 @@ impl Texture2D {
         &self.view
     }
 
-    pub fn bind<'a>(&'a self, index: u32, pass: &mut impl RenderEncoder<'a>) {
+    pub fn bind<'a>(&'a self, index: u32, pass: &mut (impl RenderEncoder<'a> + ?Sized)) {
         pass.set_bind_group(index, &self.bind_group, &[])
     }
 }
@@ -72,23 +83,6 @@ impl TextureData {
 
     pub const fn framebuffer_texture_format(&self) -> TextureFormat {
         self.framebuffer_texture_format
-    }
-
-    /// Construct renderable [Texture2D] from [TextureView2D] and optionally [Sampler]
-    pub fn init_render_texture(
-        &self,
-        device: &Device,
-        view: TextureView2D,
-        sampler: Option<&Sampler>,
-    ) -> Texture2D {
-        let bind_group = create_texture_bind_group(
-            device,
-            &self.bind_group_layout,
-            view.inner().inner(),
-            sampler.unwrap_or(&self.sampler),
-        );
-
-        Texture2D::new_from_bind_group(view, bind_group)
     }
 }
 
