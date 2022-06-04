@@ -136,8 +136,7 @@ impl<'a, T: ?Sized + Pointee<Metadata = DynMetadata<T>>> IntoIterator for &'a Tr
     fn into_iter(self) -> Self::IntoIter {
         Iter {
             ptr: self.data.as_ptr(),
-            table: &self.table,
-            idx: 0,
+            table_iter: self.table.iter(),
         }
     }
 }
@@ -150,8 +149,7 @@ impl<'a, T: ?Sized + Pointee<Metadata = DynMetadata<T>>> IntoIterator for &'a mu
     fn into_iter(self) -> Self::IntoIter {
         IterMut {
             ptr: self.data.as_mut_ptr(),
-            table: &self.table,
-            idx: 0,
+            table_iter: self.table.iter(),
         }
     }
 }
@@ -169,16 +167,14 @@ impl<T: ?Sized + Pointee<Metadata = DynMetadata<T>>> Drop for TraitStack<T> {
 
 pub struct Iter<'a, T: ?Sized + Pointee<Metadata = DynMetadata<T>>> {
     ptr: *const u8,
-    table: &'a Vec<(usize, DynMetadata<T>)>,
-    idx: usize,
+    table_iter: slice::Iter<'a, (usize, DynMetadata<T>)>,
 }
 
 impl<'a, T: ?Sized + Pointee<Metadata = DynMetadata<T>>> Iterator for Iter<'a, T> {
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let (offset, metadata) = self.table.get(self.idx)?;
-        self.idx += 1;
+        let (offset, metadata) = self.table_iter.next()?;
 
         // SAFETY: Pointer is offseted using valid offset
         Some(unsafe { &*(ptr::from_raw_parts(self.ptr.add(*offset) as _, *metadata) as *const T) })
@@ -187,16 +183,14 @@ impl<'a, T: ?Sized + Pointee<Metadata = DynMetadata<T>>> Iterator for Iter<'a, T
 
 pub struct IterMut<'a, T: ?Sized + Pointee<Metadata = DynMetadata<T>>> {
     ptr: *mut u8,
-    table: &'a Vec<(usize, DynMetadata<T>)>,
-    idx: usize,
+    table_iter: slice::Iter<'a, (usize, DynMetadata<T>)>,
 }
 
 impl<'a, T: ?Sized + Pointee<Metadata = DynMetadata<T>>> Iterator for IterMut<'a, T> {
     type Item = &'a mut T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let (offset, metadata) = self.table.get(self.idx)?;
-        self.idx += 1;
+        let (offset, metadata) = self.table_iter.next()?;
 
         // SAFETY: Pointer is offseted using valid offset
         Some(unsafe {
