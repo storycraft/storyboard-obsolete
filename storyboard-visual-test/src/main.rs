@@ -88,20 +88,20 @@ impl State<StoryboardStateData> for SampleApp {
         println!("App unloaded");
     }
 
-    fn update<'s>(
+    fn update(
         &mut self,
         system_prop: &StoryboardSystemProp,
-        system_state: &mut StoryboardSystemState<'s>,
+        system_state: &mut StoryboardSystemState,
     ) -> StoryboardStateStatus {
         if let Event::RedrawRequested(_) = system_state.event {
-            system_prop.draw(Rectangle {
-                bounds: Rect::new(self.cursor, Size2D::new(100.0, 100.0)),
-                color: ShapeColor::white(),
-                texture: self.texture.clone(),
-                texture_rect: Rect::new(Point2D::new(0.0, 0.0), Size2D::new(100.0, 100.0)),
-            });
-
-            println!("Rendering took {} ms. means {} fps", system_prop.elapsed.as_millis(), 1000000000_f32 / system_prop.elapsed.as_nanos() as f32);
+            for _ in 0..200 {
+                system_prop.draw(Rectangle {
+                    bounds: Rect::new(self.cursor, Size2D::new(100.0, 100.0)),
+                    color: ShapeColor::white(),
+                    texture: self.texture.clone(),
+                    texture_rect: Rect::new(Point2D::new(0.0, 0.0), Size2D::new(100.0, 100.0)),
+                });
+            }
         } else if let Event::WindowEvent {
             event: WindowEvent::CloseRequested,
             ..

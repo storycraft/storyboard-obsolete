@@ -6,13 +6,12 @@
 
 use std::{borrow::Cow, fmt::Debug, ops::Deref, sync::Arc};
 
-use dynstack::{dyn_push, DynStack};
 use storyboard_core::{
     euclid::Transform3D,
     graphics::buffer::stream::BufferStream,
     store::Store,
     unit::{PixelUnit, RenderUnit},
-    wgpu::{BufferUsages, CommandEncoder, RenderPassColorAttachment, RenderPassDescriptor},
+    wgpu::{BufferUsages, CommandEncoder, RenderPassColorAttachment, RenderPassDescriptor}, trait_stack::TraitStack,
 };
 
 use crate::graphics::{
@@ -25,9 +24,10 @@ use super::{
     texture::TextureData,
 };
 
+#[derive(Debug)]
 pub struct StoryboardRenderer<'a> {
-    drawables: DynStack<dyn Drawable>,
-    components: DynStack<dyn Component>,
+    drawables: TraitStack<dyn Drawable>,
+    components: TraitStack<dyn Component>,
 
     resources: Arc<Store<BackendContext<'a>>>,
 
@@ -47,8 +47,8 @@ impl<'a> StoryboardRenderer<'a> {
         );
 
         Self {
-            drawables: DynStack::new(),
-            components: DynStack::new(),
+            drawables: TraitStack::new(),
+            components: TraitStack::new(),
 
             resources,
 
@@ -58,7 +58,7 @@ impl<'a> StoryboardRenderer<'a> {
     }
 
     pub fn push(&mut self, drawable: impl Drawable + 'static) {
-        dyn_push!(self.drawables, drawable);
+        self.drawables.push(drawable);
     }
 
     pub fn render(
@@ -98,8 +98,7 @@ impl<'a> StoryboardRenderer<'a> {
                 );
             }
 
-            // TODO:: Do clear instead of allocating clearing
-            self.drawables = DynStack::new();
+            self.drawables.clear();
         }
 
         {
@@ -116,25 +115,13 @@ impl<'a> StoryboardRenderer<'a> {
                 component.render(&mut render_context, &mut pass);
             }
         }
-        // TODO:: Do clear instead of allocating
-        self.components = DynStack::new();
+        self.components.clear();
     }
 }
-
-impl Debug for StoryboardRenderer<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("StoryboardRenderer")
-            .field("resources", &self.resources)
-            .field("vertex_stream", &self.vertex_stream)
-            .field("index_stream", &self.index_stream)
-            .finish()
-    }
-}
-
-pub struct ComponentQueue<'a>(&'a mut DynStack<dyn Component>);
+pub struct ComponentQueue<'a>(&'a mut TraitStack<dyn Component>);
 
 impl<'a> ComponentQueue<'a> {
     pub fn push(&mut self, component: impl Component + 'static) {
-        dyn_push!(self.0, component);
+        self.0.push(component);
     }
 }
