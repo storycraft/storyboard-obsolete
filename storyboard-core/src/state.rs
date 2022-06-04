@@ -45,6 +45,12 @@ pub trait State<Data: StateData> {
     ) -> StateStatus<Data>;
 }
 
+impl<Data> Debug for dyn State<Data> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("State").finish_non_exhaustive()
+    }
+}
+
 /// Next status for [StateSystem] from [State]
 pub enum StateStatus<Data> {
     /// Keep current [State] and request to invoke [State::update] immediately when possible
@@ -80,6 +86,7 @@ pub enum SystemStatus {
 ///
 /// System have one initial [State] after initalization.
 /// The system is finished and cannot be run more when the stack becomes empty.
+#[derive(Debug)]
 pub struct StateSystem<Data> {
     stack: SmallVec<[Box<dyn State<Data>>; 4]>,
 }
