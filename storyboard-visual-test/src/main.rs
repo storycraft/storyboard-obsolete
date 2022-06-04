@@ -4,7 +4,7 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
-use std::{error::Error, sync::Arc};
+use std::{error::Error, sync::Arc, time::Instant};
 
 use storyboard::{
     graphics::{
@@ -46,13 +46,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 #[derive(Debug)]
 pub struct SampleApp {
+    instant: Instant,
     texture: Option<Arc<RenderTexture2D>>,
     cursor: Point2D<f32, PixelUnit>
 }
 
 impl SampleApp {
     pub fn new() -> Self {
-        Self { texture: None, cursor: Default::default() }
+        Self { instant: Instant::now(), texture: None, cursor: Default::default() }
     }
 }
 
@@ -94,7 +95,7 @@ impl State<StoryboardStateData> for SampleApp {
         system_state: &mut StoryboardSystemState,
     ) -> StoryboardStateStatus {
         if let Event::RedrawRequested(_) = system_state.event {
-            for _ in 0..200 {
+            for _ in 0..20 {
                 system_prop.draw(Rectangle {
                     bounds: Rect::new(self.cursor, Size2D::new(100.0, 100.0)),
                     color: ShapeColor::white(),
@@ -102,6 +103,10 @@ impl State<StoryboardStateData> for SampleApp {
                     texture_rect: Rect::new(Point2D::new(0.0, 0.0), Size2D::new(100.0, 100.0)),
                 });
             }
+
+            let elapsed = self.instant.elapsed();
+            println!("Rendering took: {} ms", elapsed.as_micros() as f32 / 1000_f32);
+            self.instant = Instant::now();
         } else if let Event::WindowEvent {
             event: WindowEvent::CloseRequested,
             ..

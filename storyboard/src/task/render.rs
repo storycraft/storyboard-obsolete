@@ -86,7 +86,7 @@ impl<'a> SurfaceRenderTask<'a> {
                         label: Some("SurfaceRenderTask surface command encoder"),
                     });
 
-            if Observable::unmark(&mut self.surface_size) {
+            if Observable::invalidate(&mut self.surface_size) {
                 self.screen_matrix = Transform3D::ortho(
                     0.0_f32,
                     self.surface_size.width as f32,

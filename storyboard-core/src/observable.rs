@@ -19,7 +19,7 @@ impl<T> Observable<T> {
     pub const fn new(data: T) -> Self {
         Self {
             inner: data,
-            changed: false,
+            changed: true,
         }
     }
 
@@ -27,7 +27,7 @@ impl<T> Observable<T> {
     pub const fn new_unchanged(data: T) -> Self {
         Self {
             inner: data,
-            changed: true,
+            changed: false,
         }
     }
 
@@ -39,11 +39,11 @@ impl<T> Observable<T> {
         this.inner
     }
 
-    /// unmark inner data changes.
+    /// Invalidate inner data change flag.
     /// Return true if changes unmarked.
-    pub fn unmark(this: &mut Self) -> bool {
-        if !this.changed {
-            this.changed = true;
+    pub fn invalidate(this: &mut Self) -> bool {
+        if this.changed {
+            this.changed = false;
 
             true
         } else {
@@ -51,10 +51,10 @@ impl<T> Observable<T> {
         }
     }
 
-    /// Mark data as changed
+    /// Mark data changed.
     pub fn mark(this: &mut Self) {
-        if this.changed {
-            this.changed = false;
+        if !this.changed {
+            this.changed = true;
         }
     }
 }
