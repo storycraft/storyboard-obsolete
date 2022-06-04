@@ -25,7 +25,7 @@ impl StoreResources<BackendContext<'_>> for QuadIndexBufferResources {
         let quad_index_buffer = ctx.device.create_buffer_init(&BufferInitDescriptor {
             label: Some("QuadIndexBufferResources quad index buffer"),
             contents: bytemuck::cast_slice(&[0_u16, 1, 2, 0, 2, 3]),
-            usage: BufferUsages::INDEX | BufferUsages::MAP_WRITE,
+            usage: BufferUsages::INDEX,
         });
 
         Self { quad_index_buffer }

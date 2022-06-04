@@ -3,42 +3,42 @@
 // Copyright (c) storycraft. Licensed under the MIT Licence.
 
 struct VertexInput {
-    [[location(0)]] position: vec3<f32>;
-    [[location(1)]] fill_color: vec4<f32>;
-    [[location(2)]] border_color: vec4<f32>;
-    [[location(3)]] rect_coord: vec2<f32>;
+    @location(0) position: vec3<f32>,
+    @location(1) fill_color: vec4<f32>,
+    @location(2) border_color: vec4<f32>,
+    @location(3) rect_coord: vec2<f32>,
 };
 
 struct InstanceInput {
-    [[location(4)]] rect: vec4<f32>;
-    [[location(5)]] texture_rect: vec4<f32>;
-    [[location(6)]] border_radius: vec4<f32>;
-    [[location(7)]] border_thickness: f32;
-    [[location(8)]] glow_radius: f32;
-    [[location(9)]] glow_color: vec4<f32>;
-    [[location(10)]] shadow_offset: vec2<f32>;
-    [[location(11)]] shadow_radius: f32;
-    [[location(12)]] shadow_color: vec4<f32>;
+    @location(4) rect: vec4<f32>,
+    @location(5) texture_rect: vec4<f32>,
+    @location(6) border_radius: vec4<f32>,
+    @location(7) border_thickness: f32,
+    @location(8) glow_radius: f32,
+    @location(9) glow_color: vec4<f32>,
+    @location(10) shadow_offset: vec2<f32>,
+    @location(11) shadow_radius: f32,
+    @location(12) shadow_color: vec4<f32>,
 };
 
 struct VertexOutput {
-    [[builtin(position)]] position: vec4<f32>;
-    [[location(0)]] fill_color: vec4<f32>;
-    [[location(1)]] border_color: vec4<f32>;
-    [[location(2)]] glow_color: vec4<f32>;
-    [[location(3)]] shadow_color: vec4<f32>;
-    [[location(4)]] rect_coord: vec2<f32>;
+    @builtin(position) position: vec4<f32>,
+    @location(0) fill_color: vec4<f32>,
+    @location(1) border_color: vec4<f32>,
+    @location(2) glow_color: vec4<f32>,
+    @location(3) shadow_color: vec4<f32>,
+    @location(4) rect_coord: vec2<f32>,
 
-    [[location(5), interpolate(flat)]] rect: vec4<f32>;
-    [[location(6), interpolate(flat)]] texture_rect: vec4<f32>;
-    [[location(7), interpolate(flat)]] border_radius: vec4<f32>;
-    [[location(8), interpolate(flat)]] border_thickness: f32;
-    [[location(9), interpolate(flat)]] glow_radius: f32;
-    [[location(10), interpolate(flat)]] shadow_offset: vec2<f32>;
-    [[location(11), interpolate(flat)]] shadow_radius: f32;
+    @location(5) @interpolate(flat) rect: vec4<f32>,
+    @location(6) @interpolate(flat) texture_rect: vec4<f32>,
+    @location(7) @interpolate(flat) border_radius: vec4<f32>,
+    @location(8) @interpolate(flat) border_thickness: f32,
+    @location(9) @interpolate(flat) glow_radius: f32,
+    @location(10) @interpolate(flat) shadow_offset: vec2<f32>,
+    @location(11) @interpolate(flat) shadow_radius: f32,
 };
 
-[[stage(vertex)]]
+@vertex
 fn vs_main(
     vertex: VertexInput,
     instance: InstanceInput
@@ -63,9 +63,9 @@ fn vs_main(
     return out;
 }
 
-[[group(0), binding(0)]]
+@group(0) @binding(0)
 var texture: texture_2d<f32>;
-[[group(0), binding(1)]]
+@group(0) @binding(1)
 var texture_sampler: sampler;
 
 // Returns vec3(distanceX, distanceY, borderRadius)
@@ -92,8 +92,8 @@ fn wrapped_texture_coord(rect: vec4<f32>, coord: vec2<f32>) -> vec2<f32> {
     return (coord - rect.xy) / rect.zw;
 }
 
-[[stage(fragment)]]
-fn fs_main(in: VertexOutput) -> [[location(0)]] vec4<f32> {
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let box = box2d(in.rect, in.border_radius, in.rect_coord);
     let box_dist = box_distance(box);
 

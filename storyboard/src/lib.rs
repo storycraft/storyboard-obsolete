@@ -11,6 +11,7 @@ pub mod graphics;
 pub mod state;
 pub mod task;
 
+use instant::Instant;
 // Reexports
 pub use storyboard_core as core;
 use task::render::SurfaceRenderTask;
@@ -24,7 +25,7 @@ use graphics::{
 use state::{StoryboardStateData, StoryboardSystemProp, StoryboardSystemState};
 use std::{
     sync::{Arc, Mutex},
-    time::{Duration, Instant},
+    time::Duration,
 };
 use storyboard_core::euclid::Size2D;
 use storyboard_core::{
@@ -35,15 +36,13 @@ use storyboard_core::{
 use winit::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
-    window::{Window, WindowBuilder},
+    window::Window,
 };
 
 /// Storyboard app.
 /// Holds graphics, windows resources for app before start.
 #[derive(Debug)]
 pub struct Storyboard {
-    event_loop: EventLoop<()>,
-
     backend: StoryboardBackend,
     texture_data: TextureData,
 
@@ -55,14 +54,7 @@ pub struct Storyboard {
 
 impl Storyboard {
     /// Initalize resources for storyboard app
-    pub async fn init(
-        builder: WindowBuilder,
-        options: &BackendOptions,
-    ) -> Result<Self, BackendInitError> {
-        let event_loop = EventLoop::new();
-
-        let window = builder.build(&event_loop).unwrap();
-
+    pub async fn init(window: Window, options: &BackendOptions) -> Result<Self, BackendInitError> {
         let instance = Instance::new(Backends::all());
 
         // Safety: window is valid object to create a surface
@@ -75,8 +67,6 @@ impl Storyboard {
         let texture_data = TextureData::init(backend.device(), framebuffer_format);
 
         Ok(Self {
-            event_loop,
-
             backend,
             texture_data,
 
@@ -91,6 +81,10 @@ impl Storyboard {
         &self.backend
     }
 
+    pub const fn window(&self) -> &Window {
+        &self.window
+    }
+
     pub const fn texture_data(&self) -> &TextureData {
         &self.texture_data
     }
@@ -99,7 +93,11 @@ impl Storyboard {
     ///
     /// Start render thread and run given inital [StoryboardState].
     /// The state system will wait for event loop event when the state returns [SystemStatus::Wait].
-    pub fn run(self, state: impl State<StoryboardStateData> + 'static) -> ! {
+    pub fn run(
+        self,
+        event_loop: EventLoop<()>,
+        state: impl State<StoryboardStateData> + 'static,
+    ) -> ! {
         let backend = Arc::new(self.backend);
         let texture_data = Arc::new(self.texture_data);
 
@@ -133,7 +131,7 @@ impl Storyboard {
             .unwrap()
             .reconfigure(win_size, self.render_present_mode);
 
-        self.event_loop.run(move |event, _, control_flow| {
+        event_loop.run(move |event, _, control_flow| {
             let instant = Instant::now();
 
             let mut system_state = StoryboardSystemState { event };

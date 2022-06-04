@@ -19,7 +19,7 @@ use storyboard_core::{
         DepthStencilState, Device, FragmentState, IndexFormat, MultisampleState, PipelineLayout,
         PipelineLayoutDescriptor, PrimitiveState, PrimitiveTopology, RenderPipeline,
         RenderPipelineDescriptor, ShaderModule, ShaderModuleDescriptor, ShaderSource,
-        VertexBufferLayout, VertexState, VertexStepMode, BlendState, ColorWrites,
+        VertexBufferLayout, VertexState, VertexStepMode, BlendState, ColorWrites, CommandEncoder,
     },
 };
 
@@ -74,12 +74,12 @@ pub struct Box2D {
 }
 
 impl Drawable for Box2D {
-    fn prepare(&self, component_queue: &mut ComponentQueue, ctx: &mut DrawContext, depth: f32) {
+    fn prepare(&self, component_queue: &mut ComponentQueue, ctx: &mut DrawContext, _: &mut CommandEncoder, depth: f32) {
         component_queue.push(Box2DComponent::from_box2d(self, ctx, depth));
     }
 }
 
-#[derive(Debug, Clone, Copy, Pod, Zeroable)]
+#[derive(Debug, Clone, Default, Copy, Pod, Zeroable)]
 #[repr(C)]
 pub struct Box2DStyle {
     pub border_radius: [f32; 4],

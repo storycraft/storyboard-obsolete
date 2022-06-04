@@ -10,7 +10,7 @@ pub mod common;
 
 use std::fmt::Debug;
 
-use storyboard_core::wgpu::util::RenderEncoder;
+use storyboard_core::wgpu::{util::RenderEncoder, CommandEncoder};
 
 use super::{
     context::{DrawContext, RenderContext},
@@ -18,7 +18,7 @@ use super::{
 };
 
 pub trait Drawable: Send + Sync {
-    fn prepare(&self, component_queue: &mut ComponentQueue, ctx: &mut DrawContext, depth: f32);
+    fn prepare(&self, component_queue: &mut ComponentQueue, ctx: &mut DrawContext, encoder: &mut CommandEncoder, depth: f32);
 }
 
 impl Debug for dyn Drawable {

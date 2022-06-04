@@ -32,6 +32,10 @@ impl<'label> GrowingBuffer<'label> {
         }
     }
 
+    pub const fn size(&self) -> BufferAddress {
+        self.buffer_size
+    }
+
     /// Allocate and provide buffer given size.
     /// The size of buffer can be larger than requested size.
     /// Reusing buffer if possible.

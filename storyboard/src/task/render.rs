@@ -13,7 +13,7 @@ use storyboard_core::{
     wgpu::{
         Color, CommandEncoderDescriptor, LoadOp, Operations, PresentMode,
         RenderPassColorAttachment, Surface, SurfaceConfiguration, TextureUsages,
-        TextureViewDescriptor,
+        TextureViewDescriptor, Maintain,
     },
 };
 
@@ -117,6 +117,7 @@ impl<'a> SurfaceRenderTask<'a> {
             self.backend
                 .queue()
                 .submit(iter::once(surface_encoder.finish()));
+
 
             surface_texture.present();
         }

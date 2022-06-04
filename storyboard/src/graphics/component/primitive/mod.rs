@@ -19,7 +19,7 @@ use storyboard_core::{
         ColorWrites, DepthStencilState, Device, FragmentState, IndexFormat, MultisampleState,
         PipelineLayout, PipelineLayoutDescriptor, PrimitiveState, PrimitiveTopology,
         RenderPipeline, RenderPipelineDescriptor, ShaderModule, ShaderModuleDescriptor,
-        ShaderSource, VertexBufferLayout, VertexState, VertexStepMode,
+        ShaderSource, VertexBufferLayout, VertexState, VertexStepMode, CommandEncoder,
     },
 };
 
@@ -68,7 +68,7 @@ pub struct Triangle {
 }
 
 impl Drawable for Triangle {
-    fn prepare(&self, component_queue: &mut ComponentQueue, ctx: &mut DrawContext, depth: f32) {
+    fn prepare(&self, component_queue: &mut ComponentQueue, ctx: &mut DrawContext, _: &mut CommandEncoder, depth: f32) {
         component_queue.push(PrimitiveComponent::from_triangle(self, ctx, depth));
     }
 }
@@ -82,7 +82,7 @@ pub struct Rectangle {
 }
 
 impl Drawable for Rectangle {
-    fn prepare(&self, component_queue: &mut ComponentQueue, ctx: &mut DrawContext, depth: f32) {
+    fn prepare(&self, component_queue: &mut ComponentQueue, ctx: &mut DrawContext, _: &mut CommandEncoder, depth: f32) {
         component_queue.push(PrimitiveComponent::from_rectangle(self, ctx, depth));
     }
 }

@@ -94,6 +94,7 @@ impl<'a> StoryboardRenderer<'a> {
                 drawable.prepare(
                     &mut components_queue,
                     &mut draw_context,
+                    encoder,
                     1.0_f32 - ((1.0_f32 + i as f32) / total),
                 );
             }

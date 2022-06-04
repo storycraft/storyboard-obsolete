@@ -3,22 +3,21 @@
 // Copyright (c) storycraft. Licensed under the MIT Licence.
 
 struct VertexOutput {
-    [[builtin(position)]] position: vec4<f32>;
-    [[location(0)]] color: vec4<f32>;
+    @builtin(position) position: vec4<f32>,
+    @location(0) color: vec4<f32>,
 };
 
-[[stage(vertex)]]
 struct PathInstance {
-    [[location(2)]] matrix_0: vec4<f32>;
-    [[location(3)]] matrix_1: vec4<f32>;
-    [[location(4)]] matrix_2: vec4<f32>;
-    [[location(5)]] matrix_3: vec4<f32>;
+    @location(2) matrix_0: vec4<f32>,
+    @location(3) matrix_1: vec4<f32>,
+    @location(4) matrix_2: vec4<f32>,
+    @location(5) matrix_3: vec4<f32>,
 };
 
-[[stage(vertex)]]
+@vertex
 fn vs_main(
-    [[location(0)]] position: vec3<f32>,
-    [[location(1)]] color: vec4<f32>,
+    @location(0) position: vec3<f32>,
+    @location(1) color: vec4<f32>,
     instance: PathInstance
 ) -> VertexOutput {
     var out: VertexOutput;
@@ -39,7 +38,7 @@ fn vs_main(
     return out;
 }
 
-[[stage(fragment)]]
-fn fs_main(in: VertexOutput) -> [[location(0)]] vec4<f32> {
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     return in.color;
 }

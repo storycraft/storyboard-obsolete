@@ -38,8 +38,12 @@ pub struct DrawContext<'a, 'label> {
 
 impl<'a, 'label> DrawContext<'a, 'label> {
     pub fn into_render_context(self) -> RenderContext<'a> {
-        let vertex_stream = self.vertex_stream.finish(self.backend.device);
-        let index_stream = self.index_stream.finish(self.backend.device);
+        let vertex_stream = self
+            .vertex_stream
+            .finish(self.backend.device, self.backend.queue);
+        let index_stream = self
+            .index_stream
+            .finish(self.backend.device, self.backend.queue);
 
         RenderContext {
             backend: self.backend,

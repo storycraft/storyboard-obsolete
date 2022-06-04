@@ -6,7 +6,7 @@
 
 use std::{borrow::Cow, num::NonZeroU64, ops::Range};
 
-use wgpu::{Buffer, BufferAddress, BufferBinding, BufferSlice, BufferUsages, Device};
+use wgpu::{Buffer, BufferAddress, BufferBinding, BufferSlice, BufferUsages, Device, Queue};
 
 use super::GrowingBuffer;
 
@@ -23,8 +23,8 @@ impl<'a> BufferStream<'a> {
         Self {
             buffer: GrowingBuffer::new(
                 label,
-                usages | BufferUsages::COPY_DST | BufferUsages::MAP_WRITE,
-                true,
+                usages | BufferUsages::COPY_DST,
+                false,
             ),
             data: Vec::new(),
         }
@@ -48,24 +48,14 @@ impl<'a> BufferStream<'a> {
     }
 
     /// Finish streaming and upload memory buffer to gpu
-    pub fn finish(&mut self, device: &Device) -> StreamBuffer {
+    pub fn finish(&mut self, device: &Device, queue: &Queue) -> StreamBuffer {
         let size = self.data.len() as BufferAddress;
 
-        // Apply padding
         let padding = wgpu::COPY_BUFFER_ALIGNMENT - size % wgpu::COPY_BUFFER_ALIGNMENT;
-        self.data.reserve(padding as usize);
-        for _ in 0..padding {
-            self.data.push(0);
-        }
-
         let buf_size = size + padding;
 
         let buffer = self.buffer.alloc(device, buf_size);
-        buffer
-            .slice(..buf_size)
-            .get_mapped_range_mut()
-            .copy_from_slice(&mut self.data);
-        buffer.unmap();
+        queue.write_buffer(buffer, 0, &self.data);
 
         self.data.clear();
 
