@@ -8,14 +8,19 @@ use std::{error::Error, sync::Arc};
 
 use storyboard::{
     graphics::{
-        backend::BackendOptions, component::primitive::Rectangle, texture::RenderTexture2D,
+        backend::BackendOptions,
+        component::{
+            box2d::{Box2D, Box2DStyle},
+        },
+        texture::RenderTexture2D,
     },
     state::{
         StoryboardStateData, StoryboardStateStatus, StoryboardSystemProp, StoryboardSystemState,
     },
     winit::{
         event::{Event, WindowEvent},
-        window::{WindowBuilder, Window}, event_loop::EventLoop,
+        event_loop::EventLoop,
+        window::{Window, WindowBuilder},
     },
     Storyboard,
 };
@@ -32,7 +37,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     use futures::executor::block_on;
 
     let event_loop = EventLoop::new();
-    let window = WindowBuilder::new().with_title("Storyboard visual test").build(&event_loop)?;
+    let window = WindowBuilder::new()
+        .with_title("Storyboard visual test")
+        .build(&event_loop)?;
 
     Ok(block_on(main_async(event_loop, window)))
 }
@@ -40,7 +47,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 #[cfg(target_arch = "wasm32")]
 fn main() -> Result<(), Box<dyn Error>> {
     let event_loop = EventLoop::new();
-    let window = WindowBuilder::new().with_title("Storyboard visual test").build(&event_loop)?;
+    let window = WindowBuilder::new()
+        .with_title("Storyboard visual test")
+        .build(&event_loop)?;
 
     std::panic::set_hook(Box::new(console_error_panic_hook::hook));
     console_log::init().expect("could not initialize logger");
@@ -68,7 +77,8 @@ async fn main_async(event_loop: EventLoop<()>, window: Window) {
             ..Default::default()
         },
     )
-    .await.unwrap();
+    .await
+    .unwrap();
 
     storyboard.run(event_loop, SampleApp::new());
 }
@@ -96,7 +106,7 @@ impl State<StoryboardStateData> for SampleApp {
             TextureFormat::Bgra8Unorm,
             TextureUsages::COPY_DST | TextureUsages::TEXTURE_BINDING,
             &[
-                0xff, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00,
+                0xff, 0x00, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0xff, 0x00,
                 0x00, 0xff,
             ],
         );
@@ -105,7 +115,7 @@ impl State<StoryboardStateData> for SampleApp {
             system_prop.create_render_texture(
                 texture
                     .create_view_default(None)
-                    .slice(Rect::new(Point2D::new(0, 1), Size2D::new(2, 1)))
+                    .slice(Rect::new(Point2D::new(1, 0), Size2D::new(1, 2)))
                     .into(),
                 None,
             ),
@@ -114,7 +124,7 @@ impl State<StoryboardStateData> for SampleApp {
         println!("App loaded");
     }
 
-    fn unload(&mut self, system_prop: &StoryboardSystemProp) {
+    fn unload(&mut self, _: &StoryboardSystemProp) {
         self.texture.take();
 
         println!("App unloaded");
@@ -126,14 +136,19 @@ impl State<StoryboardStateData> for SampleApp {
         system_state: &mut StoryboardSystemState,
     ) -> StoryboardStateStatus {
         if let Event::RedrawRequested(_) = system_state.event {
-            for _ in 0..20 {
-                system_prop.draw(Rectangle {
-                    bounds: Rect::new(self.cursor, Size2D::new(100.0, 100.0)),
-                    color: ShapeColor::white(),
-                    texture: self.texture.clone(),
-                    texture_rect: Rect::new(Point2D::new(0.0, 0.0), Size2D::new(100.0, 100.0)),
-                });
-            }
+            system_prop.draw(Box2D {
+                bounds: Rect::new(self.cursor, Size2D::new(256.0, 256.0)),
+                fill_color: ShapeColor::WHITE,
+                border_color: ShapeColor::RED,
+                texture: self.texture.clone(),
+                texture_bounds: Some(Rect::new(Point2D::new(25.0, 25.0), Size2D::new(50.0, 50.0))),
+                style: Box2DStyle {
+                    border_thickness: 5.0,
+                    glow_color: ShapeColor::GREEN.into(),
+                    glow_radius: 15.0,
+                    ..Default::default()
+                },
+            });
         } else if let Event::WindowEvent {
             event: WindowEvent::CloseRequested,
             ..

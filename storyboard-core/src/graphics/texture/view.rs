@@ -37,7 +37,7 @@ impl SizedTextureView2D {
         self.size
     }
 
-    pub const fn render_rect(&self) -> Rect<f32, TextureUnit> {
+    pub const fn texture_rect(&self) -> Rect<f32, TextureUnit> {
         Rect::new(Point2D::new(0.0, 0.0), Size2D::new(1.0, 1.0))
     }
 
@@ -94,17 +94,11 @@ impl TextureView2D {
         }
     }
 
-    pub fn render_rect(&self) -> Rect<f32, TextureUnit> {
+    pub fn texture_rect(&self) -> Rect<f32, TextureUnit> {
         match self {
-            TextureView2D::All(view) => view.render_rect(),
-            TextureView2D::Partial(partial) => partial.render_rect(),
+            TextureView2D::All(view) => view.texture_rect(),
+            TextureView2D::Partial(partial) => partial.texture_rect(),
         }
-    }
-
-    pub fn into_view_coord(&self, coord: Point2D<f32, TextureUnit>) -> Point2D<f32, TextureUnit> {
-        let rect = self.render_rect();
-
-        rect.origin + coord.to_vector().component_mul(rect.size.to_vector())
     }
 }
 
@@ -149,7 +143,7 @@ impl PartialTextureView2D {
         &self.view
     }
 
-    pub fn render_rect(&self) -> Rect<f32, TextureUnit> {
+    pub fn texture_rect(&self) -> Rect<f32, TextureUnit> {
         Rect::new(
             Point2D::new(
                 self.rect.origin.x as f32 / self.view.size.width as f32,

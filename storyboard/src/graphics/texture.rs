@@ -60,8 +60,8 @@ impl TextureData {
 
         let sampler = device.create_sampler(&SamplerDescriptor {
             label: Some("Texture2D default sampler"),
-            address_mode_u: AddressMode::Repeat,
-            address_mode_v: AddressMode::Repeat,
+            address_mode_u: AddressMode::ClampToEdge,
+            address_mode_v: AddressMode::ClampToEdge,
 
             ..Default::default()
         });

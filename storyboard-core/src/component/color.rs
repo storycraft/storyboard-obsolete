@@ -4,46 +4,86 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
-use std::ops::Index;
+use std::{marker::PhantomData, ops::Index};
 
-use palette::{named, rgb::LinSrgba};
+use palette::rgb::{LinSrgba, Rgb};
 
 #[derive(Debug, Clone)]
-pub enum ShapeColor<const VERTICES: usize> {
+pub enum ShapeColor<const VERTICES: usize = 1> {
     Single(LinSrgba),
     Gradient([LinSrgba; VERTICES]),
 }
 
 impl<const VERTICES: usize> ShapeColor<VERTICES> {
+    pub const WHITE: ShapeColor<VERTICES> = ShapeColor::Single(LinSrgba {
+        color: Rgb {
+            red: 1.0,
+            green: 1.0,
+            blue: 1.0,
+            standard: PhantomData,
+        },
+        alpha: 1.0,
+    });
 
-    #[inline]
-    pub fn white() -> ShapeColor<VERTICES> {
-        ShapeColor::Single(named::WHITE.into_format().into_linear().into())
-    }
+    pub const RED: ShapeColor<VERTICES> = ShapeColor::Single(LinSrgba {
+        color: Rgb {
+            red: 1.0,
+            green: 0.0,
+            blue: 0.0,
+            standard: PhantomData,
+        },
+        alpha: 1.0,
+    });
+    pub const GREEN: ShapeColor<VERTICES> = ShapeColor::Single(LinSrgba {
+        color: Rgb {
+            red: 0.0,
+            green: 1.0,
+            blue: 0.0,
+            standard: PhantomData,
+        },
+        alpha: 1.0,
+    });
+    pub const BLUE: ShapeColor<VERTICES> = ShapeColor::Single(LinSrgba {
+        color: Rgb {
+            red: 0.0,
+            green: 0.0,
+            blue: 1.0,
+            standard: PhantomData,
+        },
+        alpha: 1.0,
+    });
 
-    #[inline]
-    pub fn black() -> ShapeColor<VERTICES> {
-        ShapeColor::Single(named::BLACK.into_format().into_linear().into())
-    }
+    pub const BLACK: ShapeColor<VERTICES> = ShapeColor::Single(LinSrgba {
+        color: Rgb {
+            red: 0.0,
+            green: 0.0,
+            blue: 0.0,
+            standard: PhantomData,
+        },
+        alpha: 1.0,
+    });
 
-    #[inline]
-    pub fn transparent() -> ShapeColor<VERTICES> {
-        ShapeColor::Single(LinSrgba::new(0.0, 0.0, 0.0, 0.0))
+    pub const TRANSPARENT: ShapeColor<VERTICES> = ShapeColor::Single(LinSrgba {
+        color: Rgb {
+            red: 0.0,
+            green: 0.0,
+            blue: 0.0,
+            standard: PhantomData,
+        },
+        alpha: 0.0,
+    });
+
+    pub fn opaque(&self) -> bool {
+        match self {
+            ShapeColor::Single(color) => color.alpha >= 1.0,
+            ShapeColor::Gradient(colors) => colors.iter().any(|color| color.alpha >= 1.0),
+        }
     }
 }
 
 impl<const VERTICES: usize> Default for ShapeColor<VERTICES> {
     fn default() -> Self {
-        Self::white()
-    }
-}
-
-impl<const VERTICES: usize> ShapeColor<VERTICES> {
-    pub fn partial_transparent(&self) -> bool {
-        match self {
-            ShapeColor::Single(color) => color.alpha < 1.0,
-            ShapeColor::Gradient(colors) => colors.iter().any(|color| color.alpha < 1.0),
-        }
+        Self::WHITE
     }
 }
 
@@ -56,6 +96,12 @@ impl<const VERTICES: usize> From<LinSrgba> for ShapeColor<VERTICES> {
 impl<const VERTICES: usize> From<[LinSrgba; VERTICES]> for ShapeColor<VERTICES> {
     fn from(gradient: [LinSrgba; VERTICES]) -> Self {
         Self::Gradient(gradient)
+    }
+}
+
+impl Into<LinSrgba> for ShapeColor<1> {
+    fn into(self) -> LinSrgba {
+        self[0]
     }
 }
 

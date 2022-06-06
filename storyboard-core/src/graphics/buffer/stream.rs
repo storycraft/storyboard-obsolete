@@ -82,7 +82,7 @@ impl<'a> StreamWriter<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct StreamBuffer<'a> {
     buffer: &'a Buffer,
 }

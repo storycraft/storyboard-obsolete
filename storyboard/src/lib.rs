@@ -8,6 +8,7 @@
 #![feature(generic_associated_types)]
 
 pub mod graphics;
+pub mod math;
 pub mod state;
 pub mod task;
 
@@ -103,11 +104,17 @@ impl Storyboard {
 
         let draw_resources = Arc::new(Store::new());
 
+        let win_size = {
+            let (width, height) = self.window.inner_size().into();
+
+            Size2D::new(width, height)
+        };
+
         let surface_render_task = Arc::new(Mutex::new(SurfaceRenderTask::new(
             backend.clone(),
             texture_data.clone(),
             self.surface,
-            StoryboardRenderer::new(draw_resources.clone()),
+            StoryboardRenderer::new(win_size, draw_resources.clone()),
         )));
 
         let mut system_prop = StoryboardSystemProp {
@@ -119,12 +126,6 @@ impl Storyboard {
         };
 
         let mut state_system = StateSystem::new(Box::new(state), &system_prop);
-
-        let win_size = {
-            let (width, height) = system_prop.window.inner_size().into();
-
-            Size2D::new(width, height)
-        };
 
         surface_render_task
             .lock()

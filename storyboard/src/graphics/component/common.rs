@@ -16,6 +16,7 @@ use storyboard_core::{
 use crate::graphics::{context::BackendContext, texture::RenderTexture2D};
 
 #[derive(Debug)]
+/// Resources containing quad index buffer
 pub struct QuadIndexBufferResources {
     pub quad_index_buffer: Buffer,
 }
@@ -33,6 +34,7 @@ impl StoreResources<BackendContext<'_>> for QuadIndexBufferResources {
 }
 
 #[derive(Debug)]
+/// Resources containing white empty texture
 pub struct EmptyTextureResources {
     pub empty_texture: RenderTexture2D,
 }

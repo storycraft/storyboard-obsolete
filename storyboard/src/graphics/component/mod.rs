@@ -28,9 +28,15 @@ impl Debug for dyn Drawable {
 }
 
 pub trait Component {
-    fn render<'rpass>(
+    fn render_opaque<'rpass>(
         &'rpass self,
-        ctx: &mut RenderContext<'rpass>,
+        ctx: &RenderContext<'rpass>,
+        pass: &mut dyn RenderEncoder<'rpass>,
+    );
+
+    fn render_transparent<'rpass>(
+        &'rpass self,
+        ctx: &RenderContext<'rpass>,
         pass: &mut dyn RenderEncoder<'rpass>,
     );
 }

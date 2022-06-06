@@ -5,7 +5,7 @@
  */
 
 use storyboard_core::{
-    euclid::Transform3D,
+    euclid::{Transform3D, Rect},
     graphics::buffer::stream::{BufferStream, StreamBuffer},
     store::Store,
     unit::{PixelUnit, RenderUnit},
@@ -20,7 +20,9 @@ pub struct BackendContext<'a> {
     pub queue: &'a Queue,
 
     pub textures: &'a TextureData,
-    pub depth_stencil: Option<&'a DepthStencilState>,
+
+    /// Depth stencil state used for component pipeline
+    pub depth_stencil: DepthStencilState,
 }
 
 /// [DrawContext] contains reference to gpu backend, resources store, and stream for component data preparing
@@ -30,6 +32,7 @@ pub struct DrawContext<'a, 'label> {
 
     pub resources: &'a Store<BackendContext<'a>>,
 
+    pub screen: Rect<f32, PixelUnit>,
     pub screen_matrix: &'a Transform3D<f32, PixelUnit, RenderUnit>,
 
     pub vertex_stream: &'a mut BufferStream<'label>,
@@ -55,7 +58,7 @@ impl<'a, 'label> DrawContext<'a, 'label> {
 }
 
 /// [RenderContext] contains gpu device and stream for component rendering
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RenderContext<'a> {
     pub backend: BackendContext<'a>,
 

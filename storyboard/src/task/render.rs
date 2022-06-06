@@ -7,13 +7,11 @@
 use std::{fmt::Debug, iter, sync::Arc};
 
 use storyboard_core::{
-    euclid::{Size2D, Transform3D},
-    observable::Observable,
-    unit::{PixelUnit, RenderUnit},
+    euclid::Size2D,
+    unit::PixelUnit,
     wgpu::{
-        Color, CommandEncoderDescriptor, LoadOp, Operations, PresentMode,
-        RenderPassColorAttachment, Surface, SurfaceConfiguration, TextureUsages,
-        TextureViewDescriptor, Maintain,
+        Color, LoadOp, Operations, PresentMode, RenderPassColorAttachment, Surface,
+        SurfaceConfiguration, TextureUsages, TextureViewDescriptor,
     },
 };
 
@@ -29,9 +27,6 @@ pub struct SurfaceRenderTask<'a> {
 
     surface: Surface,
 
-    surface_size: Observable<Size2D<u32, PixelUnit>>,
-    screen_matrix: Transform3D<f32, PixelUnit, RenderUnit>,
-
     renderer: StoryboardRenderer<'a>,
 }
 
@@ -46,16 +41,14 @@ impl<'a> SurfaceRenderTask<'a> {
             backend,
             textures,
             surface,
-            surface_size: Size2D::zero().into(),
-            screen_matrix: Transform3D::identity(),
             renderer,
         }
     }
 
     pub fn reconfigure(&mut self, size: Size2D<u32, PixelUnit>, present_mode: PresentMode) {
-        self.surface_size = size.into();
+        self.renderer.screen_size = size.into();
 
-        if self.surface_size.area() > 0 {
+        if self.renderer.screen_size.area() > 0 {
             self.surface.configure(
                 self.backend.device(),
                 &SurfaceConfiguration {
@@ -74,34 +67,15 @@ impl<'a> SurfaceRenderTask<'a> {
     }
 
     pub fn render(&mut self) {
-        if self.surface_size.area() <= 0 {
+        if self.renderer.screen_size.area() <= 0 {
             return;
         }
 
         if let Ok(surface_texture) = self.surface.get_current_texture() {
-            let mut surface_encoder =
-                self.backend
-                    .device()
-                    .create_command_encoder(&CommandEncoderDescriptor {
-                        label: Some("SurfaceRenderTask surface command encoder"),
-                    });
-
-            if Observable::invalidate(&mut self.surface_size) {
-                self.screen_matrix = Transform3D::ortho(
-                    0.0_f32,
-                    self.surface_size.width as f32,
-                    self.surface_size.height as f32,
-                    0.0,
-                    0.0,
-                    1.0,
-                );
-            }
-
-            self.renderer.render(
+            let renderer_encoder = self.renderer.render(
                 &self.backend,
                 &self.textures,
-                &self.screen_matrix,
-                &[RenderPassColorAttachment {
+                RenderPassColorAttachment {
                     view: &surface_texture
                         .texture
                         .create_view(&TextureViewDescriptor::default()),
@@ -110,16 +84,16 @@ impl<'a> SurfaceRenderTask<'a> {
                         load: LoadOp::Clear(Color::BLACK),
                         store: true,
                     },
-                }],
-                &mut surface_encoder,
+                },
             );
 
-            self.backend
-                .queue()
-                .submit(iter::once(surface_encoder.finish()));
+            if let Some(renderer_encoder) = renderer_encoder {
+                self.backend
+                    .queue()
+                    .submit(iter::once(renderer_encoder.finish()));
 
-
-            surface_texture.present();
+                surface_texture.present();
+            }
         }
     }
 }
