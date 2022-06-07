@@ -8,18 +8,18 @@
 
 use std::ops::{Add, Div, Neg, Sub};
 
-use storyboard_core::euclid::{Point2D, Rect};
+use storyboard_core::euclid::{Point2D, Rect, Size2D};
 
 pub trait RectExt<T, U> {
-    fn to_coords(self) -> [Point2D<T, U>; 4];
+    fn into_coords(self) -> [Point2D<T, U>; 4];
 
-    fn relative_to(&self, other: &Self) -> Self;
+    fn relative_in(&self, other: &Self) -> Self;
 }
 
 impl<T: Copy + Add<Output = T> + Sub<Output = T> + Neg<Output = T> + Div<Output = T>, U>
     RectExt<T, U> for Rect<T, U>
 {
-    fn to_coords(self) -> [Point2D<T, U>; 4] {
+    fn into_coords(self) -> [Point2D<T, U>; 4] {
         [
             self.origin,
             Point2D::new(self.origin.x, self.origin.y + self.size.height),
@@ -31,19 +31,13 @@ impl<T: Copy + Add<Output = T> + Sub<Output = T> + Neg<Output = T> + Div<Output 
         ]
     }
 
-    fn relative_to(&self, other: &Self) -> Self {
-        let scale = other
-            .size
-            .to_vector()
-            .component_div(self.size.to_vector())
-            .cast_unit();
-
+    fn relative_in(&self, other: &Self) -> Self {
         Rect::new(
             Point2D::new(
-                (self.origin.x - self.size.width) / self.size.width,
-                -self.origin.y / self.size.height,
+                (other.origin.x - self.origin.x) / self.size.width,
+                (other.origin.y - self.origin.y) / self.size.height,
             ),
-            scale.to_size(),
+            Size2D::new(other.size.width / self.size.width, other.size.height / self.size.height),
         )
     }
 }

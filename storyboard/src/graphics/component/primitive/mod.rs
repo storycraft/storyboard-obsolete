@@ -34,6 +34,7 @@ use crate::{
 
 use super::{
     common::{EmptyTextureResources, QuadIndexBufferResources},
+    texture::ComponentTexture,
     Component, Drawable,
 };
 
@@ -87,8 +88,7 @@ impl StoreResources<BackendContext<'_>> for PrimitiveResources {
 pub struct Triangle {
     pub bounds: Rect<f32, PixelUnit>,
     pub color: ShapeColor<3>,
-    pub texture: Option<Arc<RenderTexture2D>>,
-    pub texture_bounds: Option<Rect<f32, PixelUnit>>,
+    pub texture: Option<ComponentTexture>,
 }
 
 impl Drawable for Triangle {
@@ -111,8 +111,7 @@ impl Drawable for Triangle {
 pub struct Rectangle {
     pub bounds: Rect<f32, PixelUnit>,
     pub color: ShapeColor<4>,
-    pub texture: Option<Arc<RenderTexture2D>>,
-    pub texture_bounds: Option<Rect<f32, PixelUnit>>,
+    pub texture: Option<ComponentTexture>,
 }
 
 impl Drawable for Rectangle {
@@ -133,7 +132,7 @@ impl Drawable for Rectangle {
 
 #[derive(Debug)]
 pub struct PrimitiveComponent {
-    pritmitive_type: PrimitiveType,
+    primitive_type: PrimitiveType,
     texture: Option<Arc<RenderTexture2D>>,
     vertices_slice: StreamRange,
     instance_slice: StreamRange,
@@ -147,16 +146,18 @@ pub enum PrimitiveType {
 
 impl PrimitiveComponent {
     pub fn from_triangle(triangle: &Triangle, ctx: &mut DrawContext, depth: f32) -> Self {
-        let coords = triangle.bounds.to_coords();
-        
-        let texture_bounds = triangle
-            .texture_bounds
-            .unwrap_or(Rect::new(Point2D::new(0.0, 0.0), Size2D::new(1.0, 1.0)));
+        let coords = triangle.bounds.into_coords();
+
+        let texture_bounds = ComponentTexture::option_get_texture_bounds(
+            triangle.texture.as_ref(),
+            triangle.bounds,
+            ctx.screen.size,
+        );
 
         let texture_coords = texture_bounds
-            .relative_to(&triangle.bounds)
+            .relative_in(&triangle.bounds)
             .cast_unit()
-            .to_coords();
+            .into_coords();
 
         let vertices_slice = ctx.vertex_stream.write_slice(bytemuck::bytes_of(&[
             PrimitiveVertex {
@@ -190,7 +191,7 @@ impl PrimitiveComponent {
 
         let texture_rect = triangle.texture.as_ref().map_or(
             Rect::new(Point2D::zero(), Size2D::new(1.0, 1.0)),
-            |texture| texture.view().texture_rect(),
+            |texture| texture.inner.view().texture_rect(),
         );
 
         let instance_slice = ctx
@@ -198,24 +199,26 @@ impl PrimitiveComponent {
             .write_slice(bytemuck::bytes_of(&PrimitiveInstance { texture_rect }));
 
         Self {
-            pritmitive_type: PrimitiveType::Triangle,
-            texture: triangle.texture.clone(),
+            primitive_type: PrimitiveType::Triangle,
+            texture: triangle.texture.as_ref().map(|texture| texture.inner.clone()),
             vertices_slice,
             instance_slice,
         }
     }
 
     pub fn from_rectangle(rect: &Rectangle, ctx: &mut DrawContext, depth: f32) -> Self {
-        let coords = rect.bounds.to_coords();
+        let coords = rect.bounds.into_coords();
 
-        let texture_bounds = rect
-            .texture_bounds
-            .unwrap_or(Rect::new(Point2D::new(0.0, 0.0), Size2D::new(1.0, 1.0)));
+        let texture_bounds = ComponentTexture::option_get_texture_bounds(
+            rect.texture.as_ref(),
+            rect.bounds,
+            ctx.screen.size,
+        );
 
         let texture_coords = texture_bounds
-            .relative_to(&rect.bounds)
+            .relative_in(&rect.bounds)
             .cast_unit()
-            .to_coords();
+            .into_coords();
 
         let vertices_slice = ctx.vertex_stream.write_slice(bytemuck::bytes_of(&[
             PrimitiveVertex {
@@ -258,7 +261,7 @@ impl PrimitiveComponent {
 
         let texture_rect = rect.texture.as_ref().map_or(
             Rect::new(Point2D::zero(), Size2D::new(1.0, 1.0)),
-            |texture| texture.view().texture_rect(),
+            |texture| texture.inner.view().texture_rect(),
         );
 
         let instance_slice = ctx
@@ -266,8 +269,8 @@ impl PrimitiveComponent {
             .write_slice(bytemuck::bytes_of(&PrimitiveInstance { texture_rect }));
 
         Self {
-            pritmitive_type: PrimitiveType::Rectangle,
-            texture: rect.texture.clone(),
+            primitive_type: PrimitiveType::Rectangle,
+            texture: rect.texture.as_ref().map(|texture| texture.inner.clone()),
             vertices_slice,
             instance_slice,
         }
@@ -294,7 +297,7 @@ impl Component for PrimitiveComponent {
         pass.set_vertex_buffer(0, ctx.vertex_stream.slice(self.vertices_slice.clone()));
         pass.set_vertex_buffer(1, ctx.vertex_stream.slice(self.instance_slice.clone()));
 
-        match self.pritmitive_type {
+        match self.primitive_type {
             PrimitiveType::Triangle => {
                 pass.draw(0..3, 0..1);
             }
@@ -339,7 +342,7 @@ impl Component for PrimitiveComponent {
         pass.set_vertex_buffer(0, ctx.vertex_stream.slice(self.vertices_slice.clone()));
         pass.set_vertex_buffer(1, ctx.vertex_stream.slice(self.instance_slice.clone()));
 
-        match self.pritmitive_type {
+        match self.primitive_type {
             PrimitiveType::Triangle => {
                 pass.draw(0..3, 0..1);
             }

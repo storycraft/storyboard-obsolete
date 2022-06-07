@@ -11,6 +11,7 @@ use storyboard::{
         backend::BackendOptions,
         component::{
             box2d::{Box2D, Box2DStyle},
+            texture::{ComponentTexture, TextureLayout, TextureLayoutStyle},
         },
         texture::RenderTexture2D,
     },
@@ -106,8 +107,10 @@ impl State<StoryboardStateData> for SampleApp {
             TextureFormat::Bgra8Unorm,
             TextureUsages::COPY_DST | TextureUsages::TEXTURE_BINDING,
             &[
-                0xff, 0x00, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0xff, 0x00,
-                0x00, 0xff,
+                0xff, 0x00, 0x00, 0xff,
+                0x00, 0xff, 0x00, 0xff,
+                0x00, 0xff, 0x00, 0xff,
+                0xff, 0x00, 0x00, 0xff,
             ],
         );
 
@@ -137,11 +140,13 @@ impl State<StoryboardStateData> for SampleApp {
     ) -> StoryboardStateStatus {
         if let Event::RedrawRequested(_) = system_state.event {
             system_prop.draw(Box2D {
-                bounds: Rect::new(self.cursor, Size2D::new(256.0, 256.0)),
+                bounds: Rect::new(self.cursor, Size2D::new(100.0, 150.0)),
                 fill_color: ShapeColor::WHITE,
                 border_color: ShapeColor::RED,
-                texture: self.texture.clone(),
-                texture_bounds: Some(Rect::new(Point2D::new(25.0, 25.0), Size2D::new(50.0, 50.0))),
+                texture: self.texture.clone().map(|texture| ComponentTexture::new(
+                    texture,
+                    TextureLayout::Absolute(TextureLayoutStyle::Fit),
+                )),
                 style: Box2DStyle {
                     border_thickness: 5.0,
                     glow_color: ShapeColor::GREEN.into(),

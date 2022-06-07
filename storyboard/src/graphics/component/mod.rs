@@ -7,6 +7,7 @@
 pub mod box2d;
 pub mod primitive;
 pub mod common;
+pub mod texture;
 
 use std::fmt::Debug;
 

@@ -34,6 +34,7 @@ use crate::{
 
 use super::{
     common::{EmptyTextureResources, QuadIndexBufferResources},
+    texture::ComponentTexture,
     Component, Drawable,
 };
 
@@ -67,8 +68,7 @@ impl StoreResources<BackendContext<'_>> for Box2DResources {
 pub struct Box2D {
     pub bounds: Rect<f32, PixelUnit>,
 
-    pub texture: Option<Arc<RenderTexture2D>>,
-    pub texture_bounds: Option<Rect<f32, PixelUnit>>,
+    pub texture: Option<ComponentTexture>,
 
     pub fill_color: ShapeColor<4>,
     pub border_color: ShapeColor<4>,
@@ -117,14 +117,18 @@ impl Box2DComponent {
             box2d.style.border_thickness + box2d.style.glow_radius,
         );
         let bounds = box2d.bounds.inflate(inflation.x, inflation.y);
-        let coords = bounds.to_coords();
+        let coords = bounds.into_coords();
 
-        let texture_bounds = box2d
-            .texture_bounds
-            .unwrap_or(Rect::new(Point2D::new(0.0, 0.0), Size2D::new(1.0, 1.0)))
-            .translate(Vector2D::new(-inflation.x, inflation.y));
+        let texture_bounds = ComponentTexture::option_get_texture_bounds(
+            box2d.texture.as_ref(),
+            box2d.bounds,
+            ctx.screen.size,
+        );
 
-        let texture_coords = texture_bounds.relative_to(&bounds).cast_unit().to_coords();
+        let texture_coords = texture_bounds
+            .relative_in(&bounds)
+            .cast_unit()
+            .into_coords();
 
         let vertices_slice = ctx.vertex_stream.write_slice(bytemuck::bytes_of(&[
             BoxVertex {
@@ -175,7 +179,7 @@ impl Box2DComponent {
 
         let texture_rect = box2d.texture.as_ref().map_or(
             Rect::new(Point2D::zero(), Size2D::new(1.0, 1.0)),
-            |texture| texture.view().texture_rect(),
+            |texture| texture.inner.view().texture_rect(),
         );
 
         let instance_slice = ctx
@@ -189,7 +193,7 @@ impl Box2DComponent {
             }));
 
         Self {
-            texture: box2d.texture.clone(),
+            texture: box2d.texture.as_ref().map(|texture| texture.inner.clone()),
             vertices_slice,
             instance_slice,
         }
