@@ -57,7 +57,10 @@ impl StoreResources<BackendContext<'_>> for Box2DResources {
                 blend: Some(BlendState::ALPHA_BLENDING),
                 write_mask: ColorWrites::ALL,
             }],
-            Some(ctx.depth_stencil.clone()),
+            Some(DepthStencilState {
+                depth_write_enabled: false,
+                ..ctx.depth_stencil.clone()
+            }),
         );
 
         Self { pipeline }

@@ -139,21 +139,24 @@ impl State<StoryboardStateData> for SampleApp {
         system_state: &mut StoryboardSystemState,
     ) -> StoryboardStateStatus {
         if let Event::RedrawRequested(_) = system_state.event {
-            system_prop.draw(Box2D {
-                bounds: Rect::new(self.cursor, Size2D::new(100.0, 150.0)),
-                fill_color: ShapeColor::WHITE,
-                border_color: ShapeColor::RED,
-                texture: self.texture.clone().map(|texture| ComponentTexture::new(
-                    texture,
-                    TextureLayout::Absolute(TextureLayoutStyle::Fit),
-                )),
-                style: Box2DStyle {
-                    border_thickness: 5.0,
-                    glow_color: ShapeColor::GREEN.into(),
-                    glow_radius: 15.0,
-                    ..Default::default()
-                },
-            });
+            for i in 0..20 {
+                system_prop.draw(Box2D {
+                    bounds: Rect::new(self.cursor + Size2D::new(i as f32 * 20.0, 0.0), Size2D::new(20.0, 50.0)),
+                    fill_color: ShapeColor::WHITE,
+                    border_color: ShapeColor::RED,
+                    texture: self.texture.clone().map(|texture| ComponentTexture::new(
+                        texture,
+                        TextureLayout::Absolute(TextureLayoutStyle::Fit),
+                    )),
+                    style: Box2DStyle {
+                        border_thickness: 5.0,
+                        glow_color: ShapeColor::WHITE.into(),
+                        glow_radius: 10.0,
+                        ..Default::default()
+                    },
+                });
+            }
+           
         } else if let Event::WindowEvent {
             event: WindowEvent::CloseRequested,
             ..

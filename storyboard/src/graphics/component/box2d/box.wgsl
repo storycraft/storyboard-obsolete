@@ -88,7 +88,7 @@ fn box_distance(box2d: vec3<f32>) -> f32 {
 }
 
 fn blend(source: vec4<f32>, dest: vec4<f32>, alpha: f32) -> vec4<f32> {
-    return vec4<f32>(source.xyz * (1.0 - alpha) + dest.xyz * alpha, 1.0);
+    return vec4<f32>(source.xyz * (1.0 - alpha) + dest.xyz * alpha, alpha);
 }
 
 fn mapped_texture_color(tex: texture_2d<f32>, tex_sampler: sampler, tex_sub_rect: vec4<f32>, tex_coord: vec2<f32>) -> vec4<f32> {
@@ -109,31 +109,31 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let shadow_box = box2d(in.rect, in.border_radius, in.rect_coord - in.shadow_offset);
     let shadow_box_dist = box_distance(shadow_box);
 
-    var color = vec4<f32>(0.0, 0.0, 0.0, 1.0);
+    var color = vec4<f32>(0.0, 0.0, 0.0, 0.0);
 
     let fill_color = in.fill_color * mapped_texture_color(texture, texture_sampler, in.texture_rect, in.texture_coord);
 
     // Shadow
     if (shadow_box_dist < in.shadow_radius) {
         let t = 1.0 - select(0.0, shadow_box_dist / in.shadow_radius, in.shadow_radius != 0.0);
-        color = blend(color, in.shadow_color, in.shadow_color.w * t);
+        color = blend(color, in.shadow_color, t);
     }
 
     // Glow
     if (box_dist <= in.border_thickness + in.glow_radius && box_dist > in.border_thickness) {
         let t = 1.0 - select(0.0, (box_dist - in.border_thickness) / in.glow_radius, in.glow_radius != 0.0);
-        color = blend(color, in.glow_color, in.glow_color.w * t);
+        color = blend(color, in.glow_color, t);
     }
 
     // Border
     if (max(box.x, box.y) <= box.z + in.border_thickness && box_dist < in.border_thickness + 1.0 && box_dist > 0.0) {
         let t = 1.0 - max(box_dist - in.border_thickness, 0.0);
-        color = blend(color, in.border_color, in.border_color.w * t);
+        color = blend(color, in.border_color, t);
     }
 
     // Fill Color
     if (max(box.x, box.y) <= box.z && box_dist < 1.0) {
-        color = blend(color, fill_color, fill_color.w * (1.0 - box_dist));
+        color = blend(color, fill_color, (1.0 - box_dist));
     }
 
     return color;
