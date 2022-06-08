@@ -15,7 +15,8 @@ use storyboard_core::{
     store::StoreResources,
     unit::{PixelUnit, RenderUnit, TextureUnit},
     wgpu::{
-        util::RenderEncoder, vertex_attr_array, BindGroupLayout, BlendState, ColorTargetState,
+        util::{BufferInitDescriptor, DeviceExt, RenderEncoder},
+        vertex_attr_array, BindGroupLayout, BlendState, Buffer, BufferUsages, ColorTargetState,
         ColorWrites, CommandEncoder, DepthStencilState, Device, FragmentState, IndexFormat,
         MultisampleState, PipelineLayout, PipelineLayoutDescriptor, PrimitiveState,
         PrimitiveTopology, RenderPipeline, RenderPipelineDescriptor, ShaderModule,
@@ -32,16 +33,13 @@ use crate::{
     math::RectExt,
 };
 
-use super::{
-    common::{EmptyTextureResources, QuadIndexBufferResources},
-    texture::ComponentTexture,
-    Component, Drawable,
-};
+use super::{common::EmptyTextureResources, texture::ComponentTexture, Component, Drawable};
 
 #[derive(Debug)]
 pub struct PrimitiveResources {
     opaque_pipeline: RenderPipeline,
     transparent_pipeline: RenderPipeline,
+    quad_index_buffer: Buffer,
 }
 
 impl StoreResources<BackendContext<'_>> for PrimitiveResources {
@@ -77,9 +75,16 @@ impl StoreResources<BackendContext<'_>> for PrimitiveResources {
             }),
         );
 
+        let quad_index_buffer = ctx.device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("PrimitiveResources quad index buffer"),
+            contents: bytemuck::cast_slice(&[0_u16, 1, 2, 0, 2, 3]),
+            usage: BufferUsages::INDEX,
+        });
+
         Self {
             opaque_pipeline,
             transparent_pipeline,
+            quad_index_buffer,
         }
     }
 }
@@ -200,7 +205,10 @@ impl PrimitiveComponent {
 
         Self {
             primitive_type: PrimitiveType::Triangle,
-            texture: triangle.texture.as_ref().map(|texture| texture.inner.clone()),
+            texture: triangle
+                .texture
+                .as_ref()
+                .map(|texture| texture.inner.clone()),
             vertices_slice,
             instance_slice,
         }
@@ -283,11 +291,9 @@ impl Component for PrimitiveComponent {
         ctx: &RenderContext<'rpass>,
         pass: &mut dyn RenderEncoder<'rpass>,
     ) {
-        pass.set_pipeline(
-            &ctx.resources
-                .get::<PrimitiveResources>(&ctx.backend)
-                .opaque_pipeline,
-        );
+        let primitive_resources = ctx.resources.get::<PrimitiveResources>(&ctx.backend);
+
+        pass.set_pipeline(&primitive_resources.opaque_pipeline);
 
         ctx.resources
             .get::<EmptyTextureResources>(&ctx.backend)
@@ -304,10 +310,7 @@ impl Component for PrimitiveComponent {
 
             PrimitiveType::Rectangle => {
                 pass.set_index_buffer(
-                    ctx.resources
-                        .get::<QuadIndexBufferResources>(&ctx.backend)
-                        .quad_index_buffer
-                        .slice(..),
+                    primitive_resources.quad_index_buffer.slice(..),
                     IndexFormat::Uint16,
                 );
 
@@ -321,11 +324,9 @@ impl Component for PrimitiveComponent {
         ctx: &RenderContext<'rpass>,
         pass: &mut dyn RenderEncoder<'rpass>,
     ) {
-        pass.set_pipeline(
-            &ctx.resources
-                .get::<PrimitiveResources>(&ctx.backend)
-                .transparent_pipeline,
-        );
+        let primitive_resources = ctx.resources.get::<PrimitiveResources>(&ctx.backend);
+
+        pass.set_pipeline(&primitive_resources.transparent_pipeline);
 
         self.texture
             .as_deref()
@@ -349,10 +350,7 @@ impl Component for PrimitiveComponent {
 
             PrimitiveType::Rectangle => {
                 pass.set_index_buffer(
-                    ctx.resources
-                        .get::<QuadIndexBufferResources>(&ctx.backend)
-                        .quad_index_buffer
-                        .slice(..),
+                    primitive_resources.quad_index_buffer.slice(..),
                     IndexFormat::Uint16,
                 );
 

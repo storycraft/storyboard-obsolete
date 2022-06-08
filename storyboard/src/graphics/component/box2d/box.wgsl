@@ -114,7 +114,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let fill_color = in.fill_color * mapped_texture_color(texture, texture_sampler, in.texture_rect, in.texture_coord);
 
     // Shadow
-    if (shadow_box_dist < in.shadow_radius) {
+    if (shadow_box_dist <= in.shadow_radius) {
         let t = 1.0 - select(0.0, shadow_box_dist / in.shadow_radius, in.shadow_radius != 0.0);
         color = blend(color, in.shadow_color, t);
     }

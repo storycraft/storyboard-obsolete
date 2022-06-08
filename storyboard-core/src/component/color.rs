@@ -8,14 +8,16 @@ use std::{marker::PhantomData, ops::Index};
 
 use palette::rgb::{LinSrgba, Rgb};
 
+pub type Color = LinSrgba;
+
 #[derive(Debug, Clone)]
 pub enum ShapeColor<const VERTICES: usize = 1> {
-    Single(LinSrgba),
-    Gradient([LinSrgba; VERTICES]),
+    Single(Color),
+    Gradient([Color; VERTICES]),
 }
 
 impl<const VERTICES: usize> ShapeColor<VERTICES> {
-    pub const WHITE: ShapeColor<VERTICES> = ShapeColor::Single(LinSrgba {
+    pub const WHITE: ShapeColor<VERTICES> = ShapeColor::Single(Color {
         color: Rgb {
             red: 1.0,
             green: 1.0,
@@ -25,7 +27,7 @@ impl<const VERTICES: usize> ShapeColor<VERTICES> {
         alpha: 1.0,
     });
 
-    pub const RED: ShapeColor<VERTICES> = ShapeColor::Single(LinSrgba {
+    pub const RED: ShapeColor<VERTICES> = ShapeColor::Single(Color {
         color: Rgb {
             red: 1.0,
             green: 0.0,
@@ -34,7 +36,7 @@ impl<const VERTICES: usize> ShapeColor<VERTICES> {
         },
         alpha: 1.0,
     });
-    pub const GREEN: ShapeColor<VERTICES> = ShapeColor::Single(LinSrgba {
+    pub const GREEN: ShapeColor<VERTICES> = ShapeColor::Single(Color {
         color: Rgb {
             red: 0.0,
             green: 1.0,
@@ -43,7 +45,7 @@ impl<const VERTICES: usize> ShapeColor<VERTICES> {
         },
         alpha: 1.0,
     });
-    pub const BLUE: ShapeColor<VERTICES> = ShapeColor::Single(LinSrgba {
+    pub const BLUE: ShapeColor<VERTICES> = ShapeColor::Single(Color {
         color: Rgb {
             red: 0.0,
             green: 0.0,
@@ -53,7 +55,7 @@ impl<const VERTICES: usize> ShapeColor<VERTICES> {
         alpha: 1.0,
     });
 
-    pub const BLACK: ShapeColor<VERTICES> = ShapeColor::Single(LinSrgba {
+    pub const BLACK: ShapeColor<VERTICES> = ShapeColor::Single(Color {
         color: Rgb {
             red: 0.0,
             green: 0.0,
@@ -63,7 +65,7 @@ impl<const VERTICES: usize> ShapeColor<VERTICES> {
         alpha: 1.0,
     });
 
-    pub const TRANSPARENT: ShapeColor<VERTICES> = ShapeColor::Single(LinSrgba {
+    pub const TRANSPARENT: ShapeColor<VERTICES> = ShapeColor::Single(Color {
         color: Rgb {
             red: 0.0,
             green: 0.0,
@@ -87,26 +89,26 @@ impl<const VERTICES: usize> Default for ShapeColor<VERTICES> {
     }
 }
 
-impl<const VERTICES: usize> From<LinSrgba> for ShapeColor<VERTICES> {
-    fn from(color: LinSrgba) -> Self {
+impl<const VERTICES: usize> From<Color> for ShapeColor<VERTICES> {
+    fn from(color: Color) -> Self {
         Self::Single(color)
     }
 }
 
-impl<const VERTICES: usize> From<[LinSrgba; VERTICES]> for ShapeColor<VERTICES> {
-    fn from(gradient: [LinSrgba; VERTICES]) -> Self {
+impl<const VERTICES: usize> From<[Color; VERTICES]> for ShapeColor<VERTICES> {
+    fn from(gradient: [Color; VERTICES]) -> Self {
         Self::Gradient(gradient)
     }
 }
 
-impl Into<LinSrgba> for ShapeColor<1> {
-    fn into(self) -> LinSrgba {
+impl Into<Color> for ShapeColor<1> {
+    fn into(self) -> Color {
         self[0]
     }
 }
 
 impl<const VERTICES: usize> Index<usize> for ShapeColor<VERTICES> {
-    type Output = LinSrgba;
+    type Output = Color;
 
     fn index(&self, index: usize) -> &Self::Output {
         match self {

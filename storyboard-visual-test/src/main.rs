@@ -27,7 +27,7 @@ use storyboard::{
 };
 use storyboard_core::{
     component::color::ShapeColor,
-    euclid::{Point2D, Rect, Size2D},
+    euclid::{Point2D, Rect, Size2D, Vector2D},
     state::State,
     unit::PixelUnit,
     wgpu::{PowerPreference, TextureFormat, TextureUsages},
@@ -86,7 +86,7 @@ async fn main_async(event_loop: EventLoop<()>, window: Window) {
 
 #[derive(Debug)]
 pub struct SampleApp {
-    texture: Option<Arc<RenderTexture2D>>,
+    texture: Option<ComponentTexture>,
     cursor: Point2D<f32, PixelUnit>,
 }
 
@@ -107,21 +107,22 @@ impl State<StoryboardStateData> for SampleApp {
             TextureFormat::Bgra8Unorm,
             TextureUsages::COPY_DST | TextureUsages::TEXTURE_BINDING,
             &[
-                0xff, 0x00, 0x00, 0xff,
-                0x00, 0xff, 0x00, 0xff,
-                0x00, 0xff, 0x00, 0xff,
-                0xff, 0x00, 0x00, 0xff,
+                0xff, 0x00, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0xff, 0x00,
+                0x00, 0xff,
             ],
         );
 
-        self.texture = Some(Arc::new(
-            system_prop.create_render_texture(
-                texture
-                    .create_view_default(None)
-                    .slice(Rect::new(Point2D::new(1, 0), Size2D::new(1, 2)))
-                    .into(),
-                None,
+        self.texture = Some(ComponentTexture::new(
+            Arc::new(
+                system_prop.create_render_texture(
+                    texture
+                        .create_view_default(None)
+                        .slice(Rect::new(Point2D::new(1, 0), Size2D::new(1, 2)))
+                        .into(),
+                    None,
+                ),
             ),
+            TextureLayout::Absolute(TextureLayoutStyle::Fit),
         ));
 
         println!("App loaded");
@@ -139,24 +140,19 @@ impl State<StoryboardStateData> for SampleApp {
         system_state: &mut StoryboardSystemState,
     ) -> StoryboardStateStatus {
         if let Event::RedrawRequested(_) = system_state.event {
-            for i in 0..20 {
-                system_prop.draw(Box2D {
-                    bounds: Rect::new(self.cursor + Size2D::new(i as f32 * 20.0, 0.0), Size2D::new(20.0, 50.0)),
-                    fill_color: ShapeColor::WHITE,
-                    border_color: ShapeColor::RED,
-                    texture: self.texture.clone().map(|texture| ComponentTexture::new(
-                        texture,
-                        TextureLayout::Absolute(TextureLayoutStyle::Fit),
-                    )),
-                    style: Box2DStyle {
-                        border_thickness: 5.0,
-                        glow_color: ShapeColor::WHITE.into(),
-                        glow_radius: 10.0,
-                        ..Default::default()
-                    },
-                });
-            }
-           
+            system_prop.draw(Box2D {
+                bounds: Rect::new(self.cursor, Size2D::new(25.0, 25.0)),
+                fill_color: ShapeColor::WHITE,
+                border_color: ShapeColor::RED,
+                texture: self.texture.clone(),
+                style: Box2DStyle {
+                    border_thickness: 5.0,
+                    shadow_offset: Vector2D::new(100.0, 100.0),
+                    shadow_radius: 0.0,
+                    shadow_color: ShapeColor::BLUE.into(),
+                    ..Default::default()
+                },
+            });
         } else if let Event::WindowEvent {
             event: WindowEvent::CloseRequested,
             ..

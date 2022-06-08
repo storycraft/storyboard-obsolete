@@ -5,8 +5,9 @@
  */
 
 pub mod box2d;
-pub mod primitive;
 pub mod common;
+pub mod primitive;
+pub mod text;
 pub mod texture;
 
 use std::fmt::Debug;
@@ -19,7 +20,13 @@ use super::{
 };
 
 pub trait Drawable: Send + Sync {
-    fn prepare(&self, component_queue: &mut ComponentQueue, ctx: &mut DrawContext, encoder: &mut CommandEncoder, depth: f32);
+    fn prepare(
+        &self,
+        component_queue: &mut ComponentQueue,
+        ctx: &mut DrawContext,
+        encoder: &mut CommandEncoder,
+        depth: f32,
+    );
 }
 
 impl Debug for dyn Drawable {

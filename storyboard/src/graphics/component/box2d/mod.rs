@@ -15,7 +15,8 @@ use storyboard_core::{
     store::StoreResources,
     unit::{PixelUnit, RenderUnit, TextureUnit},
     wgpu::{
-        util::RenderEncoder, vertex_attr_array, BindGroupLayout, BlendState, BufferAddress,
+        util::{BufferInitDescriptor, DeviceExt, RenderEncoder},
+        vertex_attr_array, BindGroupLayout, BlendState, Buffer, BufferAddress, BufferUsages,
         ColorTargetState, ColorWrites, CommandEncoder, DepthStencilState, Device, FragmentState,
         IndexFormat, MultisampleState, PipelineLayout, PipelineLayoutDescriptor, PrimitiveState,
         PrimitiveTopology, RenderPipeline, RenderPipelineDescriptor, ShaderModule,
@@ -32,15 +33,12 @@ use crate::{
     math::RectExt,
 };
 
-use super::{
-    common::{EmptyTextureResources, QuadIndexBufferResources},
-    texture::ComponentTexture,
-    Component, Drawable,
-};
+use super::{common::EmptyTextureResources, texture::ComponentTexture, Component, Drawable};
 
 #[derive(Debug)]
 pub struct Box2DResources {
     pipeline: RenderPipeline,
+    box_index_buffer: Buffer,
 }
 
 impl StoreResources<BackendContext<'_>> for Box2DResources {
@@ -63,7 +61,16 @@ impl StoreResources<BackendContext<'_>> for Box2DResources {
             }),
         );
 
-        Self { pipeline }
+        let box_index_buffer = ctx.device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("Box2DResources quad index buffer"),
+            contents: bytemuck::cast_slice(&[0_u16, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7]),
+            usage: BufferUsages::INDEX,
+        });
+
+        Self {
+            pipeline,
+            box_index_buffer,
+        }
     }
 }
 
@@ -109,18 +116,34 @@ pub struct Box2DStyle {
 pub struct Box2DComponent {
     texture: Option<Arc<RenderTexture2D>>,
 
+    indices: u32,
+
     vertices_slice: StreamRange,
     instance_slice: StreamRange,
 }
 
 impl Box2DComponent {
     pub fn from_box2d(box2d: &Box2D, ctx: &mut DrawContext, depth: f32) -> Self {
-        let inflation = Vector2D::<f32, PixelUnit>::new(
-            box2d.style.border_thickness + box2d.style.glow_radius,
-            box2d.style.border_thickness + box2d.style.glow_radius,
-        );
-        let bounds = box2d.bounds.inflate(inflation.x, inflation.y);
-        let coords = bounds.into_coords();
+        let bounds_inflation = box2d.style.border_thickness + box2d.style.glow_radius;
+        let mut inflated_bounds = if bounds_inflation > 0.0 {
+            box2d.bounds.inflate(bounds_inflation, bounds_inflation)
+        } else {
+            box2d.bounds
+        };
+
+        let mut shadow_bounds = box2d.bounds.translate(box2d.style.shadow_offset);
+        if box2d.style.shadow_radius > 0.0 {
+            shadow_bounds =
+                shadow_bounds.inflate(box2d.style.shadow_radius, box2d.style.shadow_radius);
+        }
+
+        let draw_shadow_box = !inflated_bounds.intersects(&shadow_bounds);
+
+        let indices = if draw_shadow_box { 12 } else { 6 };
+
+        if !draw_shadow_box {
+            inflated_bounds = inflated_bounds.union(&shadow_bounds);
+        }
 
         let texture_bounds = ComponentTexture::option_get_texture_bounds(
             box2d.texture.as_ref(),
@@ -129,56 +152,107 @@ impl Box2DComponent {
         );
 
         let texture_coords = texture_bounds
-            .relative_in(&bounds)
+            .relative_in(&inflated_bounds)
             .cast_unit()
             .into_coords();
 
-        let vertices_slice = ctx.vertex_stream.write_slice(bytemuck::bytes_of(&[
-            BoxVertex {
-                position: ctx
-                    .screen_matrix
-                    .transform_point2d(coords[0])
-                    .unwrap()
-                    .extend(depth),
-                fill_color: box2d.fill_color[0],
-                border_color: box2d.border_color[0],
-                rect_coord: coords[0],
-                texture_coord: texture_coords[0],
-            },
-            BoxVertex {
-                position: ctx
-                    .screen_matrix
-                    .transform_point2d(coords[1])
-                    .unwrap()
-                    .extend(depth),
-                fill_color: box2d.fill_color[1],
-                border_color: box2d.border_color[1],
-                rect_coord: coords[1],
-                texture_coord: texture_coords[1],
-            },
-            BoxVertex {
-                position: ctx
-                    .screen_matrix
-                    .transform_point2d(coords[2])
-                    .unwrap()
-                    .extend(depth),
-                fill_color: box2d.fill_color[2],
-                border_color: box2d.border_color[2],
-                rect_coord: coords[2],
-                texture_coord: texture_coords[2],
-            },
-            BoxVertex {
-                position: ctx
-                    .screen_matrix
-                    .transform_point2d(coords[3])
-                    .unwrap()
-                    .extend(depth),
-                fill_color: box2d.fill_color[3],
-                border_color: box2d.border_color[3],
-                rect_coord: coords[3],
-                texture_coord: texture_coords[3],
-            },
-        ]));
+        let vertices_slice = {
+            let mut writer = ctx.vertex_stream.next_writer();
+
+            let box_coords = inflated_bounds.into_coords();
+
+            writer.write(bytemuck::bytes_of(&[
+                BoxVertex {
+                    position: ctx
+                        .screen_matrix
+                        .transform_point2d(box_coords[0])
+                        .unwrap()
+                        .extend(depth),
+                    fill_color: box2d.fill_color[0],
+                    border_color: box2d.border_color[0],
+                    rect_coord: box_coords[0],
+                    texture_coord: texture_coords[0],
+                },
+                BoxVertex {
+                    position: ctx
+                        .screen_matrix
+                        .transform_point2d(box_coords[1])
+                        .unwrap()
+                        .extend(depth),
+                    fill_color: box2d.fill_color[1],
+                    border_color: box2d.border_color[1],
+                    rect_coord: box_coords[1],
+                    texture_coord: texture_coords[1],
+                },
+                BoxVertex {
+                    position: ctx
+                        .screen_matrix
+                        .transform_point2d(box_coords[2])
+                        .unwrap()
+                        .extend(depth),
+                    fill_color: box2d.fill_color[2],
+                    border_color: box2d.border_color[2],
+                    rect_coord: box_coords[2],
+                    texture_coord: texture_coords[2],
+                },
+                BoxVertex {
+                    position: ctx
+                        .screen_matrix
+                        .transform_point2d(box_coords[3])
+                        .unwrap()
+                        .extend(depth),
+                    fill_color: box2d.fill_color[3],
+                    border_color: box2d.border_color[3],
+                    rect_coord: box_coords[3],
+                    texture_coord: texture_coords[3],
+                },
+            ]));
+
+            if draw_shadow_box {
+                let shadow_coords = shadow_bounds.into_coords();
+
+                writer.write(bytemuck::bytes_of(&[
+                    BoxVertex {
+                        position: ctx
+                            .screen_matrix
+                            .transform_point2d(shadow_coords[0])
+                            .unwrap()
+                            .extend(depth),
+                        rect_coord: shadow_coords[0],
+                        ..Default::default()
+                    },
+                    BoxVertex {
+                        position: ctx
+                            .screen_matrix
+                            .transform_point2d(shadow_coords[1])
+                            .unwrap()
+                            .extend(depth),
+                        rect_coord: shadow_coords[1],
+                        ..Default::default()
+                    },
+                    BoxVertex {
+                        position: ctx
+                            .screen_matrix
+                            .transform_point2d(shadow_coords[2])
+                            .unwrap()
+                            .extend(depth),
+                        rect_coord: shadow_coords[2],
+                        ..Default::default()
+                    },
+                    BoxVertex {
+                        position: ctx
+                            .screen_matrix
+                            .transform_point2d(shadow_coords[3])
+                            .unwrap()
+                            .extend(depth),
+                        rect_coord: shadow_coords[3],
+                        ..Default::default()
+                    },
+                ]))
+            }
+
+            writer.finish()
+        };
 
         let texture_rect = box2d.texture.as_ref().map_or(
             Rect::new(Point2D::zero(), Size2D::new(1.0, 1.0)),
@@ -197,6 +271,7 @@ impl Box2DComponent {
 
         Self {
             texture: box2d.texture.as_ref().map(|texture| texture.inner.clone()),
+            indices,
             vertices_slice,
             instance_slice,
         }
@@ -217,16 +292,15 @@ impl Component for Box2DComponent {
         ctx: &RenderContext<'rpass>,
         pass: &mut dyn RenderEncoder<'rpass>,
     ) {
-        pass.set_pipeline(&ctx.resources.get::<Box2DResources>(&ctx.backend).pipeline);
+        let box_resources = ctx.resources.get::<Box2DResources>(&ctx.backend);
+
+        pass.set_pipeline(&box_resources.pipeline);
 
         pass.set_vertex_buffer(0, ctx.vertex_stream.slice(self.vertices_slice.clone()));
         pass.set_vertex_buffer(1, ctx.vertex_stream.slice(self.instance_slice.clone()));
 
         pass.set_index_buffer(
-            ctx.resources
-                .get::<QuadIndexBufferResources>(&ctx.backend)
-                .quad_index_buffer
-                .slice(..),
+            box_resources.box_index_buffer.slice(..),
             IndexFormat::Uint16,
         );
 
@@ -242,11 +316,11 @@ impl Component for Box2DComponent {
             .unwrap()
             .bind(0, pass);
 
-        pass.draw_indexed(0..6, 0, 0..1);
+        pass.draw_indexed(0..self.indices, 0, 0..1);
     }
 }
 
-#[derive(Debug, Clone, Copy, Pod, Zeroable)]
+#[derive(Debug, Default, Clone, Copy, Pod, Zeroable)]
 #[repr(C)]
 pub struct BoxVertex {
     pub position: Point3D<f32, RenderUnit>,

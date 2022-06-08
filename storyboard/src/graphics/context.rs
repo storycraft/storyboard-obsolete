@@ -29,7 +29,6 @@ pub struct BackendContext<'a> {
 #[derive(Debug)]
 pub struct DrawContext<'a, 'label> {
     pub backend: BackendContext<'a>,
-
     pub resources: &'a Store<BackendContext<'a>>,
 
     pub screen: Rect<f32, PixelUnit>,

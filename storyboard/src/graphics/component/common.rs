@@ -8,30 +8,12 @@
 
 use storyboard_core::{
     euclid::Size2D,
-    graphics::texture::{SizedTexture2D, view::TextureView2D},
+    graphics::texture::{view::TextureView2D, SizedTexture2D},
     store::StoreResources,
-    wgpu::{util::{BufferInitDescriptor, DeviceExt}, Buffer, BufferUsages, TextureFormat, TextureUsages},
+    wgpu::{TextureFormat, TextureUsages},
 };
 
 use crate::graphics::{context::BackendContext, texture::RenderTexture2D};
-
-#[derive(Debug)]
-/// Resources containing quad index buffer
-pub struct QuadIndexBufferResources {
-    pub quad_index_buffer: Buffer,
-}
-
-impl StoreResources<BackendContext<'_>> for QuadIndexBufferResources {
-    fn initialize(ctx: &BackendContext) -> Self {
-        let quad_index_buffer = ctx.device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("QuadIndexBufferResources quad index buffer"),
-            contents: bytemuck::cast_slice(&[0_u16, 1, 2, 0, 2, 3]),
-            usage: BufferUsages::INDEX,
-        });
-
-        Self { quad_index_buffer }
-    }
-}
 
 #[derive(Debug)]
 /// Resources containing white empty texture
