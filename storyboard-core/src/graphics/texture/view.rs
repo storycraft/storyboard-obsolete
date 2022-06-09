@@ -25,7 +25,7 @@ impl SizedTextureView2D {
         Self::from_view(view, size)
     }
 
-    pub fn from_view(view: TextureView, size: Size2D<u32, PixelUnit>) -> Self {
+    pub const fn from_view(view: TextureView, size: Size2D<u32, PixelUnit>) -> Self {
         Self { view, size }
     }
 
