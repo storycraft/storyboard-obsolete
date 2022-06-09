@@ -15,12 +15,11 @@ use storyboard_core::{
     store::StoreResources,
     unit::{PixelUnit, RenderUnit, TextureUnit},
     wgpu::{
-        util::{BufferInitDescriptor, DeviceExt, RenderEncoder},
-        vertex_attr_array, BindGroupLayout, BlendState, Buffer, BufferUsages, ColorTargetState,
-        ColorWrites, CommandEncoder, DepthStencilState, Device, FragmentState, IndexFormat,
-        MultisampleState, PipelineLayout, PipelineLayoutDescriptor, PrimitiveState,
-        PrimitiveTopology, RenderPipeline, RenderPipelineDescriptor, ShaderModule,
-        ShaderModuleDescriptor, ShaderSource, VertexBufferLayout, VertexState, VertexStepMode,
+        util::RenderEncoder, vertex_attr_array, BindGroupLayout, BlendState, ColorTargetState,
+        ColorWrites, CommandEncoder, DepthStencilState, Device, FragmentState, MultisampleState,
+        PipelineLayout, PipelineLayoutDescriptor, PrimitiveState, PrimitiveTopology,
+        RenderPipeline, RenderPipelineDescriptor, ShaderModule, ShaderModuleDescriptor,
+        ShaderSource, VertexBufferLayout, VertexState, VertexStepMode,
     },
 };
 
@@ -33,13 +32,16 @@ use crate::{
     math::RectExt,
 };
 
-use super::{common::EmptyTextureResources, texture::ComponentTexture, Component, Drawable};
+use super::{
+    common::{EmptyTextureResources, QuadIndexBufferResources},
+    texture::ComponentTexture,
+    Component, Drawable,
+};
 
 #[derive(Debug)]
 pub struct PrimitiveResources {
     opaque_pipeline: RenderPipeline,
     transparent_pipeline: RenderPipeline,
-    quad_index_buffer: Buffer,
 }
 
 impl StoreResources<BackendContext<'_>> for PrimitiveResources {
@@ -75,16 +77,9 @@ impl StoreResources<BackendContext<'_>> for PrimitiveResources {
             }),
         );
 
-        let quad_index_buffer = ctx.device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("PrimitiveResources quad index buffer"),
-            contents: bytemuck::cast_slice(&[0_u16, 1, 2, 0, 2, 3]),
-            usage: BufferUsages::INDEX,
-        });
-
         Self {
             opaque_pipeline,
             transparent_pipeline,
-            quad_index_buffer,
         }
     }
 }
@@ -291,7 +286,7 @@ impl Component for PrimitiveComponent {
         ctx: &RenderContext<'rpass>,
         pass: &mut dyn RenderEncoder<'rpass>,
     ) {
-        let primitive_resources = ctx.resources.get::<PrimitiveResources>(&ctx.backend);
+        let primitive_resources = ctx.get_resources::<PrimitiveResources>();
 
         pass.set_pipeline(&primitive_resources.opaque_pipeline);
 
@@ -310,8 +305,10 @@ impl Component for PrimitiveComponent {
 
             PrimitiveType::Rectangle => {
                 pass.set_index_buffer(
-                    primitive_resources.quad_index_buffer.slice(..),
-                    IndexFormat::Uint16,
+                    ctx.get_resources::<QuadIndexBufferResources>()
+                        .quad_index_buffer
+                        .slice(..),
+                    QuadIndexBufferResources::FORMAT,
                 );
 
                 pass.draw_indexed(0..6, 0, 0..1);
@@ -324,19 +321,13 @@ impl Component for PrimitiveComponent {
         ctx: &RenderContext<'rpass>,
         pass: &mut dyn RenderEncoder<'rpass>,
     ) {
-        let primitive_resources = ctx.resources.get::<PrimitiveResources>(&ctx.backend);
+        let primitive_resources = ctx.get_resources::<PrimitiveResources>();
 
         pass.set_pipeline(&primitive_resources.transparent_pipeline);
 
         self.texture
             .as_deref()
-            .or_else(|| {
-                Some(
-                    &ctx.resources
-                        .get::<EmptyTextureResources>(&ctx.backend)
-                        .empty_texture,
-                )
-            })
+            .or_else(|| Some(&ctx.get_resources::<EmptyTextureResources>().empty_texture))
             .unwrap()
             .bind(0, pass);
 
@@ -350,8 +341,11 @@ impl Component for PrimitiveComponent {
 
             PrimitiveType::Rectangle => {
                 pass.set_index_buffer(
-                    primitive_resources.quad_index_buffer.slice(..),
-                    IndexFormat::Uint16,
+                    ctx.resources
+                        .get::<QuadIndexBufferResources>(&ctx.backend)
+                        .quad_index_buffer
+                        .slice(..),
+                    QuadIndexBufferResources::FORMAT,
                 );
 
                 pass.draw_indexed(0..6, 0, 0..1);

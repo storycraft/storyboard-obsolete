@@ -4,7 +4,7 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
-use std::{error::Error, sync::Arc};
+use std::sync::Arc;
 
 use storyboard::{
     graphics::{
@@ -13,7 +13,6 @@ use storyboard::{
             box2d::{Box2D, Box2DStyle},
             texture::{ComponentTexture, TextureLayout, TextureLayoutStyle},
         },
-        texture::RenderTexture2D,
     },
     state::{
         StoryboardStateData, StoryboardStateStatus, StoryboardSystemProp, StoryboardSystemState,
@@ -34,15 +33,16 @@ use storyboard_core::{
 };
 
 #[cfg(not(target_arch = "wasm32"))]
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() {
     use futures::executor::block_on;
 
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
         .with_title("Storyboard visual test")
-        .build(&event_loop)?;
+        .build(&event_loop)
+        .unwrap();
 
-    Ok(block_on(main_async(event_loop, window)))
+    block_on(main_async(event_loop, window));
 }
 
 #[cfg(target_arch = "wasm32")]

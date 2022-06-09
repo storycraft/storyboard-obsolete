@@ -5,9 +5,9 @@
  */
 
 use storyboard_core::{
-    euclid::{Transform3D, Rect},
+    euclid::{Rect, Transform3D},
     graphics::buffer::stream::{BufferStream, StreamBuffer},
-    store::Store,
+    store::{Store, StoreResources},
     unit::{PixelUnit, RenderUnit},
     wgpu::{DepthStencilState, Device, Queue},
 };
@@ -54,10 +54,14 @@ impl<'a, 'label> DrawContext<'a, 'label> {
             index_stream,
         }
     }
+
+    pub fn get_resources<T: StoreResources<BackendContext<'a>> + Sized + 'static>(&self) -> &'a T {
+        self.resources.get(&self.backend)
+    }
 }
 
 /// [RenderContext] contains gpu device and stream for component rendering
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct RenderContext<'a> {
     pub backend: BackendContext<'a>,
 
@@ -65,4 +69,10 @@ pub struct RenderContext<'a> {
 
     pub vertex_stream: StreamBuffer<'a>,
     pub index_stream: StreamBuffer<'a>,
+}
+
+impl<'a> RenderContext<'a> {
+    pub fn get_resources<T: StoreResources<BackendContext<'a>> + Sized + 'static>(&self) -> &'a T {
+        self.resources.get(&self.backend)
+    }
 }

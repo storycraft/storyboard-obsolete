@@ -83,7 +83,7 @@ impl StoryboardBackend {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BackendOptions {
     pub power_preference: PowerPreference,
     pub force_fallback_adapter: bool,

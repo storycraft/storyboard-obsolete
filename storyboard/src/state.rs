@@ -15,7 +15,7 @@ use storyboard_core::{
     graphics::texture::{view::TextureView2D, SizedTexture2D},
     state::{StateData, StateStatus},
     unit::PixelUnit,
-    wgpu::{Sampler, TextureFormat, TextureUsages},
+    wgpu::{Sampler, TextureFormat, TextureUsages}, store::{Store, StoreResources},
 };
 use winit::{event::Event, window::Window};
 
@@ -38,10 +38,12 @@ pub struct StoryboardSystemProp<'a> {
     pub window: Window,
     pub elapsed: Duration,
 
+    pub global_store: Arc<Store<GlobalStoreContext<'a>>>,
+
     pub(crate) render_task: Arc<Mutex<SurfaceRenderTask<'a>>>,
 }
 
-impl StoryboardSystemProp<'_> {
+impl<'a> StoryboardSystemProp<'a> {
     /// Create [SizedTexture2D] from descriptor
     pub fn create_texture(
         &self,
@@ -99,6 +101,14 @@ impl StoryboardSystemProp<'_> {
         )
     }
 
+    pub fn get_resources<T: StoreResources<GlobalStoreContext<'a>> + Sized + 'static>(&'a self) -> &'a T {
+        self.global_store.get(&GlobalStoreContext {
+            backend: &self.backend,
+            texture_data: &self.texture_data
+        })
+    }
+
+    #[inline]
     pub fn draw(&self, drawable: impl Drawable + 'static) {
         self.render_task.lock().unwrap().push(drawable);
     }
@@ -106,6 +116,12 @@ impl StoryboardSystemProp<'_> {
     pub fn request_redraw(&self) {
         self.window.request_redraw()
     }
+}
+
+#[derive(Debug)]
+pub struct GlobalStoreContext<'a> {
+    pub backend: &'a Arc<StoryboardBackend>,
+    pub texture_data: &'a Arc<TextureData>
 }
 
 /// Mutable system state for [StoryboardState].

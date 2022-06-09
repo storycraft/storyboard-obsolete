@@ -11,12 +11,15 @@ pub mod graphics;
 pub mod math;
 pub mod state;
 pub mod task;
+pub mod text;
 
 use instant::Instant;
 // Reexports
+pub use fontdue;
 pub use storyboard_core as core;
-use task::render::SurfaceRenderTask;
 pub use winit;
+
+use task::render::SurfaceRenderTask;
 
 use graphics::{
     backend::{BackendInitError, BackendOptions, StoryboardBackend},
@@ -123,6 +126,7 @@ impl Storyboard {
             elapsed: Duration::ZERO,
             window: self.window,
             render_task: surface_render_task.clone(),
+            global_store: Arc::new(Store::new()),
         };
 
         let mut state_system = StateSystem::new(Box::new(state), &system_prop);

@@ -292,7 +292,7 @@ impl Component for Box2DComponent {
         ctx: &RenderContext<'rpass>,
         pass: &mut dyn RenderEncoder<'rpass>,
     ) {
-        let box_resources = ctx.resources.get::<Box2DResources>(&ctx.backend);
+        let box_resources = ctx.get_resources::<Box2DResources>();
 
         pass.set_pipeline(&box_resources.pipeline);
 
@@ -306,13 +306,7 @@ impl Component for Box2DComponent {
 
         self.texture
             .as_deref()
-            .or_else(|| {
-                Some(
-                    &ctx.resources
-                        .get::<EmptyTextureResources>(&ctx.backend)
-                        .empty_texture,
-                )
-            })
+            .or_else(|| Some(&ctx.get_resources::<EmptyTextureResources>().empty_texture))
             .unwrap()
             .bind(0, pass);
 

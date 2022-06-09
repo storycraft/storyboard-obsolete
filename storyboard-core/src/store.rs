@@ -9,10 +9,10 @@ use std::{any::TypeId, fmt::Debug, marker::PhantomData};
 use parking_lot::RwLock;
 use rustc_hash::FxHashMap;
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 /// Concurrent resource store for storing type erased local resource data
 pub struct Store<Context> {
-    map: RwLock<FxHashMap<TypeId, *mut usize>>,
+    map: RwLock<FxHashMap<TypeId, *mut ()>>,
     phantom: PhantomData<Context>,
 }
 
@@ -32,16 +32,16 @@ impl<Context> Store<Context> {
         }
     }
 
-    pub fn get<T: StoreResources<Context> + Sized + 'static>(&self, ctx: &Context) -> &T {
-        if let Some(item) = self.map.read().get(&TypeId::of::<T>()) {
+    pub fn get<'a, T: StoreResources<Context> + Sized + 'static>(&'a self, ctx: &Context) -> &'a T {
+        if let Some(item) = self.map.read().get(&TypeId::of::<T>()).cloned() {
             // SAFETY: Value was created with valid type and was type erased.
-            return unsafe { &*(*item as *mut T) };
+            return unsafe { &*(item as *mut T) };
         }
 
         let item = Box::new(T::initialize(ctx));
         self.map
             .write()
-            .insert(TypeId::of::<T>(), Box::into_raw(item) as *mut usize);
+            .insert(TypeId::of::<T>(), Box::into_raw(item) as *mut ());
 
         self.get(ctx)
     }
