@@ -85,9 +85,9 @@ impl<T> From<T> for Observable<T> {
 pub fn observable_test() {
     let mut data = Observable::new_unchanged(2);
 
-    assert!(Observable::changed(&data));
+    assert!(!Observable::changed(&data));
     
     data = 2.into();
 
-    assert!(!Observable::changed(&data));
+    assert!(Observable::changed(&data));
 }
