@@ -8,12 +8,18 @@
 
 use storyboard_core::{
     euclid::Size2D,
-    graphics::texture::{view::TextureView2D, SizedTexture2D},
-    store::StoreResources,
-    wgpu::{TextureFormat, TextureUsages, Buffer, util::{DeviceExt, BufferInitDescriptor}, BufferUsages, IndexFormat},
+    graphics::{
+        renderer::context::BackendContext,
+        texture::{ SizedTexture2D, TextureView2D},
+    },
+    store::{StoreResources, Store},
+    wgpu::{
+        util::{BufferInitDescriptor, DeviceExt},
+        Buffer, BufferUsages, IndexFormat, TextureFormat, TextureUsages,
+    },
 };
 
-use crate::graphics::{context::BackendContext, texture::RenderTexture2D};
+use crate::graphics::texture::{RenderTexture2D, data::TextureData};
 
 #[derive(Debug)]
 /// Resources containing quad index buffer
@@ -26,7 +32,7 @@ impl QuadIndexBufferResources {
 }
 
 impl StoreResources<BackendContext<'_>> for QuadIndexBufferResources {
-    fn initialize(ctx: &BackendContext) -> Self {
+    fn initialize(_: &Store<BackendContext>, ctx: &BackendContext) -> Self {
         let quad_index_buffer = ctx.device.create_buffer_init(&BufferInitDescriptor {
             label: Some("QuadIndexBufferResources quad index buffer"),
             contents: bytemuck::cast_slice(&[0_u16, 1, 2, 0, 2, 3]),
@@ -44,7 +50,9 @@ pub struct EmptyTextureResources {
 }
 
 impl StoreResources<BackendContext<'_>> for EmptyTextureResources {
-    fn initialize(ctx: &BackendContext) -> Self {
+    fn initialize(store: &Store<BackendContext>, ctx: &BackendContext) -> Self {
+        let textures = store.get::<TextureData>(ctx);
+
         let empty_texture = {
             let sized = SizedTexture2D::init(
                 ctx.device,
@@ -59,8 +67,8 @@ impl StoreResources<BackendContext<'_>> for EmptyTextureResources {
             RenderTexture2D::init(
                 ctx.device,
                 TextureView2D::from(sized.create_view_default(None)),
-                ctx.textures.bind_group_layout(),
-                ctx.textures.default_sampler(),
+                textures.bind_group_layout(),
+                textures.default_sampler(),
             )
         };
 

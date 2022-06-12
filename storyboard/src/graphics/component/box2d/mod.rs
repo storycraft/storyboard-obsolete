@@ -9,10 +9,10 @@ use std::{borrow::Cow, sync::Arc};
 use bytemuck::{Pod, Zeroable};
 use storyboard_core::{
     component::color::ShapeColor,
-    euclid::{Point2D, Point3D, Rect, Size2D, Vector2D},
+    euclid::{Point2D, Point3D, Rect, Vector2D},
     graphics::buffer::stream::StreamRange,
     palette::LinSrgba,
-    store::StoreResources,
+    store::{Store, StoreResources},
     unit::{PixelUnit, RenderUnit, TextureUnit},
     wgpu::{
         util::{BufferInitDescriptor, DeviceExt, RenderEncoder},
@@ -24,16 +24,17 @@ use storyboard_core::{
     },
 };
 
-use crate::{
-    graphics::{
+use storyboard_core::graphics::{
+    component::{Component, Drawable},
+    renderer::{
         context::{BackendContext, DrawContext, RenderContext},
-        renderer::ComponentQueue,
-        texture::RenderTexture2D,
+        ComponentQueue,
     },
-    math::RectExt,
 };
 
-use super::{common::EmptyTextureResources, texture::ComponentTexture, Component, Drawable};
+use crate::{graphics::texture::{data::TextureData, RenderTexture2D}, math::RectExt};
+
+use super::{common::EmptyTextureResources, texture::ComponentTexture};
 
 #[derive(Debug)]
 pub struct Box2DResources {
@@ -42,16 +43,17 @@ pub struct Box2DResources {
 }
 
 impl StoreResources<BackendContext<'_>> for Box2DResources {
-    fn initialize(ctx: &BackendContext<'_>) -> Self {
+    fn initialize(store: &Store<BackendContext>, ctx: &BackendContext) -> Self {
+        let textures = store.get::<TextureData>(ctx);
+
         let shader = init_box_shader(ctx.device);
-        let pipeline_layout =
-            init_box_pipeline_layout(ctx.device, ctx.textures.bind_group_layout());
+        let pipeline_layout = init_box_pipeline_layout(ctx.device, textures.bind_group_layout());
         let pipeline = init_box_pipeline(
             ctx.device,
             &pipeline_layout,
             &shader,
             &[ColorTargetState {
-                format: ctx.textures.framebuffer_texture_format(),
+                format: ctx.screen_format,
                 blend: Some(BlendState::ALPHA_BLENDING),
                 write_mask: ColorWrites::ALL,
             }],
@@ -254,10 +256,8 @@ impl Box2DComponent {
             writer.finish()
         };
 
-        let texture_rect = box2d.texture.as_ref().map_or(
-            Rect::new(Point2D::zero(), Size2D::new(1.0, 1.0)),
-            |texture| texture.inner.view().texture_rect(),
-        );
+        let texture_rect = ComponentTexture::option_view_texture_rect(box2d.texture.as_ref());
+        let texture_wrap = ComponentTexture::option_wrapping_mode(box2d.texture.as_ref());
 
         let instance_slice = ctx
             .vertex_stream
@@ -265,6 +265,8 @@ impl Box2DComponent {
                 rect: box2d.bounds,
 
                 texture_rect,
+                texture_wrap_mode_u: texture_wrap.0 as _,
+                texture_wrap_mode_v: texture_wrap.1 as _,
 
                 style: box2d.style,
             }));
@@ -292,7 +294,7 @@ impl Component for Box2DComponent {
         ctx: &RenderContext<'rpass>,
         pass: &mut dyn RenderEncoder<'rpass>,
     ) {
-        let box_resources = ctx.get_resources::<Box2DResources>();
+        let box_resources = ctx.get::<Box2DResources>();
 
         pass.set_pipeline(&box_resources.pipeline);
 
@@ -306,7 +308,7 @@ impl Component for Box2DComponent {
 
         self.texture
             .as_deref()
-            .or_else(|| Some(&ctx.get_resources::<EmptyTextureResources>().empty_texture))
+            .or_else(|| Some(&ctx.get::<EmptyTextureResources>().empty_texture))
             .unwrap()
             .bind(0, pass);
 
@@ -331,6 +333,8 @@ pub struct BoxVertex {
 pub struct BoxInstance {
     pub rect: Rect<f32, PixelUnit>,
     pub texture_rect: Rect<f32, TextureUnit>,
+    pub texture_wrap_mode_u: u32,
+    pub texture_wrap_mode_v: u32,
 
     pub style: Box2DStyle,
 }
@@ -384,13 +388,14 @@ pub fn init_box_pipeline(
                     attributes: &vertex_attr_array![
                         5 => Float32x4,
                         6 => Float32x4,
-                        7 => Float32x4,
-                        8 => Float32,
+                        7 => Uint32x2,
+                        8 => Float32x4,
                         9 => Float32,
-                        10 => Float32x4,
-                        11 => Float32x2,
-                        12 => Float32,
-                        13 => Float32x4
+                        10 => Float32,
+                        11 => Float32x4,
+                        12 => Float32x2,
+                        13 => Float32,
+                        14 => Float32x4
                     ],
                 },
             ],

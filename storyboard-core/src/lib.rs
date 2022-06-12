@@ -11,7 +11,6 @@
 
 pub mod component;
 pub mod graphics;
-pub mod id_gen;
 pub mod observable;
 pub mod state;
 pub mod store;

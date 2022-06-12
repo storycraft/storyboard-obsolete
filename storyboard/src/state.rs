@@ -12,7 +12,7 @@ use std::{
 
 use storyboard_core::{
     euclid::Size2D,
-    graphics::texture::{view::TextureView2D, SizedTexture2D},
+    graphics::{texture::{TextureView2D, SizedTexture2D}, backend::StoryboardBackend, component::Drawable},
     state::{StateData, StateStatus},
     unit::PixelUnit,
     wgpu::{Sampler, TextureFormat, TextureUsages}, store::{Store, StoreResources},
@@ -20,12 +20,7 @@ use storyboard_core::{
 use winit::{event::Event, window::Window};
 
 use crate::{
-    graphics::{
-        backend::StoryboardBackend,
-        component::Drawable,
-        texture::{RenderTexture2D, TextureData},
-    },
-    task::render::SurfaceRenderTask,
+    task::render::SurfaceRenderTask, graphics::texture::{data::TextureData, RenderTexture2D},
 };
 
 /// System properties for [StoryboardState].
@@ -34,6 +29,7 @@ use crate::{
 #[derive(Debug)]
 pub struct StoryboardSystemProp<'a> {
     pub backend: Arc<StoryboardBackend>,
+    pub screen_format: TextureFormat,
     pub texture_data: Arc<TextureData>,
     pub window: Window,
     pub elapsed: Duration,
@@ -80,7 +76,7 @@ impl<'a> StoryboardSystemProp<'a> {
             self.backend.device(),
             label,
             size,
-            self.texture_data.framebuffer_texture_format(),
+            self.screen_format,
             TextureUsages::TEXTURE_BINDING
                 | TextureUsages::RENDER_ATTACHMENT
                 | TextureUsages::COPY_SRC,
@@ -101,7 +97,7 @@ impl<'a> StoryboardSystemProp<'a> {
         )
     }
 
-    pub fn get_resources<T: StoreResources<GlobalStoreContext<'a>> + Sized + 'static>(&'a self) -> &'a T {
+    pub fn get<T: StoreResources<GlobalStoreContext<'a>> + Sized + 'static>(&'a self) -> &'a T {
         self.global_store.get(&GlobalStoreContext {
             backend: &self.backend,
             texture_data: &self.texture_data

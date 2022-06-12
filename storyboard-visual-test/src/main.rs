@@ -4,14 +4,20 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
-use std::sync::Arc;
+use std::{borrow::Cow, sync::Arc};
 
 use storyboard::{
+    core::{
+        component::color::ShapeColor,
+        euclid::{Point2D, Rect, Size2D, Vector2D},
+        state::State,
+        unit::PixelUnit,
+        wgpu::{PowerPreference, TextureFormat, TextureUsages}, graphics::backend::BackendOptions,
+    },
     graphics::{
-        backend::BackendOptions,
         component::{
             box2d::{Box2D, Box2DStyle},
-            texture::{ComponentTexture, TextureLayout, TextureLayoutStyle},
+            texture::{ComponentTexture, TextureLayout, TextureLayoutStyle, TextureWrap},
         },
     },
     state::{
@@ -24,13 +30,7 @@ use storyboard::{
     },
     Storyboard,
 };
-use storyboard_core::{
-    component::color::ShapeColor,
-    euclid::{Point2D, Rect, Size2D, Vector2D},
-    state::State,
-    unit::PixelUnit,
-    wgpu::{PowerPreference, TextureFormat, TextureUsages},
-};
+use storyboard_text::{ttf_parser::Face, cache::GlyphCache, text::Text};
 
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {
@@ -46,11 +46,12 @@ fn main() {
 }
 
 #[cfg(target_arch = "wasm32")]
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() {
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
         .with_title("Storyboard visual test")
-        .build(&event_loop)?;
+        .build(&event_loop)
+        .unwrap();
 
     std::panic::set_hook(Box::new(console_error_panic_hook::hook));
     console_log::init().expect("could not initialize logger");
@@ -66,8 +67,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         })
         .expect("couldn't append canvas to document body");
     wasm_bindgen_futures::spawn_local(main_async(event_loop, window));
-
-    Ok(())
 }
 
 async fn main_async(event_loop: EventLoop<()>, window: Window) {
@@ -81,20 +80,35 @@ async fn main_async(event_loop: EventLoop<()>, window: Window) {
     .await
     .unwrap();
 
-    storyboard.run(event_loop, SampleApp::new());
+    storyboard.run(
+        event_loop,
+        SampleApp::new(Face::from_slice(FONT, 0).unwrap()),
+    );
 }
+
+pub static FONT: &'static [u8] = include_bytes!("./NotoSansCJKkr-Regular.otf");
 
 #[derive(Debug)]
 pub struct SampleApp {
     texture: Option<ComponentTexture>,
     cursor: Point2D<f32, PixelUnit>,
+    cache: GlyphCache,
+    text: Text<'static>,
 }
 
 impl SampleApp {
-    pub fn new() -> Self {
+    pub fn new(face: Face<'static>) -> Self {
         Self {
             texture: None,
             cursor: Default::default(),
+            cache: GlyphCache::new(),
+            text: Text::new(
+                Point2D::new(100.0, 100.0),
+                16,
+                ShapeColor::WHITE,
+                face,
+                Cow::Borrowed(""),
+            ),
         }
     }
 }
@@ -123,6 +137,7 @@ impl State<StoryboardStateData> for SampleApp {
                 ),
             ),
             TextureLayout::Absolute(TextureLayoutStyle::Fit),
+            (TextureWrap::None, TextureWrap::None),
         ));
 
         println!("App loaded");
@@ -140,19 +155,29 @@ impl State<StoryboardStateData> for SampleApp {
         system_state: &mut StoryboardSystemState,
     ) -> StoryboardStateStatus {
         if let Event::RedrawRequested(_) = system_state.event {
-            system_prop.draw(Box2D {
-                bounds: Rect::new(self.cursor, Size2D::new(25.0, 25.0)),
-                fill_color: ShapeColor::WHITE,
-                border_color: ShapeColor::RED,
-                texture: self.texture.clone(),
-                style: Box2DStyle {
-                    border_thickness: 5.0,
-                    shadow_offset: Vector2D::new(100.0, 100.0),
-                    shadow_radius: 0.0,
-                    shadow_color: ShapeColor::BLUE.into(),
-                    ..Default::default()
-                },
-            });
+            for _ in 0..500 {
+                system_prop.draw(Box2D {
+                    bounds: Rect::new(self.cursor, Size2D::new(25.0, 25.0)),
+                    fill_color: ShapeColor::WHITE,
+                    border_color: ShapeColor::RED,
+                    texture: self.texture.clone(),
+                    style: Box2DStyle {
+                        border_thickness: 5.0,
+                        shadow_offset: Vector2D::new(100.0, 100.0),
+                        shadow_radius: 0.0,
+                        shadow_color: ShapeColor::BLUE.into(),
+                        ..Default::default()
+                    },
+                });
+            }
+
+            self.text.draw(
+                system_prop.backend.device(),
+                system_prop.backend.queue(),
+                &system_prop.texture_data,
+                &mut self.cache,
+                |glyph| system_prop.draw(glyph),
+            );
         } else if let Event::WindowEvent {
             event: WindowEvent::CloseRequested,
             ..
@@ -165,6 +190,8 @@ impl State<StoryboardStateData> for SampleApp {
         } = system_state.event
         {
             self.cursor = Point2D::new(position.x as f32, position.y as f32);
+
+            self.text.set_text(Cow::Owned(format!("{:?}", self.cursor)));
             system_prop.request_redraw();
         }
 

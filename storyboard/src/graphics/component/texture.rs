@@ -7,7 +7,7 @@
 use std::sync::Arc;
 use storyboard_core::{
     euclid::{Point2D, Rect, Size2D},
-    unit::PixelUnit,
+    unit::{PixelUnit, TextureUnit},
 };
 
 use crate::graphics::texture::RenderTexture2D;
@@ -16,11 +16,12 @@ use crate::graphics::texture::RenderTexture2D;
 pub struct ComponentTexture {
     pub inner: Arc<RenderTexture2D>,
     pub layout: TextureLayout,
+    pub wrapping_mode: (TextureWrap, TextureWrap),
 }
 
 impl ComponentTexture {
-    pub fn new(inner: Arc<RenderTexture2D>, layout: TextureLayout) -> Self {
-        Self { inner, layout }
+    pub const fn new(inner: Arc<RenderTexture2D>, layout: TextureLayout, wrapping_mode: (TextureWrap, TextureWrap)) -> Self {
+        Self { inner, layout, wrapping_mode }
     }
 
     pub fn get_texture_bounds(
@@ -35,6 +36,20 @@ impl ComponentTexture {
         match this {
             Some(this) => this.get_texture_bounds(rect, screen_size),
             None => Rect::new(Point2D::new(0.0, 0.0), Size2D::new(1.0, 1.0)),
+        }
+    }
+
+    pub fn option_view_texture_rect(this: Option<&Self>) -> Rect<f32, TextureUnit> {
+        match this {
+            Some(this) => this.inner.view().texture_rect(),
+            None => Default::default(),
+        }
+    }
+
+    pub fn option_wrapping_mode(this: Option<&Self>) -> (TextureWrap, TextureWrap) {
+        match this {
+            Some(this) => this.wrapping_mode,
+            None => Default::default(),
         }
     }
 }
@@ -73,7 +88,7 @@ impl Default for TextureLayout {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TextureLayoutStyle {
     None,
     Fill,
@@ -159,6 +174,20 @@ impl TextureLayoutStyle {
 }
 
 impl Default for TextureLayoutStyle {
+    fn default() -> Self {
+        Self::None
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u32)]
+pub enum TextureWrap {
+    None = 0,
+    Clamp = 1,
+    Repeat = 2
+}
+
+impl Default for TextureWrap {
     fn default() -> Self {
         Self::None
     }

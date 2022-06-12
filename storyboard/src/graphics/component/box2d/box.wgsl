@@ -13,13 +13,14 @@ struct VertexInput {
 struct InstanceInput {
     @location(5) rect: vec4<f32>,
     @location(6) texture_rect: vec4<f32>,
-    @location(7) border_radius: vec4<f32>,
-    @location(8) border_thickness: f32,
-    @location(9) glow_radius: f32,
-    @location(10) glow_color: vec4<f32>,
-    @location(11) shadow_offset: vec2<f32>,
-    @location(12) shadow_radius: f32,
-    @location(13) shadow_color: vec4<f32>,
+    @location(7) texture_wrap_mode: vec2<u32>,
+    @location(8) border_radius: vec4<f32>,
+    @location(9) border_thickness: f32,
+    @location(10) glow_radius: f32,
+    @location(11) glow_color: vec4<f32>,
+    @location(12) shadow_offset: vec2<f32>,
+    @location(13) shadow_radius: f32,
+    @location(14) shadow_color: vec4<f32>,
 };
 
 struct VertexOutput {
@@ -33,11 +34,12 @@ struct VertexOutput {
 
     @location(6) @interpolate(flat) rect: vec4<f32>,
     @location(7) @interpolate(flat) texture_rect: vec4<f32>,
-    @location(8) @interpolate(flat) border_radius: vec4<f32>,
-    @location(9) @interpolate(flat) border_thickness: f32,
-    @location(10) @interpolate(flat) glow_radius: f32,
-    @location(11) @interpolate(flat) shadow_offset: vec2<f32>,
-    @location(12) @interpolate(flat) shadow_radius: f32,
+    @location(8) @interpolate(flat) texture_wrap_mode: vec2<u32>,
+    @location(9) @interpolate(flat) border_radius: vec4<f32>,
+    @location(10) @interpolate(flat) border_thickness: f32,
+    @location(11) @interpolate(flat) glow_radius: f32,
+    @location(12) @interpolate(flat) shadow_offset: vec2<f32>,
+    @location(13) @interpolate(flat) shadow_radius: f32,
 };
 
 @vertex
@@ -55,6 +57,7 @@ fn vs_main(
 
     out.rect = instance.rect;
     out.texture_rect = instance.texture_rect;
+    out.texture_wrap_mode = instance.texture_wrap_mode;
     out.border_radius = instance.border_radius;
     out.border_thickness = instance.border_thickness;
     out.glow_radius = instance.glow_radius;
@@ -91,9 +94,20 @@ fn blend(source: vec4<f32>, dest: vec4<f32>, alpha: f32) -> vec4<f32> {
     return vec4<f32>(source.xyz * (1.0 - alpha) + dest.xyz * alpha, alpha);
 }
 
-fn mapped_texture_color(tex: texture_2d<f32>, tex_sampler: sampler, tex_sub_rect: vec4<f32>, tex_coord: vec2<f32>) -> vec4<f32> {
-    let coord = tex_sub_rect.xy + tex_coord * tex_sub_rect.zw;
+fn wrap_texture_coord(coord: f32, wrap_mode: u32) -> f32 {
+    if (wrap_mode == 1u) {
+        return clamp(coord, 0.0, 1.0);
+    } else if (wrap_mode == 2u) {
+        return fract(coord);
+    } else {
+        return coord;
+    }
+}
+
+fn mapped_texture_color(tex: texture_2d<f32>, tex_sampler: sampler, wrap_mode: vec2<u32>, tex_sub_rect: vec4<f32>, tex_coord: vec2<f32>) -> vec4<f32> {
+    let coord = tex_sub_rect.xy + vec2<f32>(wrap_texture_coord(tex_coord.x, wrap_mode.x), wrap_texture_coord(tex_coord.y, wrap_mode.y)) * tex_sub_rect.zw;
     let tex_color = textureSample(tex, tex_sampler, coord);
+
     return select(
         vec4<f32>(1.0, 1.0, 1.0, 1.0),
         tex_color,
@@ -111,7 +125,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     var color = vec4<f32>(0.0, 0.0, 0.0, 0.0);
 
-    let fill_color = in.fill_color * mapped_texture_color(texture, texture_sampler, in.texture_rect, in.texture_coord);
+    let fill_color = in.fill_color * mapped_texture_color(texture, texture_sampler, in.texture_wrap_mode, in.texture_rect, in.texture_coord);
 
     // Shadow
     if (shadow_box_dist <= in.shadow_radius) {

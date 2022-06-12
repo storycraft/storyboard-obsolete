@@ -11,7 +11,7 @@ use wgpu::{Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, Texture
 
 use crate::unit::PixelUnit;
 
-use super::{view::TextureView2D, SizedTexture2D};
+use super::{SizedTexture2D, TextureView2D};
 
 pub struct PackedTexture {
     texture: SizedTexture2D,
@@ -31,11 +31,12 @@ impl PackedTexture {
     pub fn pack(
         &mut self,
         queue: &Queue,
-        size: Size2D<i32, PixelUnit>,
+        size: Size2D<u32, PixelUnit>,
         data: &[u8],
-        label: Option<&str>
-    ) -> Option<TextureView2D> {
-        let rect = self.packer.pack(size.width, size.height, false)?;
+    ) -> Option<Rect<u32, PixelUnit>> {
+        let rect = self
+            .packer
+            .pack(size.width as i32, size.height as i32, false)?;
 
         queue.write_texture(
             ImageCopyTexture {
@@ -51,7 +52,9 @@ impl PackedTexture {
             data,
             ImageDataLayout {
                 offset: 0,
-                bytes_per_row: NonZeroU32::new(size.width as u32 * 4),
+                bytes_per_row: NonZeroU32::new(
+                    size.width as u32 * self.texture.format().describe().block_size as u32,
+                ),
                 rows_per_image: NonZeroU32::new(size.height as u32),
             },
             Extent3d {
@@ -61,10 +64,14 @@ impl PackedTexture {
             },
         );
 
-        Some(self.texture.create_view_default(label).slice(Rect::new(
+        Some(Rect::new(
             Point2D::new(rect.x as u32, rect.y as u32),
             size.cast(),
-        )))
+        ))
+    }
+
+    pub fn slice(&self, label: Option<&str>, rect: Rect<u32, PixelUnit>) -> TextureView2D {
+        self.texture.create_view_default(label).slice(rect)
     }
 
     pub fn reset(&mut self) {

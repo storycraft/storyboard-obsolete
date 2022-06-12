@@ -38,7 +38,7 @@ impl<Context> Store<Context> {
             return unsafe { &*(item as *mut T) };
         }
 
-        let item = Box::new(T::initialize(ctx));
+        let item = Box::new(T::initialize(self, ctx));
         self.map
             .write()
             .insert(TypeId::of::<T>(), Box::into_raw(item) as *mut ());
@@ -59,7 +59,7 @@ impl<T> Drop for Store<T> {
 }
 
 pub trait StoreResources<Context>: Send + Sync {
-    fn initialize(ctx: &Context) -> Self;
+    fn initialize(store: &Store<Context>, ctx: &Context) -> Self;
 }
 
 #[cfg(test)]
@@ -77,7 +77,7 @@ mod tests {
         }
 
         impl StoreResources<()> for ResA {
-            fn initialize(_: &()) -> Self {
+            fn initialize(_: &DefaultStore, _: &()) -> Self {
                 ResA { number: 32 }
             }
         }
@@ -87,7 +87,7 @@ mod tests {
         }
 
         impl StoreResources<()> for ResB {
-            fn initialize(_: &()) -> Self {
+            fn initialize(_: &DefaultStore, _: &()) -> Self {
                 ResB {
                     string: "test".into(),
                 }

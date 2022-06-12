@@ -9,10 +9,10 @@ use std::{borrow::Cow, sync::Arc};
 use bytemuck::{Pod, Zeroable};
 use storyboard_core::{
     component::color::ShapeColor,
-    euclid::{Point2D, Point3D, Rect, Size2D},
+    euclid::{Point2D, Point3D, Rect},
     graphics::buffer::stream::StreamRange,
     palette::LinSrgba,
-    store::StoreResources,
+    store::{StoreResources, Store},
     unit::{PixelUnit, RenderUnit, TextureUnit},
     wgpu::{
         util::RenderEncoder, vertex_attr_array, BindGroupLayout, BlendState, ColorTargetState,
@@ -23,19 +23,19 @@ use storyboard_core::{
     },
 };
 
-use crate::{
-    graphics::{
+use storyboard_core::graphics::{
+    component::{Component, Drawable},
+    renderer::{
         context::{BackendContext, DrawContext, RenderContext},
-        renderer::ComponentQueue,
-        texture::RenderTexture2D,
+        ComponentQueue,
     },
-    math::RectExt,
 };
+
+use crate::{math::RectExt, graphics::texture::{data::TextureData, RenderTexture2D}};
 
 use super::{
     common::{EmptyTextureResources, QuadIndexBufferResources},
     texture::ComponentTexture,
-    Component, Drawable,
 };
 
 #[derive(Debug)]
@@ -45,17 +45,19 @@ pub struct PrimitiveResources {
 }
 
 impl StoreResources<BackendContext<'_>> for PrimitiveResources {
-    fn initialize(ctx: &BackendContext) -> Self {
+    fn initialize(store: &Store<BackendContext>, ctx: &BackendContext) -> Self {
+        let textures = store.get::<TextureData>(ctx);
+
         let shader = init_primitive_shader(ctx.device);
         let pipeline_layout =
-            init_primitive_pipeline_layout(ctx.device, ctx.textures.bind_group_layout());
+            init_primitive_pipeline_layout(ctx.device, textures.bind_group_layout());
 
         let opaque_pipeline = init_primitive_pipeline(
             ctx.device,
             &pipeline_layout,
             &shader,
             &[ColorTargetState {
-                format: ctx.textures.framebuffer_texture_format(),
+                format: ctx.screen_format,
                 blend: None,
                 write_mask: ColorWrites::COLOR,
             }],
@@ -67,7 +69,7 @@ impl StoreResources<BackendContext<'_>> for PrimitiveResources {
             &pipeline_layout,
             &shader,
             &[ColorTargetState {
-                format: ctx.textures.framebuffer_texture_format(),
+                format: ctx.screen_format,
                 blend: Some(BlendState::ALPHA_BLENDING),
                 write_mask: ColorWrites::ALL,
             }],
@@ -189,14 +191,16 @@ impl PrimitiveComponent {
             },
         ]));
 
-        let texture_rect = triangle.texture.as_ref().map_or(
-            Rect::new(Point2D::zero(), Size2D::new(1.0, 1.0)),
-            |texture| texture.inner.view().texture_rect(),
-        );
+        let texture_rect = ComponentTexture::option_view_texture_rect(triangle.texture.as_ref());
+        let texture_wrap_mode = ComponentTexture::option_wrapping_mode(triangle.texture.as_ref());
 
-        let instance_slice = ctx
-            .vertex_stream
-            .write_slice(bytemuck::bytes_of(&PrimitiveInstance { texture_rect }));
+        let instance_slice =
+            ctx.vertex_stream
+                .write_slice(bytemuck::bytes_of(&PrimitiveInstance {
+                    texture_rect,
+                    texture_wrap_mode_u: texture_wrap_mode.0 as _,
+                    texture_wrap_mode_v: texture_wrap_mode.1 as _,
+                }));
 
         Self {
             primitive_type: PrimitiveType::Triangle,
@@ -262,14 +266,16 @@ impl PrimitiveComponent {
             },
         ]));
 
-        let texture_rect = rect.texture.as_ref().map_or(
-            Rect::new(Point2D::zero(), Size2D::new(1.0, 1.0)),
-            |texture| texture.inner.view().texture_rect(),
-        );
+        let texture_rect = ComponentTexture::option_view_texture_rect(rect.texture.as_ref());
+        let texture_wrap_mode = ComponentTexture::option_wrapping_mode(rect.texture.as_ref());
 
-        let instance_slice = ctx
-            .vertex_stream
-            .write_slice(bytemuck::bytes_of(&PrimitiveInstance { texture_rect }));
+        let instance_slice =
+            ctx.vertex_stream
+                .write_slice(bytemuck::bytes_of(&PrimitiveInstance {
+                    texture_rect,
+                    texture_wrap_mode_u: texture_wrap_mode.0 as _,
+                    texture_wrap_mode_v: texture_wrap_mode.1 as _,
+                }));
 
         Self {
             primitive_type: PrimitiveType::Rectangle,
@@ -286,7 +292,7 @@ impl Component for PrimitiveComponent {
         ctx: &RenderContext<'rpass>,
         pass: &mut dyn RenderEncoder<'rpass>,
     ) {
-        let primitive_resources = ctx.get_resources::<PrimitiveResources>();
+        let primitive_resources = ctx.get::<PrimitiveResources>();
 
         pass.set_pipeline(&primitive_resources.opaque_pipeline);
 
@@ -305,7 +311,7 @@ impl Component for PrimitiveComponent {
 
             PrimitiveType::Rectangle => {
                 pass.set_index_buffer(
-                    ctx.get_resources::<QuadIndexBufferResources>()
+                    ctx.get::<QuadIndexBufferResources>()
                         .quad_index_buffer
                         .slice(..),
                     QuadIndexBufferResources::FORMAT,
@@ -321,13 +327,13 @@ impl Component for PrimitiveComponent {
         ctx: &RenderContext<'rpass>,
         pass: &mut dyn RenderEncoder<'rpass>,
     ) {
-        let primitive_resources = ctx.get_resources::<PrimitiveResources>();
+        let primitive_resources = ctx.get::<PrimitiveResources>();
 
         pass.set_pipeline(&primitive_resources.transparent_pipeline);
 
         self.texture
             .as_deref()
-            .or_else(|| Some(&ctx.get_resources::<EmptyTextureResources>().empty_texture))
+            .or_else(|| Some(&ctx.get::<EmptyTextureResources>().empty_texture))
             .unwrap()
             .bind(0, pass);
 
@@ -366,6 +372,8 @@ pub struct PrimitiveVertex {
 #[repr(C)]
 pub struct PrimitiveInstance {
     pub texture_rect: Rect<f32, TextureUnit>,
+    pub texture_wrap_mode_u: u32,
+    pub texture_wrap_mode_v: u32,
 }
 
 pub fn init_primitive_shader(device: &Device) -> ShaderModule {
@@ -408,7 +416,7 @@ pub fn init_primitive_pipeline(
                 VertexBufferLayout {
                     array_stride: std::mem::size_of::<PrimitiveInstance>() as u64,
                     step_mode: VertexStepMode::Instance,
-                    attributes: &vertex_attr_array![3 => Float32x4],
+                    attributes: &vertex_attr_array![3 => Float32x4, 4 => Uint32x2],
                 },
             ],
         },
