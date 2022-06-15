@@ -4,11 +4,11 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
-use std::{fmt::Debug, iter, sync::Arc};
+use std::{fmt::Debug, iter};
 
 use storyboard_core::{
     euclid::Size2D,
-    graphics::{backend::StoryboardBackend, component::Drawable, renderer::StoryboardRenderer},
+    graphics::{component::Drawable, renderer::StoryboardRenderer},
     unit::PixelUnit,
     wgpu::{
         Color, LoadOp, Operations, PresentMode, RenderPassColorAttachment, Surface,
@@ -18,24 +18,14 @@ use storyboard_core::{
 
 #[derive(Debug)]
 pub struct SurfaceRenderTask {
-    backend: Arc<StoryboardBackend>,
-
     surface: Surface,
 
     renderer: StoryboardRenderer,
 }
 
 impl SurfaceRenderTask {
-    pub fn new(
-        backend: Arc<StoryboardBackend>,
-        surface: Surface,
-        renderer: StoryboardRenderer,
-    ) -> Self {
-        Self {
-            backend,
-            surface,
-            renderer,
-        }
+    pub fn new(surface: Surface, renderer: StoryboardRenderer) -> Self {
+        Self { surface, renderer }
     }
 
     pub fn reconfigure(&mut self, size: Size2D<u32, PixelUnit>, present_mode: PresentMode) {
@@ -43,7 +33,7 @@ impl SurfaceRenderTask {
 
         if size.area() > 0 {
             self.surface.configure(
-                self.backend.device(),
+                self.renderer.backend().device(),
                 &SurfaceConfiguration {
                     usage: TextureUsages::RENDER_ATTACHMENT,
                     format: self.renderer.screen_format(),
@@ -65,22 +55,20 @@ impl SurfaceRenderTask {
         }
 
         if let Ok(surface_texture) = self.surface.get_current_texture() {
-            let renderer_encoder = self.renderer.render(
-                &self.backend,
-                RenderPassColorAttachment {
-                    view: &surface_texture
-                        .texture
-                        .create_view(&TextureViewDescriptor::default()),
-                    resolve_target: None,
-                    ops: Operations {
-                        load: LoadOp::Clear(Color::BLACK),
-                        store: true,
-                    },
+            let renderer_encoder = self.renderer.render(RenderPassColorAttachment {
+                view: &surface_texture
+                    .texture
+                    .create_view(&TextureViewDescriptor::default()),
+                resolve_target: None,
+                ops: Operations {
+                    load: LoadOp::Clear(Color::BLACK),
+                    store: true,
                 },
-            );
+            });
 
             if let Some(renderer_encoder) = renderer_encoder {
-                self.backend
+                self.renderer
+                    .backend()
                     .queue()
                     .submit(iter::once(renderer_encoder.finish()));
 

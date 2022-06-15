@@ -30,7 +30,7 @@ use crate::{
     unit::{PixelUnit, RenderUnit},
     wgpu::{
         BufferUsages, CommandEncoder, CommandEncoderDescriptor, CompareFunction, DepthBiasState,
-        DepthStencilState, Device, LoadOp, Operations, RenderPassColorAttachment,
+        DepthStencilState, LoadOp, Operations, RenderPassColorAttachment,
         RenderPassDepthStencilAttachment, RenderPassDescriptor, StencilState, TextureFormat,
         TextureUsages,
     },
@@ -38,6 +38,8 @@ use crate::{
 
 #[derive(Debug)]
 pub struct StoryboardRenderer {
+    backend: Arc<StoryboardBackend>,
+
     screen_size: Observable<Size2D<u32, PixelUnit>>,
 
     screen_format: TextureFormat,
@@ -59,7 +61,11 @@ pub struct StoryboardRenderer {
 impl StoryboardRenderer {
     pub const DEPTH_TEXTURE_FORMAT: TextureFormat = TextureFormat::Depth32Float;
 
-    pub fn new(screen_size: Size2D<u32, PixelUnit>, screen_format: TextureFormat) -> Self {
+    pub fn new(
+        backend: Arc<StoryboardBackend>,
+        screen_size: Size2D<u32, PixelUnit>,
+        screen_format: TextureFormat,
+    ) -> Self {
         let vertex_stream = BufferStream::new(
             Some(Cow::from("StoryboardRenderer vertex stream buffer")),
             BufferUsages::VERTEX,
@@ -70,6 +76,7 @@ impl StoryboardRenderer {
         );
 
         Self {
+            backend,
             screen_size: screen_size.into(),
 
             screen_format,
@@ -87,6 +94,10 @@ impl StoryboardRenderer {
             vertex_stream,
             index_stream,
         }
+    }
+
+    pub const fn backend(&self) -> &Arc<StoryboardBackend> {
+        &self.backend
     }
 
     pub fn screen_size(&self) -> Size2D<u32, PixelUnit> {
@@ -120,11 +131,11 @@ impl StoryboardRenderer {
         }
     }
 
-    fn prepare_depth_stencil(&mut self, device: &Device) {
+    fn prepare_depth_stencil(&mut self) {
         if Observable::invalidate(&mut self.depth_texture) || self.depth_texture.is_none() {
             self.depth_texture = Some(
                 SizedTexture2D::init(
-                    device,
+                    self.backend.device(),
                     Some("StoryboardRenderer depth texture"),
                     *self.screen_size,
                     Self::DEPTH_TEXTURE_FORMAT,
@@ -138,7 +149,6 @@ impl StoryboardRenderer {
 
     pub fn render(
         &mut self,
-        backend: &StoryboardBackend,
         mut color_attachment: RenderPassColorAttachment,
     ) -> Option<CommandEncoder> {
         if self.drawables.len() <= 0 {
@@ -147,15 +157,17 @@ impl StoryboardRenderer {
 
         self.prepare_screen_matrix();
 
-        let mut encoder = backend
+        self.prepare_depth_stencil();
+
+        let mut encoder = self.backend
             .device()
             .create_command_encoder(&CommandEncoderDescriptor {
                 label: Some("StoryboardRenderer command encoder"),
             });
 
         let backend_context = BackendContext {
-            device: backend.device(),
-            queue: backend.queue(),
+            device: self.backend.device(),
+            queue: self.backend.queue(),
 
             screen_format: self.screen_format,
 
@@ -167,8 +179,6 @@ impl StoryboardRenderer {
                 bias: DepthBiasState::default(),
             },
         };
-
-        self.prepare_depth_stencil(backend.device());
 
         let mut draw_context = DrawContext {
             backend: backend_context,
@@ -263,7 +273,7 @@ impl StoryboardRenderer {
     pub fn clone_shared(&self, screen_size: Size2D<u32, PixelUnit>) -> Self {
         Self {
             store: self.store.clone(),
-            ..Self::new(screen_size, self.screen_format)
+            ..Self::new(self.backend.clone(), screen_size, self.screen_format)
         }
     }
 }

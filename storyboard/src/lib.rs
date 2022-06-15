@@ -118,9 +118,8 @@ impl Storyboard {
         };
 
         let surface_render_task = Arc::new(Mutex::new(SurfaceRenderTask::new(
-            backend.clone(),
             self.surface,
-            StoryboardRenderer::new(win_size, self.screen_format),
+            StoryboardRenderer::new(backend.clone(), win_size, self.screen_format),
         )));
 
         let mut system_prop = StoryboardSystemProp {
