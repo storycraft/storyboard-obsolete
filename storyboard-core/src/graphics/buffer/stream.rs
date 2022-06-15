@@ -51,13 +51,21 @@ impl<'a> BufferStream<'a> {
     pub fn finish(&mut self, device: &Device, queue: &Queue) -> StreamBuffer {
         let size = self.data.len() as BufferAddress;
 
-        let padding = wgpu::COPY_BUFFER_ALIGNMENT - size % wgpu::COPY_BUFFER_ALIGNMENT;
+        let left_size = size % wgpu::COPY_BUFFER_ALIGNMENT;
+        let padding = if left_size == 0 {
+            0
+        } else {
+            wgpu::COPY_BUFFER_ALIGNMENT - left_size
+        };
+
         let buf_size = size + padding;
 
         let buffer = self.buffer.alloc(device, buf_size);
-        queue.write_buffer(buffer, 0, &self.data);
 
-        self.data.clear();
+        if size > 0 {
+            queue.write_buffer(buffer, 0, &self.data);
+            self.data.clear();
+        }
 
         StreamBuffer { buffer }
     }

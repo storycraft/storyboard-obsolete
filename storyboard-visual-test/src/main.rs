@@ -30,7 +30,7 @@ use storyboard::{
     },
     Storyboard,
 };
-use storyboard_text::{ttf_parser::Face, cache::GlyphCache, text::Text};
+use storyboard_text::{cache::GlyphCache, component::text::Text, font::Font};
 
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {
@@ -82,7 +82,7 @@ async fn main_async(event_loop: EventLoop<()>, window: Window) {
 
     storyboard.run(
         event_loop,
-        SampleApp::new(Face::from_slice(FONT, 0).unwrap()),
+        SampleApp::new(Font::from_slice(FONT, 0).unwrap()),
     );
 }
 
@@ -97,16 +97,16 @@ pub struct SampleApp {
 }
 
 impl SampleApp {
-    pub fn new(face: Face<'static>) -> Self {
+    pub fn new(font: Font<'static>) -> Self {
         Self {
             texture: None,
             cursor: Default::default(),
             cache: GlyphCache::new(),
             text: Text::new(
                 Point2D::new(100.0, 100.0),
-                16,
+                32,
                 ShapeColor::WHITE,
-                face,
+                font,
                 Cow::Borrowed(""),
             ),
         }
@@ -191,7 +191,8 @@ impl State<StoryboardStateData> for SampleApp {
         {
             self.cursor = Point2D::new(position.x as f32, position.y as f32);
 
-            self.text.set_text(Cow::Owned(format!("{:?}", self.cursor)));
+            self.text.position = self.cursor;
+            self.text.set_text(Cow::Owned(format!("{:?} 렌더링 테스트", self.cursor)));
             system_prop.request_redraw();
         }
 

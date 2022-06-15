@@ -11,7 +11,7 @@ use wgpu::{Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, Texture
 
 use crate::unit::PixelUnit;
 
-use super::{SizedTexture2D, TextureView2D};
+use super::SizedTexture2D;
 
 pub struct PackedTexture {
     texture: SizedTexture2D,
@@ -70,13 +70,13 @@ impl PackedTexture {
         ))
     }
 
-    pub fn slice(&self, label: Option<&str>, rect: Rect<u32, PixelUnit>) -> TextureView2D {
-        self.texture.create_view_default(label).slice(rect)
-    }
-
     pub fn reset(&mut self) {
         let (width, height) = self.packer.size();
         self.packer = DensePacker::new(width, height);
+    }
+
+    pub fn inner(&self) -> &SizedTexture2D {
+        &self.texture
     }
 
     pub fn finish(self) -> SizedTexture2D {

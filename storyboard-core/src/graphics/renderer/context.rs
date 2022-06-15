@@ -28,18 +28,18 @@ pub struct BackendContext<'a> {
 
 /// [DrawContext] contains reference to backend, resources store, and stream for component data preparing
 #[derive(Debug)]
-pub struct DrawContext<'a, 'label> {
+pub struct DrawContext<'a> {
     pub backend: BackendContext<'a>,
-    pub resources: &'a Store<BackendContext<'a>>,
+    pub(crate) resources: &'a Store,
 
     pub screen: Rect<f32, PixelUnit>,
     pub screen_matrix: &'a Transform3D<f32, PixelUnit, RenderUnit>,
 
-    pub vertex_stream: &'a mut BufferStream<'label>,
-    pub index_stream: &'a mut BufferStream<'label>,
+    pub vertex_stream: &'a mut BufferStream<'static>,
+    pub index_stream: &'a mut BufferStream<'static>,
 }
 
-impl<'a, 'label> DrawContext<'a, 'label> {
+impl<'a> DrawContext<'a> {
     pub fn into_render_context(self) -> RenderContext<'a> {
         let vertex_stream = self
             .vertex_stream
@@ -66,7 +66,7 @@ impl<'a, 'label> DrawContext<'a, 'label> {
 pub struct RenderContext<'a> {
     pub backend: BackendContext<'a>,
 
-    pub resources: &'a Store<BackendContext<'a>>,
+    pub(crate) resources: &'a Store,
 
     pub vertex_stream: StreamBuffer<'a>,
     pub index_stream: StreamBuffer<'a>,

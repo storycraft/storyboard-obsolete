@@ -4,10 +4,12 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
+pub mod text;
+
 use std::{borrow::Cow, sync::Arc};
 
 use bytemuck::{Pod, Zeroable};
-use storyboard::{core::{
+use storyboard::core::{
     component::color::ShapeColor,
     euclid::{Point2D, Point3D, Rect},
     graphics::{
@@ -28,7 +30,7 @@ use storyboard::{core::{
         RenderPipeline, RenderPipelineDescriptor, ShaderModule, ShaderModuleDescriptor,
         ShaderSource, VertexBufferLayout, VertexState, VertexStepMode,
     },
-}, graphics::component::common::QuadIndexBufferResources};
+};
 
 use storyboard::{
     graphics::texture::{data::TextureData, RenderTexture2D},
@@ -41,8 +43,8 @@ pub struct TextResources {
 }
 
 impl StoreResources<BackendContext<'_>> for TextResources {
-    fn initialize(store: &Store<BackendContext>, ctx: &BackendContext) -> Self {
-        let textures = store.get::<TextureData>(ctx);
+    fn initialize(store: &Store, ctx: &BackendContext) -> Self {
+        let textures = store.get::<TextureData, _>(ctx);
 
         let shader = init_glyph_shader(ctx.device);
         let pipeline_layout = init_glyph_pipeline_layout(ctx.device, textures.bind_group_layout());
@@ -66,14 +68,25 @@ impl StoreResources<BackendContext<'_>> for TextResources {
     }
 }
 
-#[derive(Debug)]
-pub struct Glyph {
-    pub position: Point2D<f32, PixelUnit>,
-    pub color: ShapeColor<4>,
+#[derive(Debug, Clone)]
+pub struct TextRenderBatch {
     pub texture: Arc<RenderTexture2D>,
+    pub rects: Vec<GlyphRect>,
 }
 
-impl Drawable for Glyph {
+#[derive(Debug, Clone)]
+pub struct GlyphRect {
+    pub rect: Rect<f32, PixelUnit>,
+    pub texture_rect: Rect<f32, TextureUnit>,
+}
+
+#[derive(Debug)]
+pub struct TextDrawable {
+    pub batches: Arc<Vec<TextRenderBatch>>,
+    pub color: ShapeColor<4>,
+}
+
+impl Drawable for TextDrawable {
     fn prepare(
         &self,
         component_queue: &mut ComponentQueue,
@@ -81,70 +94,83 @@ impl Drawable for Glyph {
         _: &mut CommandEncoder,
         depth: f32,
     ) {
-        component_queue.push_transparent(GlyphComponent::from_glyph(self, ctx, depth));
+        for batch in self.batches.iter() {
+            component_queue.push_transparent(GlyphComponent::from_batch(batch, ctx, depth));
+        }
     }
 }
 
 #[derive(Debug)]
 pub struct GlyphComponent {
     texture: Arc<RenderTexture2D>,
+    vertices: u32,
     vertices_slice: StreamRange,
-    instance_slice: StreamRange,
 }
 
 impl GlyphComponent {
-    pub fn from_glyph(glyph: &Glyph, ctx: &mut DrawContext, depth: f32) -> Self {
-        let coords = Rect::new(glyph.position, glyph.texture.view().size().cast()).into_coords();
+    pub fn from_batch(batch: &TextRenderBatch, ctx: &mut DrawContext, depth: f32) -> Self {
+        let mut writer = ctx.vertex_stream.next_writer();
+        for rect in &batch.rects {
+            let coords = rect.rect.into_coords();
+            let tex_coords = rect.texture_rect.into_coords();
 
-        let vertices_slice = ctx.vertex_stream.write_slice(bytemuck::bytes_of(&[
-            GlyphVertex {
+            let left_top = GlyphVertex {
                 position: ctx
                     .screen_matrix
                     .transform_point2d(coords[0])
                     .unwrap()
                     .extend(depth),
-                color: glyph.color[0],
-                texture_coord: Point2D::new(0.0, 0.0),
-            },
-            GlyphVertex {
+                color: ShapeColor::WHITE.into(),
+                texture_coord: tex_coords[0],
+            };
+
+            let left_bottom = GlyphVertex {
                 position: ctx
                     .screen_matrix
                     .transform_point2d(coords[1])
                     .unwrap()
                     .extend(depth),
-                color: glyph.color[1],
-                texture_coord: Point2D::new(0.0, 1.0),
-            },
-            GlyphVertex {
+                color: ShapeColor::WHITE.into(),
+                texture_coord: tex_coords[1],
+            };
+
+            let right_bottom = GlyphVertex {
                 position: ctx
                     .screen_matrix
                     .transform_point2d(coords[2])
                     .unwrap()
                     .extend(depth),
-                color: glyph.color[2],
-                texture_coord: Point2D::new(1.0, 1.0),
-            },
-            GlyphVertex {
+                color: ShapeColor::WHITE.into(),
+                texture_coord: tex_coords[2],
+            };
+
+            let right_top = GlyphVertex {
                 position: ctx
                     .screen_matrix
                     .transform_point2d(coords[3])
                     .unwrap()
                     .extend(depth),
-                color: glyph.color[3],
-                texture_coord: Point2D::new(1.0, 0.0),
-            },
-        ]));
+                color: ShapeColor::WHITE.into(),
+                texture_coord: tex_coords[3],
+            };
 
-        let instance_slice = ctx
-            .vertex_stream
-            .write_slice(bytemuck::bytes_of(&GlyphInstance {
-                texture_rect: glyph.texture.view().texture_rect(),
-            }));
+            writer.write(bytemuck::bytes_of(&[
+                left_top,
+                left_bottom,
+                right_top,
+                right_top,
+                left_bottom,
+                right_bottom,
+            ]));
+        }
+
+        let vertices_slice = writer.finish();
+        let vertices = 6 * batch.rects.len() as u32;
 
         Self {
-            texture: glyph.texture.clone(),
+            texture: batch.texture.clone(),
+            vertices,
             vertices_slice,
-            instance_slice,
         }
     }
 }
@@ -170,17 +196,8 @@ impl Component for GlyphComponent {
         self.texture.bind(0, pass);
 
         pass.set_vertex_buffer(0, ctx.vertex_stream.slice(self.vertices_slice.clone()));
-        pass.set_vertex_buffer(1, ctx.vertex_stream.slice(self.instance_slice.clone()));
 
-        pass.set_index_buffer(
-            ctx.resources
-                .get::<QuadIndexBufferResources>(&ctx.backend)
-                .quad_index_buffer
-                .slice(..),
-            QuadIndexBufferResources::FORMAT,
-        );
-
-        pass.draw_indexed(0..6, 0, 0..1);
+        pass.draw(0..self.vertices, 0..1);
     }
 }
 
@@ -190,12 +207,6 @@ pub struct GlyphVertex {
     pub position: Point3D<f32, RenderUnit>,
     pub color: LinSrgba<f32>,
     pub texture_coord: Point2D<f32, TextureUnit>,
-}
-
-#[derive(Debug, Clone, Copy, Pod, Zeroable)]
-#[repr(C)]
-pub struct GlyphInstance {
-    pub texture_rect: Rect<f32, TextureUnit>,
 }
 
 pub fn init_glyph_shader(device: &Device) -> ShaderModule {
@@ -229,18 +240,11 @@ pub fn init_glyph_pipeline(
         vertex: VertexState {
             module: shader,
             entry_point: &"vs_main",
-            buffers: &[
-                VertexBufferLayout {
-                    array_stride: std::mem::size_of::<GlyphVertex>() as u64,
-                    step_mode: VertexStepMode::Vertex,
-                    attributes: &vertex_attr_array![0 => Float32x3, 1 => Float32x4, 2 => Float32x2],
-                },
-                VertexBufferLayout {
-                    array_stride: std::mem::size_of::<GlyphInstance>() as u64,
-                    step_mode: VertexStepMode::Instance,
-                    attributes: &vertex_attr_array![3 => Float32x4],
-                },
-            ],
+            buffers: &[VertexBufferLayout {
+                array_stride: std::mem::size_of::<GlyphVertex>() as u64,
+                step_mode: VertexStepMode::Vertex,
+                attributes: &vertex_attr_array![0 => Float32x3, 1 => Float32x4, 2 => Float32x2],
+            }],
         },
         primitive: PrimitiveState {
             topology: PrimitiveTopology::TriangleList,

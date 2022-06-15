@@ -43,8 +43,8 @@ pub struct Box2DResources {
 }
 
 impl StoreResources<BackendContext<'_>> for Box2DResources {
-    fn initialize(store: &Store<BackendContext>, ctx: &BackendContext) -> Self {
-        let textures = store.get::<TextureData>(ctx);
+    fn initialize(store: &Store, ctx: &BackendContext) -> Self {
+        let textures = store.get::<TextureData, _>(ctx);
 
         let shader = init_box_shader(ctx.device);
         let pipeline_layout = init_box_pipeline_layout(ctx.device, textures.bind_group_layout());

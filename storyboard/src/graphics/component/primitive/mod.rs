@@ -12,7 +12,7 @@ use storyboard_core::{
     euclid::{Point2D, Point3D, Rect},
     graphics::buffer::stream::StreamRange,
     palette::LinSrgba,
-    store::{StoreResources, Store},
+    store::{Store, StoreResources},
     unit::{PixelUnit, RenderUnit, TextureUnit},
     wgpu::{
         util::RenderEncoder, vertex_attr_array, BindGroupLayout, BlendState, ColorTargetState,
@@ -31,7 +31,10 @@ use storyboard_core::graphics::{
     },
 };
 
-use crate::{math::RectExt, graphics::texture::{data::TextureData, RenderTexture2D}};
+use crate::{
+    graphics::texture::{data::TextureData, RenderTexture2D},
+    math::RectExt,
+};
 
 use super::{
     common::{EmptyTextureResources, QuadIndexBufferResources},
@@ -45,8 +48,8 @@ pub struct PrimitiveResources {
 }
 
 impl StoreResources<BackendContext<'_>> for PrimitiveResources {
-    fn initialize(store: &Store<BackendContext>, ctx: &BackendContext) -> Self {
-        let textures = store.get::<TextureData>(ctx);
+    fn initialize(store: &Store, ctx: &BackendContext) -> Self {
+        let textures = store.get::<TextureData, _>(ctx);
 
         let shader = init_primitive_shader(ctx.device);
         let pipeline_layout =
@@ -296,8 +299,7 @@ impl Component for PrimitiveComponent {
 
         pass.set_pipeline(&primitive_resources.opaque_pipeline);
 
-        ctx.resources
-            .get::<EmptyTextureResources>(&ctx.backend)
+        ctx.get::<EmptyTextureResources>()
             .empty_texture
             .bind(0, pass);
 
@@ -347,8 +349,7 @@ impl Component for PrimitiveComponent {
 
             PrimitiveType::Rectangle => {
                 pass.set_index_buffer(
-                    ctx.resources
-                        .get::<QuadIndexBufferResources>(&ctx.backend)
+                    ctx.get::<QuadIndexBufferResources>()
                         .quad_index_buffer
                         .slice(..),
                     QuadIndexBufferResources::FORMAT,

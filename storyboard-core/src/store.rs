@@ -4,38 +4,37 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
-use std::{any::TypeId, fmt::Debug, marker::PhantomData};
+use std::{any::TypeId, fmt::Debug};
 
 use parking_lot::RwLock;
 use rustc_hash::FxHashMap;
 
 #[derive(Debug)]
-/// Concurrent resource store for storing type erased local resource data
-pub struct Store<Context> {
+/// Resource store for storing type erased local resource data
+pub struct Store {
     map: RwLock<FxHashMap<TypeId, *mut ()>>,
-    phantom: PhantomData<Context>,
 }
 
 // SAFETY: Values in Store is Send
-unsafe impl<Context> Send for Store<Context> {}
+unsafe impl Send for Store {}
 
 // SAFETY: Values in Store is Sync
-unsafe impl<Context> Sync for Store<Context> {}
+unsafe impl Sync for Store {}
 
-pub type DefaultStore = Store<()>;
-
-impl<Context> Store<Context> {
+impl Store {
     pub fn new() -> Self {
         Self {
             map: RwLock::new(FxHashMap::default()),
-            phantom: PhantomData,
         }
     }
 
-    pub fn get<'a, T: StoreResources<Context> + Sized + 'static>(&'a self, ctx: &Context) -> &'a T {
-        if let Some(item) = self.map.read().get(&TypeId::of::<T>()).cloned() {
+    pub fn get<'a, T: StoreResources<Context> + Sized + 'static, Context>(
+        &'a self,
+        ctx: &Context,
+    ) -> &'a T {
+        if let Some(item) = self.map.read().get(&TypeId::of::<T>()) {
             // SAFETY: Value was created with valid type and was type erased.
-            return unsafe { &*(item as *mut T) };
+            return unsafe { &*(*item as *mut T) };
         }
 
         let item = Box::new(T::initialize(self, ctx));
@@ -47,7 +46,7 @@ impl<Context> Store<Context> {
     }
 }
 
-impl<T> Drop for Store<T> {
+impl Drop for Store {
     fn drop(&mut self) {
         // SAFETY: pointer created with [Box::into_raw]
         unsafe {
@@ -59,25 +58,23 @@ impl<T> Drop for Store<T> {
 }
 
 pub trait StoreResources<Context>: Send + Sync {
-    fn initialize(store: &Store<Context>, ctx: &Context) -> Self;
+    fn initialize(store: &Store, ctx: &Context) -> Self;
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::store::StoreResources;
-
-    use super::DefaultStore;
+    use crate::store::{Store, StoreResources};
 
     #[test]
     fn store_test() {
-        let store = DefaultStore::new();
+        let store = Store::new();
 
         struct ResA {
             pub number: i32,
         }
 
         impl StoreResources<()> for ResA {
-            fn initialize(_: &DefaultStore, _: &()) -> Self {
+            fn initialize(_: &Store, _: &()) -> Self {
                 ResA { number: 32 }
             }
         }
@@ -87,14 +84,14 @@ mod tests {
         }
 
         impl StoreResources<()> for ResB {
-            fn initialize(_: &DefaultStore, _: &()) -> Self {
+            fn initialize(_: &Store, _: &()) -> Self {
                 ResB {
                     string: "test".into(),
                 }
             }
         }
 
-        assert_eq!(store.get::<ResA>(&()).number, 32);
-        assert_eq!(store.get::<ResB>(&()).string, "test");
+        assert_eq!(store.get::<ResA, _>(&()).number, 32);
+        assert_eq!(store.get::<ResB, _>(&()).string, "test");
     }
 }

@@ -17,19 +17,19 @@ use storyboard_core::{
 };
 
 #[derive(Debug)]
-pub struct SurfaceRenderTask<'a> {
+pub struct SurfaceRenderTask {
     backend: Arc<StoryboardBackend>,
 
     surface: Surface,
 
-    renderer: StoryboardRenderer<'a>,
+    renderer: StoryboardRenderer,
 }
 
-impl<'a> SurfaceRenderTask<'a> {
+impl SurfaceRenderTask {
     pub fn new(
         backend: Arc<StoryboardBackend>,
         surface: Surface,
-        renderer: StoryboardRenderer<'a>,
+        renderer: StoryboardRenderer,
     ) -> Self {
         Self {
             backend,

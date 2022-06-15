@@ -7,7 +7,7 @@
 pub mod context;
 pub mod pass;
 
-use std::{borrow::Cow, fmt::Debug};
+use std::{borrow::Cow, fmt::Debug, sync::Arc};
 
 use euclid::{Point2D, Rect, Size2D, Transform3D};
 
@@ -37,7 +37,7 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct StoryboardRenderer<'a> {
+pub struct StoryboardRenderer {
     screen_size: Observable<Size2D<u32, PixelUnit>>,
 
     screen_format: TextureFormat,
@@ -50,13 +50,13 @@ pub struct StoryboardRenderer<'a> {
 
     depth_texture: Observable<Option<SizedTextureView2D>>,
 
-    resources: Store<BackendContext<'a>>,
+    store: Arc<Store>,
 
     vertex_stream: BufferStream<'static>,
     index_stream: BufferStream<'static>,
 }
 
-impl<'a> StoryboardRenderer<'a> {
+impl StoryboardRenderer {
     pub const DEPTH_TEXTURE_FORMAT: TextureFormat = TextureFormat::Depth32Float;
 
     pub fn new(screen_size: Size2D<u32, PixelUnit>, screen_format: TextureFormat) -> Self {
@@ -82,7 +82,7 @@ impl<'a> StoryboardRenderer<'a> {
 
             depth_texture: None.into(),
 
-            resources: Store::new(),
+            store: Arc::new(Store::new()),
 
             vertex_stream,
             index_stream,
@@ -174,7 +174,7 @@ impl<'a> StoryboardRenderer<'a> {
             backend: backend_context,
             screen: Rect::new(Point2D::zero(), self.screen_size.cast()),
             screen_matrix: &self.screen_matrix,
-            resources: &self.resources,
+            resources: &self.store,
             vertex_stream: &mut self.vertex_stream,
             index_stream: &mut self.index_stream,
         };
@@ -201,7 +201,7 @@ impl<'a> StoryboardRenderer<'a> {
         let render_opaque = self.opaque_component.len() > 0;
         let render_transparent = self.transparent_component.len() > 0;
 
-        let render_context = draw_context.into_render_context();
+        let mut render_context = draw_context.into_render_context();
 
         let mut depth_attachment = RenderPassDepthStencilAttachment {
             view: self.depth_texture.as_ref().unwrap().inner(),
@@ -222,7 +222,7 @@ impl<'a> StoryboardRenderer<'a> {
                     }));
 
                 for component in self.opaque_component.iter().rev() {
-                    component.render_opaque(&render_context, &mut opaque_pass);
+                    component.render_opaque(&mut render_context, &mut opaque_pass);
                 }
             }
 
@@ -250,7 +250,7 @@ impl<'a> StoryboardRenderer<'a> {
                     }));
 
                 for component in self.transparent_component.iter() {
-                    component.render_transparent(&render_context, &mut pass);
+                    component.render_transparent(&mut render_context, &mut pass);
                 }
             }
 
@@ -258,6 +258,13 @@ impl<'a> StoryboardRenderer<'a> {
         }
 
         Some(encoder)
+    }
+
+    pub fn clone_shared(&self, screen_size: Size2D<u32, PixelUnit>) -> Self {
+        Self {
+            store: self.store.clone(),
+            ..Self::new(screen_size, self.screen_format)
+        }
     }
 }
 

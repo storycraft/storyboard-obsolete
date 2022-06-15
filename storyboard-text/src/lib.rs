@@ -6,16 +6,17 @@
 
 pub mod cache;
 pub mod component;
-pub mod text;
+pub mod font;
+pub mod layout;
 
-pub use ttf_parser;
+use font::Font;
 
 use ab_glyph_rasterizer::{Point, Rasterizer};
 use storyboard::core::{
     euclid::{Point2D, Vector2D},
     unit::PixelUnit,
 };
-use ttf_parser::{Face, OutlineBuilder};
+use ttf_parser::{OutlineBuilder};
 
 #[derive(Debug)]
 pub struct GlyphOutlineBuilder {
@@ -27,7 +28,7 @@ pub struct GlyphOutlineBuilder {
 }
 
 impl GlyphOutlineBuilder {
-    pub fn new(font: &Face, bounding_box: ttf_parser::Rect, size_px: u32) -> Self {
+    pub fn new(font: &Font, bounding_box: ttf_parser::Rect, size_px: u32) -> Self {
         let scale = size_px as f32 / (font.units_per_em() as f32);
 
         Self {

@@ -9,6 +9,7 @@ edition = "2021"
 storyboard = { path = "../storyboard" }
 
 bytemuck = "1.9.1"
+smallvec = "1.8.0"
 
 allsorts = { version = "0.9.0", default-features = false, features = ["flate2_rust"] }
 ringbuffer = "0.8.4"

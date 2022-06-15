@@ -47,7 +47,7 @@ impl TextureData {
 }
 
 impl StoreResources<BackendContext<'_>> for TextureData {
-    fn initialize(_: &Store<BackendContext>, ctx: &BackendContext) -> Self {
+    fn initialize(_: &Store, ctx: &BackendContext) -> Self {
         Self::init(ctx.device)
     }
 }

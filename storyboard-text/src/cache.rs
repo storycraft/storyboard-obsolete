@@ -4,16 +4,19 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
-use std::{collections::HashMap, fmt::Debug, hash::Hash};
+use std::{collections::HashMap, fmt::Debug, hash::Hash, iter::Peekable};
 
 use ringbuffer::{ConstGenericRingBuffer, RingBufferExt, RingBufferWrite};
+use smallvec::SmallVec;
 use storyboard::core::{
-    euclid::{Point2D, Rect, Size2D},
-    graphics::texture::{packed::PackedTexture, SizedTexture2D, TextureView2D},
-    unit::PixelUnit,
+    euclid::{Rect, Size2D, Vector2D},
+    graphics::texture::{packed::PackedTexture, SizedTexture2D, SizedTextureView2D},
+    unit::{PixelUnit, TextureUnit},
     wgpu::{Device, Queue, TextureFormat, TextureUsages},
 };
-use ttf_parser::{Face, GlyphId};
+use ttf_parser::GlyphId;
+
+use crate::font::Font;
 
 use super::GlyphOutlineBuilder;
 
@@ -30,42 +33,68 @@ impl GlyphCache {
         }
     }
 
-    pub fn get_view(
+    #[inline]
+    pub fn get_batch(
         &mut self,
         device: &Device,
         queue: &Queue,
-        font: &Face,
-        index: u16,
+        font: &Font,
+        indices: impl Iterator<Item = u16>,
         size_px: u32,
-    ) -> Option<(Point2D<f32, PixelUnit>, TextureView2D)> {
+    ) -> SmallVec<[GlyphBatch; 2]> {
+        self.get_batch_inner(device, queue, font, indices.peekable(), size_px)
+    }
+
+    fn get_batch_inner(
+        &mut self,
+        device: &Device,
+        queue: &Queue,
+        font: &Font,
+        mut indices: Peekable<impl Iterator<Item = u16>>,
+        size_px: u32,
+    ) -> SmallVec<[GlyphBatch; 2]> {
         if size_px > Self::PAGE_SIZE_LIMIT {
             unimplemented!()
         }
 
-        let key = GlyphKey::new(0, index, size_px);
-
-        {
-            let mut ring_iter = self.pages.iter();
-            while let Some(atlas_map) = ring_iter.next() {
-                if let Some(item) = atlas_map.get_view(&key) {
-                    return Some(item);
-                }
-            }
-        }
+        let mut vec = SmallVec::new();
 
         let mut ring_iter = self.pages.iter_mut();
-        while let Some(atlas_map) = ring_iter.next() {
-            if let Some(item) = atlas_map.pack(queue, font, index, size_px) {
-                return Some(item);
+        while let Some(map) = ring_iter.next() {
+            let mut rects = Vec::new();
+            while let Some(index) = indices.next() {
+                let key = GlyphKey {
+                    font_file_hash: Font::file_hash(&font),
+                    index,
+                    size_px,
+                };
+
+                if let Some(item) = map.get_rect(&key) {
+                    rects.push(item);
+                } else if let Some(item) = map.pack(queue, font, index, size_px) {
+                    rects.push(item);
+                } else {
+                    break;
+                }
+            }
+
+            if rects.len() > 1 {
+                vec.push(GlyphBatch {
+                    view: map.create_view(),
+                    rects,
+                });
             }
         }
 
-        let atlas = GlyphAtlasMap::init(device, Size2D::new(1024, 1024), TextureFormat::R8Unorm);
-        self.pages.push(atlas);
-        self.pages
-            .back_mut()
-            .unwrap()
-            .pack(queue, font, index, size_px)
+        if indices.peek().is_some() {
+            let atlas =
+                GlyphAtlasMap::init(device, Size2D::new(1024, 1024), TextureFormat::R8Unorm);
+            self.pages.push(atlas);
+
+            vec.append(&mut self.get_batch_inner(device, queue, font, indices, size_px));
+        }
+
+        vec
     }
 }
 
@@ -75,15 +104,21 @@ impl Debug for GlyphCache {
     }
 }
 
+#[derive(Debug)]
+pub struct GlyphBatch {
+    pub view: SizedTextureView2D,
+    pub rects: Vec<GlyphTextureRect>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct GlyphKey {
-    pub font_file_hash: usize,
+    pub font_file_hash: u64,
     pub index: u16,
     pub size_px: u32,
 }
 
 impl GlyphKey {
-    pub const fn new(font_file_hash: usize, index: u16, size_px: u32) -> Self {
+    pub const fn new(font_file_hash: u64, index: u16, size_px: u32) -> Self {
         Self {
             font_file_hash,
             index,
@@ -95,7 +130,7 @@ impl GlyphKey {
 #[derive(Debug)]
 pub struct GlyphAtlasMap {
     texture: PackedTexture,
-    map: HashMap<GlyphKey, (Point2D<f32, PixelUnit>, Rect<u32, PixelUnit>)>,
+    map: HashMap<GlyphKey, GlyphTextureRect>,
 }
 
 impl GlyphAtlasMap {
@@ -114,59 +149,89 @@ impl GlyphAtlasMap {
         }
     }
 
-    pub fn get_view(&self, key: &GlyphKey) -> Option<(Point2D<f32, PixelUnit>, TextureView2D)> {
-        let (offset, rect) = *self.map.get(key)?;
-        Some((offset, self.texture.slice(None, rect)))
+    pub fn create_view(&self) -> SizedTextureView2D {
+        self.texture.inner().create_view_default(None)
+    }
+
+    pub fn get_rect(&self, key: &GlyphKey) -> Option<GlyphTextureRect> {
+        Some(*self.map.get(key)?)
     }
 
     pub fn pack(
         &mut self,
         queue: &Queue,
-        font: &Face,
+        font: &Font,
         index: u16,
         size_px: u32,
-    ) -> Option<(Point2D<f32, PixelUnit>, TextureView2D)> {
-        let bounding_box = font.glyph_bounding_box(GlyphId(index))?;
-
-        let mut builder = GlyphOutlineBuilder::new(font, bounding_box, size_px);
-        font.outline_glyph(GlyphId(index), &mut builder);
-
-        let rasterizer = builder.into_rasterizer();
-        let mut data: Vec<u8> = vec![0; rasterizer.dimensions().0 * rasterizer.dimensions().1];
-        rasterizer.for_each_pixel(|i, alpha| data[i] = (alpha * 255.0) as u8);
-
-        let offset = Point2D::<f32, PixelUnit>::new(
-            size_px as f32 * bounding_box.x_min as f32 / font.units_per_em() as f32,
-            -1.0 * size_px as f32 * bounding_box.y_min as f32 / font.units_per_em() as f32,
-        );
-
-        let rect: Rect<u32, PixelUnit> = self.texture.pack(
-            queue,
-            Size2D::new(
-                rasterizer.dimensions().0 as u32,
-                rasterizer.dimensions().1 as u32,
-            ),
-            &data,
-        )?;
-
+    ) -> Option<GlyphTextureRect> {
         let key = GlyphKey {
-            font_file_hash: 0,
+            font_file_hash: Font::file_hash(font),
             index,
             size_px,
         };
 
-        self.map.insert(key, (offset, rect));
+        match font.glyph_bounding_box(GlyphId(index)) {
+            Some(bounding_box) => {
+                let mut builder = GlyphOutlineBuilder::new(font, bounding_box, size_px);
+                font.outline_glyph(GlyphId(index), &mut builder);
 
-        self.get_view(&key)
+                let rasterizer = builder.into_rasterizer();
+                let mut data: Vec<u8> =
+                    vec![0; rasterizer.dimensions().0 * rasterizer.dimensions().1];
+                rasterizer.for_each_pixel(|i, alpha| data[i] = (alpha * 255.0) as u8);
+
+                let offset = Vector2D::<f32, PixelUnit>::new(
+                    size_px as f32 * bounding_box.x_min as f32 / font.units_per_em() as f32,
+                    -1.0 * size_px as f32 * bounding_box.y_min as f32 / font.units_per_em() as f32,
+                );
+
+                let rect: Rect<u32, PixelUnit> = self.texture.pack(
+                    queue,
+                    Size2D::new(
+                        rasterizer.dimensions().0 as u32,
+                        rasterizer.dimensions().1 as u32,
+                    ),
+                    &data,
+                )?;
+
+                self.map.insert(
+                    key,
+                    GlyphTextureRect {
+                        glyph_offset: offset,
+                        rasterized_size: rect.size.cast(),
+                        tex_rect: rect
+                            .cast::<f32>()
+                            .scale(
+                                1.0 / self.texture.inner().size().width as f32,
+                                1.0 / self.texture.inner().size().height as f32,
+                            )
+                            .cast_unit(),
+                    },
+                );
+            }
+            None => {
+                return Some(GlyphTextureRect::default());
+            }
+        }
+
+        self.get_rect(&key)
     }
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct GlyphTextureRect {
+    pub glyph_offset: Vector2D<f32, PixelUnit>,
+    pub rasterized_size: Size2D<f32, PixelUnit>,
+    pub tex_rect: Rect<f32, TextureUnit>,
 }
 
 #[cfg(test)]
 mod tests {
     use storyboard::core::wgpu::{Backends, Features, Instance};
-    use ttf_parser::Face;
 
     use storyboard::core::graphics::backend::{BackendOptions, StoryboardBackend};
+
+    use crate::font::Font;
 
     use super::GlyphCache;
 
@@ -184,39 +249,19 @@ mod tests {
 
         println!("backend: {:?}", backend);
 
-        let font = Face::from_slice(FONT, 0).unwrap();
-
-        println!("font: {:?}", font);
+        let font = Font::from_slice(FONT, 0).unwrap();
 
         let mut cache = GlyphCache::new();
 
         println!(
-            "Glyph 가: {:?}",
-            cache.get_view(
+            "Batch: {:?}",
+            cache.get_batch(
                 backend.device(),
                 backend.queue(),
                 &font,
-                font.glyph_index('가').unwrap().0,
-                40
-            )
-        );
-        println!(
-            "Glyph a: {:?}",
-            cache.get_view(
-                backend.device(),
-                backend.queue(),
-                &font,
-                font.glyph_index('a').unwrap().0,
-                40
-            )
-        );
-        println!(
-            "Glyph b: {:?}",
-            cache.get_view(
-                backend.device(),
-                backend.queue(),
-                &font,
-                font.glyph_index('b').unwrap().0,
+                "test string"
+                    .chars()
+                    .map(|ch| font.glyph_index(ch).unwrap_or_default().0),
                 40
             )
         );

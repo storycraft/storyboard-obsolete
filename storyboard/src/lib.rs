@@ -130,7 +130,7 @@ impl Storyboard {
             elapsed: Duration::ZERO,
             window: self.window,
             render_task: surface_render_task.clone(),
-            global_store: Arc::new(Store::new()),
+            store: Arc::new(Store::new()),
         };
 
         let mut state_system = StateSystem::new(Box::new(state), &system_prop);

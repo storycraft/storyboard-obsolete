@@ -32,7 +32,7 @@ impl QuadIndexBufferResources {
 }
 
 impl StoreResources<BackendContext<'_>> for QuadIndexBufferResources {
-    fn initialize(_: &Store<BackendContext>, ctx: &BackendContext) -> Self {
+    fn initialize(_: &Store, ctx: &BackendContext) -> Self {
         let quad_index_buffer = ctx.device.create_buffer_init(&BufferInitDescriptor {
             label: Some("QuadIndexBufferResources quad index buffer"),
             contents: bytemuck::cast_slice(&[0_u16, 1, 2, 0, 2, 3]),
@@ -50,8 +50,8 @@ pub struct EmptyTextureResources {
 }
 
 impl StoreResources<BackendContext<'_>> for EmptyTextureResources {
-    fn initialize(store: &Store<BackendContext>, ctx: &BackendContext) -> Self {
-        let textures = store.get::<TextureData>(ctx);
+    fn initialize(store: &Store, ctx: &BackendContext) -> Self {
+        let textures = store.get::<TextureData, _>(ctx);
 
         let empty_texture = {
             let sized = SizedTexture2D::init(

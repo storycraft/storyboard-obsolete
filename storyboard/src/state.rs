@@ -27,19 +27,19 @@ use crate::{
 ///
 /// Contains [winit::window::Window], [GraphicsData] of app
 #[derive(Debug)]
-pub struct StoryboardSystemProp<'a> {
+pub struct StoryboardSystemProp {
     pub backend: Arc<StoryboardBackend>,
     pub screen_format: TextureFormat,
     pub texture_data: Arc<TextureData>,
     pub window: Window,
     pub elapsed: Duration,
 
-    pub global_store: Arc<Store<GlobalStoreContext<'a>>>,
+    pub(crate) store: Arc<Store>,
 
-    pub(crate) render_task: Arc<Mutex<SurfaceRenderTask<'a>>>,
+    pub(crate) render_task: Arc<Mutex<SurfaceRenderTask>>,
 }
 
-impl<'a> StoryboardSystemProp<'a> {
+impl StoryboardSystemProp {
     /// Create [SizedTexture2D] from descriptor
     pub fn create_texture(
         &self,
@@ -97,8 +97,12 @@ impl<'a> StoryboardSystemProp<'a> {
         )
     }
 
-    pub fn get<T: StoreResources<GlobalStoreContext<'a>> + Sized + 'static>(&'a self) -> &'a T {
-        self.global_store.get(&GlobalStoreContext {
+    pub const fn store(&self) -> &Arc<Store> {
+        &self.store
+    }
+
+    pub fn get<'a, T: StoreResources<GlobalStoreContext<'a>> + Sized + 'static>(&'a mut self) -> &'a T {
+        self.store.get(&GlobalStoreContext {
             backend: &self.backend,
             texture_data: &self.texture_data
         })
@@ -133,7 +137,7 @@ impl<'a> StoryboardSystemState<'a> {}
 pub struct StoryboardStateData {}
 
 impl StateData for StoryboardStateData {
-    type Prop<'p> = StoryboardSystemProp<'p>;
+    type Prop<'p> = StoryboardSystemProp;
     type State<'s> = StoryboardSystemState<'s>;
 }
 
