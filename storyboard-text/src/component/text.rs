@@ -83,7 +83,7 @@ impl<'face> Text<'face> {
         queue: &Queue,
         textures: &TextureData,
         cache: &mut GlyphCache,
-        submit: impl Fn(TextDrawable),
+        mut submit: impl FnMut(TextDrawable),
     ) {
         let font_invalidated = Observable::invalidate(&mut self.shaper);
         let text_invalidated = Observable::invalidate(&mut self.text);

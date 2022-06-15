@@ -22,10 +22,7 @@ use instant::Instant;
 use task::render::SurfaceRenderTask;
 
 use state::{StoryboardStateData, StoryboardSystemProp, StoryboardSystemState};
-use std::{
-    sync::{Arc, Mutex},
-    time::Duration,
-};
+use std::{sync::Arc, time::Duration};
 use storyboard_core::{
     euclid::Size2D,
     graphics::{
@@ -51,7 +48,7 @@ pub struct Storyboard {
     screen_format: TextureFormat,
     texture_data: TextureData,
 
-    pub render_present_mode: PresentMode,
+    pub present_mode: PresentMode,
 
     window: Window,
     surface: Surface,
@@ -59,7 +56,11 @@ pub struct Storyboard {
 
 impl Storyboard {
     /// Initalize resources for storyboard app
-    pub async fn init(window: Window, options: &BackendOptions) -> Result<Self, BackendInitError> {
+    pub async fn init(
+        window: Window,
+        options: &BackendOptions,
+        present_mode: PresentMode,
+    ) -> Result<Self, BackendInitError> {
         let instance = Instance::new(Backends::all());
 
         // Safety: window is valid object to create a surface
@@ -76,7 +77,7 @@ impl Storyboard {
             screen_format,
             texture_data,
 
-            render_present_mode: PresentMode::Mailbox,
+            present_mode,
 
             window,
             surface,
@@ -117,10 +118,10 @@ impl Storyboard {
             Size2D::new(width, height)
         };
 
-        let surface_render_task = Arc::new(Mutex::new(SurfaceRenderTask::new(
+        let mut surface_render_task = SurfaceRenderTask::new(
             self.surface,
             StoryboardRenderer::new(backend.clone(), win_size, self.screen_format),
-        )));
+        );
 
         let mut system_prop = StoryboardSystemProp {
             backend,
@@ -128,21 +129,20 @@ impl Storyboard {
             texture_data,
             elapsed: Duration::ZERO,
             window: self.window,
-            render_task: surface_render_task.clone(),
             store: Arc::new(Store::new()),
         };
 
         let mut state_system = StateSystem::new(Box::new(state), &system_prop);
 
-        surface_render_task
-            .lock()
-            .unwrap()
-            .reconfigure(win_size, self.render_present_mode);
+        surface_render_task.reconfigure(win_size, self.present_mode);
 
         event_loop.run(move |event, _, control_flow| {
             let instant = Instant::now();
 
-            let mut system_state = StoryboardSystemState { event };
+            let mut system_state = StoryboardSystemState {
+                render_task: &mut surface_render_task,
+                event,
+            };
 
             // TODO:: Threading
             if let Event::WindowEvent {
@@ -156,10 +156,9 @@ impl Storyboard {
                     Size2D::new(width, height)
                 };
 
-                surface_render_task
-                    .lock()
-                    .unwrap()
-                    .reconfigure(win_size, self.render_present_mode);
+                system_state
+                    .render_task
+                    .reconfigure(win_size, self.present_mode);
             }
 
             let status = state_system.run(&system_prop, &mut system_state);
@@ -176,7 +175,7 @@ impl Storyboard {
 
             // TODO:: Threading
             if let Event::RedrawRequested(_) = system_state.event {
-                surface_render_task.lock().unwrap().render();
+                surface_render_task.render();
             }
 
             system_prop.elapsed = instant.elapsed();

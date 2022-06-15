@@ -10,15 +10,14 @@ use storyboard::{
     core::{
         component::color::ShapeColor,
         euclid::{Point2D, Rect, Size2D, Vector2D},
+        graphics::backend::BackendOptions,
         state::State,
         unit::PixelUnit,
-        wgpu::{PowerPreference, TextureFormat, TextureUsages}, graphics::backend::BackendOptions,
+        wgpu::{PowerPreference, PresentMode, TextureFormat, TextureUsages},
     },
-    graphics::{
-        component::{
-            box2d::{Box2D, Box2DStyle},
-            texture::{ComponentTexture, TextureLayout, TextureLayoutStyle, TextureWrap},
-        },
+    graphics::component::{
+        box2d::{Box2D, Box2DStyle},
+        texture::{ComponentTexture, TextureLayout, TextureLayoutStyle, TextureWrap},
     },
     state::{
         StoryboardStateData, StoryboardStateStatus, StoryboardSystemProp, StoryboardSystemState,
@@ -76,6 +75,7 @@ async fn main_async(event_loop: EventLoop<()>, window: Window) {
             power_preference: PowerPreference::HighPerformance,
             ..Default::default()
         },
+        PresentMode::Immediate,
     )
     .await
     .unwrap();
@@ -155,28 +155,26 @@ impl State<StoryboardStateData> for SampleApp {
         system_state: &mut StoryboardSystemState,
     ) -> StoryboardStateStatus {
         if let Event::RedrawRequested(_) = system_state.event {
-            for _ in 0..500 {
-                system_prop.draw(Box2D {
-                    bounds: Rect::new(self.cursor, Size2D::new(25.0, 25.0)),
-                    fill_color: ShapeColor::WHITE,
-                    border_color: ShapeColor::RED,
-                    texture: self.texture.clone(),
-                    style: Box2DStyle {
-                        border_thickness: 5.0,
-                        shadow_offset: Vector2D::new(100.0, 100.0),
-                        shadow_radius: 0.0,
-                        shadow_color: ShapeColor::BLUE.into(),
-                        ..Default::default()
-                    },
-                });
-            }
+            system_state.draw(Box2D {
+                bounds: Rect::new(self.cursor, Size2D::new(25.0, 25.0)),
+                fill_color: ShapeColor::WHITE,
+                border_color: ShapeColor::RED,
+                texture: self.texture.clone(),
+                style: Box2DStyle {
+                    border_thickness: 5.0,
+                    shadow_offset: Vector2D::new(100.0, 100.0),
+                    shadow_radius: 0.0,
+                    shadow_color: ShapeColor::BLUE.into(),
+                    ..Default::default()
+                },
+            });
 
             self.text.draw(
                 system_prop.backend.device(),
                 system_prop.backend.queue(),
                 &system_prop.texture_data,
                 &mut self.cache,
-                |glyph| system_prop.draw(glyph),
+                |glyph| system_state.draw(glyph),
             );
         } else if let Event::WindowEvent {
             event: WindowEvent::CloseRequested,
@@ -192,7 +190,9 @@ impl State<StoryboardStateData> for SampleApp {
             self.cursor = Point2D::new(position.x as f32, position.y as f32);
 
             self.text.position = self.cursor;
-            self.text.set_text(Cow::Owned(format!("{:?} 렌더링 테스트", self.cursor)));
+
+            self.text
+                .set_text(Cow::Owned(format!("{:?} 렌더링 테스트", self.cursor)));
             system_prop.request_redraw();
         }
 

@@ -5,22 +5,25 @@
  */
 
 //! Prop and States implemention for storyboard app.
-use std::{
-    sync::{Arc, Mutex},
-    time::Duration,
-};
+use std::{sync::Arc, time::Duration};
 
 use storyboard_core::{
     euclid::Size2D,
-    graphics::{texture::{TextureView2D, SizedTexture2D}, backend::StoryboardBackend, component::Drawable},
+    graphics::{
+        backend::StoryboardBackend,
+        component::Drawable,
+        texture::{SizedTexture2D, TextureView2D},
+    },
     state::{StateData, StateStatus},
+    store::{Store, StoreResources},
     unit::PixelUnit,
-    wgpu::{Sampler, TextureFormat, TextureUsages}, store::{Store, StoreResources},
+    wgpu::{Sampler, TextureFormat, TextureUsages},
 };
 use winit::{event::Event, window::Window};
 
 use crate::{
-    task::render::SurfaceRenderTask, graphics::texture::{data::TextureData, RenderTexture2D},
+    graphics::texture::{data::TextureData, RenderTexture2D},
+    task::render::SurfaceRenderTask,
 };
 
 /// System properties for [StoryboardState].
@@ -32,11 +35,10 @@ pub struct StoryboardSystemProp {
     pub screen_format: TextureFormat,
     pub texture_data: Arc<TextureData>,
     pub window: Window,
+    
     pub elapsed: Duration,
 
     pub(crate) store: Arc<Store>,
-
-    pub(crate) render_task: Arc<Mutex<SurfaceRenderTask>>,
 }
 
 impl StoryboardSystemProp {
@@ -101,16 +103,13 @@ impl StoryboardSystemProp {
         &self.store
     }
 
-    pub fn get<'a, T: StoreResources<GlobalStoreContext<'a>> + Sized + 'static>(&'a mut self) -> &'a T {
+    pub fn get<'a, T: StoreResources<GlobalStoreContext<'a>> + Sized + 'static>(
+        &'a mut self,
+    ) -> &'a T {
         self.store.get(&GlobalStoreContext {
             backend: &self.backend,
-            texture_data: &self.texture_data
+            texture_data: &self.texture_data,
         })
-    }
-
-    #[inline]
-    pub fn draw(&self, drawable: impl Drawable + 'static) {
-        self.render_task.lock().unwrap().push(drawable);
     }
 
     pub fn request_redraw(&self) {
@@ -121,7 +120,7 @@ impl StoryboardSystemProp {
 #[derive(Debug)]
 pub struct GlobalStoreContext<'a> {
     pub backend: &'a Arc<StoryboardBackend>,
-    pub texture_data: &'a Arc<TextureData>
+    pub texture_data: &'a Arc<TextureData>,
 }
 
 /// Mutable system state for [StoryboardState].
@@ -130,9 +129,16 @@ pub struct GlobalStoreContext<'a> {
 #[derive(Debug)]
 pub struct StoryboardSystemState<'a> {
     pub event: Event<'a, ()>,
+
+    pub(crate) render_task: &'a mut SurfaceRenderTask,
 }
 
-impl<'a> StoryboardSystemState<'a> {}
+impl<'a> StoryboardSystemState<'a> {
+    #[inline]
+    pub fn draw(&mut self, drawable: impl Drawable + 'static) {
+        self.render_task.push(drawable);
+    }
+}
 
 pub struct StoryboardStateData {}
 

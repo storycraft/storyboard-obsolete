@@ -63,6 +63,8 @@ pub trait StoreResources<Context>: Send + Sync {
 
 #[cfg(test)]
 mod tests {
+    use std::time::Instant;
+
     use crate::store::{Store, StoreResources};
 
     #[test]
@@ -91,7 +93,13 @@ mod tests {
             }
         }
 
-        assert_eq!(store.get::<ResA, _>(&()).number, 32);
+        let instant = Instant::now();
+        for _ in 0..5_000 {
+            assert_eq!(store.get::<ResA, _>(&()).number, 32);
+        }
+
+        println!("Elapsed: {} ns", instant.elapsed().as_nanos());
+
         assert_eq!(store.get::<ResB, _>(&()).string, "test");
     }
 }
