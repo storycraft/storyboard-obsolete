@@ -33,6 +33,7 @@ pub struct DrawContext<'a> {
     pub(crate) resources: &'a Store,
 
     pub screen: Rect<f32, PixelUnit>,
+    pub screen_scale: f32,
     pub screen_matrix: &'a Transform3D<f32, PixelUnit, RenderUnit>,
 
     pub vertex_stream: &'a mut BufferStream<'static>,

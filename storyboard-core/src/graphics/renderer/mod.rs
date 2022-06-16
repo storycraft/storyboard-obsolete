@@ -6,6 +6,7 @@
 
 pub mod context;
 pub mod pass;
+pub mod surface;
 
 use std::{borrow::Cow, fmt::Debug, sync::Arc};
 
@@ -40,7 +41,7 @@ use crate::{
 pub struct StoryboardRenderer {
     backend: Arc<StoryboardBackend>,
 
-    screen_size: Observable<Size2D<u32, PixelUnit>>,
+    screen: Observable<(Size2D<u32, PixelUnit>, f32)>,
 
     screen_format: TextureFormat,
     screen_matrix: Transform3D<f32, PixelUnit, RenderUnit>,
@@ -64,6 +65,7 @@ impl StoryboardRenderer {
     pub fn new(
         backend: Arc<StoryboardBackend>,
         screen_size: Size2D<u32, PixelUnit>,
+        screen_scale: f32,
         screen_format: TextureFormat,
     ) -> Self {
         let vertex_stream = BufferStream::new(
@@ -77,7 +79,7 @@ impl StoryboardRenderer {
 
         Self {
             backend,
-            screen_size: screen_size.into(),
+            screen: (screen_size, screen_scale).into(),
 
             screen_format,
             screen_matrix: Transform3D::identity(),
@@ -101,11 +103,17 @@ impl StoryboardRenderer {
     }
 
     pub fn screen_size(&self) -> Size2D<u32, PixelUnit> {
-        *self.screen_size
+        self.screen.0
     }
 
-    pub fn set_screen_size(&mut self, screen_size: Size2D<u32, PixelUnit>) {
-        self.screen_size = screen_size.into();
+    pub fn screen_scale(&self) -> f32 {
+        self.screen.1
+    }
+
+    pub fn set_screen_size(&mut self, screen_size: Size2D<u32, PixelUnit>, screen_scale: f32) {
+        if self.screen.ne(&(screen_size, screen_scale)) {
+            self.screen = (screen_size, screen_scale).into();
+        }
     }
 
     pub const fn screen_format(&self) -> TextureFormat {
@@ -117,11 +125,11 @@ impl StoryboardRenderer {
     }
 
     fn prepare_screen_matrix(&mut self) {
-        if Observable::invalidate(&mut self.screen_size) {
+        if Observable::invalidate(&mut self.screen) {
             self.screen_matrix = Transform3D::ortho(
                 0.0_f32,
-                self.screen_size.width as f32,
-                self.screen_size.height as f32,
+                self.screen.0.width as f32,
+                self.screen.0.height as f32,
                 0.0,
                 0.0,
                 1.0,
@@ -137,7 +145,7 @@ impl StoryboardRenderer {
                 SizedTexture2D::init(
                     self.backend.device(),
                     Some("StoryboardRenderer depth texture"),
-                    *self.screen_size,
+                    self.screen.0,
                     Self::DEPTH_TEXTURE_FORMAT,
                     TextureUsages::TEXTURE_BINDING | TextureUsages::RENDER_ATTACHMENT,
                 )
@@ -159,7 +167,8 @@ impl StoryboardRenderer {
 
         self.prepare_depth_stencil();
 
-        let mut encoder = self.backend
+        let mut encoder = self
+            .backend
             .device()
             .create_command_encoder(&CommandEncoderDescriptor {
                 label: Some("StoryboardRenderer command encoder"),
@@ -182,7 +191,8 @@ impl StoryboardRenderer {
 
         let mut draw_context = DrawContext {
             backend: backend_context,
-            screen: Rect::new(Point2D::zero(), self.screen_size.cast()),
+            screen: Rect::new(Point2D::zero(), self.screen.0.cast()),
+            screen_scale: self.screen.1,
             screen_matrix: &self.screen_matrix,
             resources: &self.store,
             vertex_stream: &mut self.vertex_stream,
@@ -270,10 +280,15 @@ impl StoryboardRenderer {
         Some(encoder)
     }
 
-    pub fn clone_shared(&self, screen_size: Size2D<u32, PixelUnit>) -> Self {
+    pub fn clone_shared(&self, screen_size: Size2D<u32, PixelUnit>, screen_scale: f32) -> Self {
         Self {
             store: self.store.clone(),
-            ..Self::new(self.backend.clone(), screen_size, self.screen_format)
+            ..Self::new(
+                self.backend.clone(),
+                screen_size,
+                screen_scale,
+                self.screen_format,
+            )
         }
     }
 }

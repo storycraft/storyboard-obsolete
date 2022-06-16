@@ -10,7 +10,6 @@
 pub mod graphics;
 pub mod math;
 pub mod state;
-pub mod task;
 
 // Reexports
 pub use storyboard_core as core;
@@ -19,15 +18,13 @@ pub use winit;
 use graphics::texture::data::TextureData;
 use instant::Instant;
 
-use task::render::SurfaceRenderTask;
-
 use state::{StoryboardStateData, StoryboardSystemProp, StoryboardSystemState};
-use std::{sync::Arc, time::Duration};
+use std::{iter, sync::Arc, time::Duration};
 use storyboard_core::{
     euclid::Size2D,
     graphics::{
         backend::{BackendInitError, BackendOptions, StoryboardBackend},
-        renderer::StoryboardRenderer,
+        renderer::surface::{StoryboardSurfaceRenderer, SurfaceConfiguration},
     },
     state::{State, StateSystem, SystemStatus},
     store::Store,
@@ -118,9 +115,15 @@ impl Storyboard {
             Size2D::new(width, height)
         };
 
-        let mut surface_render_task = SurfaceRenderTask::new(
+        let mut surface_renderer = StoryboardSurfaceRenderer::new(
+            backend.clone(),
             self.surface,
-            StoryboardRenderer::new(backend.clone(), win_size, self.screen_format),
+            SurfaceConfiguration {
+                present_mode: self.present_mode,
+                screen_size: win_size,
+                screen_scale: self.window.scale_factor() as _,
+            },
+            self.screen_format,
         );
 
         let mut system_prop = StoryboardSystemProp {
@@ -134,32 +137,58 @@ impl Storyboard {
 
         let mut state_system = StateSystem::new(Box::new(state), &system_prop);
 
-        surface_render_task.reconfigure(win_size, self.present_mode);
-
         event_loop.run(move |event, _, control_flow| {
             let instant = Instant::now();
 
             let mut system_state = StoryboardSystemState {
-                render_task: &mut surface_render_task,
+                surface_renderer: &mut surface_renderer,
                 event,
             };
 
-            // TODO:: Threading
-            if let Event::WindowEvent {
-                window_id: _,
-                event: WindowEvent::Resized(size),
-            } = &system_state.event
-            {
-                let win_size = {
-                    let (width, height) = (*size).into();
+            match &system_state.event {
+                Event::WindowEvent {
+                    window_id: _,
+                    event: WindowEvent::Resized(size),
+                } => {
+                    let win_size = {
+                        let (width, height) = (*size).into();
 
-                    Size2D::new(width, height)
-                };
+                        Size2D::new(width, height)
+                    };
 
-                system_state
-                    .render_task
-                    .reconfigure(win_size, self.present_mode);
-            }
+                    system_state
+                        .surface_renderer
+                        .set_configuration(SurfaceConfiguration {
+                            screen_size: win_size,
+                            ..system_state.surface_renderer.configuration()
+                        });
+                }
+
+                Event::WindowEvent {
+                    window_id: _,
+                    event:
+                        WindowEvent::ScaleFactorChanged {
+                            scale_factor,
+                            new_inner_size,
+                        },
+                } => {
+                    let win_size = {
+                        let (width, height) = (**new_inner_size).into();
+
+                        Size2D::new(width, height)
+                    };
+
+                    system_state
+                        .surface_renderer
+                        .set_configuration(SurfaceConfiguration {
+                            screen_size: win_size,
+                            screen_scale: *scale_factor as _,
+                            ..system_state.surface_renderer.configuration()
+                        });
+                }
+
+                _ => {}
+            };
 
             let status = state_system.run(&system_prop, &mut system_state);
 
@@ -174,8 +203,14 @@ impl Storyboard {
             };
 
             // TODO:: Threading
-            if let Event::RedrawRequested(_) = system_state.event {
-                surface_render_task.render();
+            if let Event::RedrawRequested(_) = &system_state.event {
+                if let Some(res) = surface_renderer.render() {
+                    system_prop
+                        .backend
+                        .queue()
+                        .submit(iter::once(res.command_buffer));
+                    res.surface_texture.present();
+                }
             }
 
             system_prop.elapsed = instant.elapsed();

@@ -12,6 +12,7 @@ use storyboard_core::{
     graphics::{
         backend::StoryboardBackend,
         component::Drawable,
+        renderer::surface::StoryboardSurfaceRenderer,
         texture::{SizedTexture2D, TextureView2D},
     },
     state::{StateData, StateStatus},
@@ -21,10 +22,7 @@ use storyboard_core::{
 };
 use winit::{event::Event, window::Window};
 
-use crate::{
-    graphics::texture::{data::TextureData, RenderTexture2D},
-    task::render::SurfaceRenderTask,
-};
+use crate::graphics::texture::{data::TextureData, RenderTexture2D};
 
 /// System properties for [StoryboardState].
 ///
@@ -35,7 +33,7 @@ pub struct StoryboardSystemProp {
     pub screen_format: TextureFormat,
     pub texture_data: Arc<TextureData>,
     pub window: Window,
-    
+
     pub elapsed: Duration,
 
     pub(crate) store: Arc<Store>,
@@ -130,13 +128,13 @@ pub struct GlobalStoreContext<'a> {
 pub struct StoryboardSystemState<'a> {
     pub event: Event<'a, ()>,
 
-    pub(crate) render_task: &'a mut SurfaceRenderTask,
+    pub(crate) surface_renderer: &'a mut StoryboardSurfaceRenderer,
 }
 
 impl<'a> StoryboardSystemState<'a> {
     #[inline]
     pub fn draw(&mut self, drawable: impl Drawable + 'static) {
-        self.render_task.push(drawable);
+        self.surface_renderer.push(drawable);
     }
 }
 
