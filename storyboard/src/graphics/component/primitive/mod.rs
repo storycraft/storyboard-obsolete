@@ -13,7 +13,7 @@ use storyboard_core::{
     graphics::buffer::stream::StreamRange,
     palette::LinSrgba,
     store::{Store, StoreResources},
-    unit::{PixelUnit, RenderUnit, TextureUnit},
+    unit::{LogicalPixelUnit, RenderUnit, TextureUnit},
     wgpu::{
         util::RenderEncoder, vertex_attr_array, BindGroupLayout, BlendState, ColorTargetState,
         ColorWrites, CommandEncoder, DepthStencilState, Device, FragmentState, MultisampleState,
@@ -91,7 +91,7 @@ impl StoreResources<BackendContext<'_>> for PrimitiveResources {
 
 #[derive(Debug, Clone)]
 pub struct Triangle {
-    pub bounds: Rect<f32, PixelUnit>,
+    pub bounds: Rect<f32, LogicalPixelUnit>,
     pub color: ShapeColor<3>,
     pub texture: Option<ComponentTexture>,
 }
@@ -114,7 +114,7 @@ impl Drawable for Triangle {
 
 #[derive(Debug, Clone)]
 pub struct Rectangle {
-    pub bounds: Rect<f32, PixelUnit>,
+    pub bounds: Rect<f32, LogicalPixelUnit>,
     pub color: ShapeColor<4>,
     pub texture: Option<ComponentTexture>,
 }

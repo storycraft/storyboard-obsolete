@@ -10,7 +10,7 @@ use crate::{
     euclid::Size2D,
     graphics::{backend::StoryboardBackend, component::Drawable, renderer::StoryboardRenderer},
     observable::Observable,
-    unit::PixelUnit,
+    unit::PhyiscalPixelUnit,
 };
 
 use wgpu::{
@@ -109,7 +109,7 @@ impl StoryboardSurfaceRenderer {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SurfaceConfiguration {
     pub present_mode: PresentMode,
-    pub screen_size: Size2D<u32, PixelUnit>,
+    pub screen_size: Size2D<u32, PhyiscalPixelUnit>,
     pub screen_scale: f32,
 }
 

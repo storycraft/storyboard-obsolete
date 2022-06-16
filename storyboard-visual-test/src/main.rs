@@ -12,7 +12,7 @@ use storyboard::{
         euclid::{Point2D, Rect, Size2D, Vector2D},
         graphics::backend::BackendOptions,
         state::State,
-        unit::PixelUnit,
+        unit::LogicalPixelUnit,
         wgpu::{PowerPreference, PresentMode, TextureFormat, TextureUsages},
     },
     graphics::component::{
@@ -91,7 +91,7 @@ pub static FONT: &'static [u8] = include_bytes!("./NotoSansCJKkr-Regular.otf");
 #[derive(Debug)]
 pub struct SampleApp {
     texture: Option<ComponentTexture>,
-    cursor: Point2D<f32, PixelUnit>,
+    cursor: Point2D<f32, LogicalPixelUnit>,
     cache: GlyphCache,
     text: Text<'static>,
 }

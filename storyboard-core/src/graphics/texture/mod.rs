@@ -15,20 +15,20 @@ use wgpu::{
     TextureViewDescriptor,
 };
 
-use crate::unit::{PixelUnit, TextureUnit};
+use crate::unit::{PhyiscalPixelUnit, TextureUnit};
 
 #[derive(Debug)]
 pub struct SizedTexture2D {
     texture: Texture,
     format: TextureFormat,
-    size: Size2D<u32, PixelUnit>,
+    size: Size2D<u32, PhyiscalPixelUnit>,
 }
 
 impl SizedTexture2D {
     pub fn init(
         device: &Device,
         label: Option<&str>,
-        size: Size2D<u32, PixelUnit>,
+        size: Size2D<u32, PhyiscalPixelUnit>,
         format: TextureFormat,
         usage: TextureUsages,
     ) -> Self {
@@ -52,7 +52,7 @@ impl SizedTexture2D {
     pub fn from_texture(
         texture: Texture,
         format: TextureFormat,
-        size: Size2D<u32, PixelUnit>,
+        size: Size2D<u32, PhyiscalPixelUnit>,
     ) -> Self {
         Self {
             texture,
@@ -69,7 +69,7 @@ impl SizedTexture2D {
         self.format
     }
 
-    pub const fn size(&self) -> Size2D<u32, PixelUnit> {
+    pub const fn size(&self) -> Size2D<u32, PhyiscalPixelUnit> {
         self.size
     }
 
@@ -84,7 +84,7 @@ impl SizedTexture2D {
         })
     }
 
-    pub fn write(&self, queue: &Queue, rect: Option<&Rect<u32, PixelUnit>>, data: &[u8]) {
+    pub fn write(&self, queue: &Queue, rect: Option<&Rect<u32, PhyiscalPixelUnit>>, data: &[u8]) {
         let (origin, extent) = match rect {
             Some(rect) => rect_to_origin_extent(&rect),
 
@@ -128,7 +128,7 @@ impl SizedTexture2D {
 #[derive(Debug)]
 pub struct SizedTextureView2D {
     view: TextureView,
-    size: Size2D<u32, PixelUnit>,
+    size: Size2D<u32, PhyiscalPixelUnit>,
 }
 
 impl SizedTextureView2D {
@@ -139,7 +139,7 @@ impl SizedTextureView2D {
         Self::from_view(view, size)
     }
 
-    pub const fn from_view(view: TextureView, size: Size2D<u32, PixelUnit>) -> Self {
+    pub const fn from_view(view: TextureView, size: Size2D<u32, PhyiscalPixelUnit>) -> Self {
         Self { view, size }
     }
 
@@ -147,7 +147,7 @@ impl SizedTextureView2D {
         &self.view
     }
 
-    pub const fn size(&self) -> Size2D<u32, PixelUnit> {
+    pub const fn size(&self) -> Size2D<u32, PhyiscalPixelUnit> {
         self.size
     }
 
@@ -155,7 +155,7 @@ impl SizedTextureView2D {
         Rect::new(Point2D::new(0.0, 0.0), Size2D::new(1.0, 1.0))
     }
 
-    pub fn slice(self, rect: Rect<u32, PixelUnit>) -> TextureView2D {
+    pub fn slice(self, rect: Rect<u32, PhyiscalPixelUnit>) -> TextureView2D {
         TextureView2D::Partial(PartialTextureView2D::new(self, rect))
     }
 
@@ -179,7 +179,7 @@ impl TextureView2D {
     }
 
     /// Slice view into partial
-    pub fn slice(self, rect: Rect<u32, PixelUnit>) -> TextureView2D {
+    pub fn slice(self, rect: Rect<u32, PhyiscalPixelUnit>) -> TextureView2D {
         match self {
             TextureView2D::All(view) => view.slice(rect),
 
@@ -187,21 +187,21 @@ impl TextureView2D {
         }
     }
 
-    pub const fn origin(&self) -> Point2D<u32, PixelUnit> {
+    pub const fn origin(&self) -> Point2D<u32, PhyiscalPixelUnit> {
         match self {
             TextureView2D::All(_) => Point2D::new(0, 0),
             TextureView2D::Partial(partial) => partial.rect.origin,
         }
     }
 
-    pub const fn size(&self) -> Size2D<u32, PixelUnit> {
+    pub const fn size(&self) -> Size2D<u32, PhyiscalPixelUnit> {
         match self {
             TextureView2D::All(view) => view.size(),
             TextureView2D::Partial(partial) => partial.rect.size,
         }
     }
 
-    pub const fn rect(&self) -> Rect<u32, PixelUnit> {
+    pub const fn rect(&self) -> Rect<u32, PhyiscalPixelUnit> {
         match self {
             TextureView2D::All(view) => Rect::new(Point2D::new(0, 0), view.size),
             TextureView2D::Partial(partial) => partial.rect,
@@ -232,15 +232,15 @@ impl From<PartialTextureView2D> for TextureView2D {
 pub struct PartialTextureView2D {
     view: SizedTextureView2D,
 
-    pub rect: Rect<u32, PixelUnit>,
+    pub rect: Rect<u32, PhyiscalPixelUnit>,
 }
 impl PartialTextureView2D {
-    pub const fn new(view: SizedTextureView2D, rect: Rect<u32, PixelUnit>) -> Self {
+    pub const fn new(view: SizedTextureView2D, rect: Rect<u32, PhyiscalPixelUnit>) -> Self {
         Self { view, rect }
     }
 
     /// Slice partial view. The offset and size must be larger than (0, 0) or it will be clamped to zero
-    pub fn slice(self, inner_rect: Rect<u32, PixelUnit>) -> PartialTextureView2D {
+    pub fn slice(self, inner_rect: Rect<u32, PhyiscalPixelUnit>) -> PartialTextureView2D {
         let offset = inner_rect.origin.max(Point2D::zero());
         let size = inner_rect.size.max(Size2D::zero());
 
@@ -271,7 +271,7 @@ impl PartialTextureView2D {
     }
 }
 
-fn rect_to_origin_extent(rect: &Rect<u32, PixelUnit>) -> (Origin3d, Extent3d) {
+fn rect_to_origin_extent(rect: &Rect<u32, PhyiscalPixelUnit>) -> (Origin3d, Extent3d) {
     (
         Origin3d {
             x: rect.origin.x,

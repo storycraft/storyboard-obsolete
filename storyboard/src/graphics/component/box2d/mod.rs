@@ -13,7 +13,7 @@ use storyboard_core::{
     graphics::buffer::stream::StreamRange,
     palette::LinSrgba,
     store::{Store, StoreResources},
-    unit::{PixelUnit, RenderUnit, TextureUnit},
+    unit::{LogicalPixelUnit, RenderUnit, TextureUnit},
     wgpu::{
         util::{BufferInitDescriptor, DeviceExt, RenderEncoder},
         vertex_attr_array, BindGroupLayout, BlendState, Buffer, BufferAddress, BufferUsages,
@@ -78,7 +78,7 @@ impl StoreResources<BackendContext<'_>> for Box2DResources {
 
 #[derive(Debug)]
 pub struct Box2D {
-    pub bounds: Rect<f32, PixelUnit>,
+    pub bounds: Rect<f32, LogicalPixelUnit>,
 
     pub texture: Option<ComponentTexture>,
 
@@ -109,7 +109,7 @@ pub struct Box2DStyle {
     pub glow_radius: f32,
     pub glow_color: LinSrgba,
 
-    pub shadow_offset: Vector2D<f32, PixelUnit>,
+    pub shadow_offset: Vector2D<f32, LogicalPixelUnit>,
     pub shadow_radius: f32,
     pub shadow_color: LinSrgba,
 }
@@ -324,14 +324,14 @@ pub struct BoxVertex {
     pub fill_color: LinSrgba<f32>,
     pub border_color: LinSrgba<f32>,
 
-    pub rect_coord: Point2D<f32, PixelUnit>,
+    pub rect_coord: Point2D<f32, LogicalPixelUnit>,
     pub texture_coord: Point2D<f32, TextureUnit>,
 }
 
 #[derive(Debug, Clone, Copy, Pod, Zeroable)]
 #[repr(C)]
 pub struct BoxInstance {
-    pub rect: Rect<f32, PixelUnit>,
+    pub rect: Rect<f32, LogicalPixelUnit>,
     pub texture_rect: Rect<f32, TextureUnit>,
     pub texture_wrap_mode_u: u32,
     pub texture_wrap_mode_v: u32,

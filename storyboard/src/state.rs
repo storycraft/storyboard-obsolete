@@ -17,7 +17,7 @@ use storyboard_core::{
     },
     state::{StateData, StateStatus},
     store::{Store, StoreResources},
-    unit::PixelUnit,
+    unit::PhyiscalPixelUnit,
     wgpu::{Sampler, TextureFormat, TextureUsages},
 };
 use winit::{event::Event, window::Window};
@@ -44,7 +44,7 @@ impl StoryboardSystemProp {
     pub fn create_texture(
         &self,
         label: Option<&str>,
-        size: Size2D<u32, PixelUnit>,
+        size: Size2D<u32, PhyiscalPixelUnit>,
         format: TextureFormat,
         usage: TextureUsages,
     ) -> SizedTexture2D {
@@ -55,7 +55,7 @@ impl StoryboardSystemProp {
     pub fn create_texture_with_data(
         &self,
         label: Option<&str>,
-        size: Size2D<u32, PixelUnit>,
+        size: Size2D<u32, PhyiscalPixelUnit>,
         format: TextureFormat,
         usage: TextureUsages,
         data: &[u8],
@@ -70,7 +70,7 @@ impl StoryboardSystemProp {
     pub fn create_frame_buffer_texture(
         &self,
         label: Option<&str>,
-        size: Size2D<u32, PixelUnit>,
+        size: Size2D<u32, PhyiscalPixelUnit>,
     ) -> SizedTexture2D {
         SizedTexture2D::init(
             self.backend.device(),

@@ -22,7 +22,7 @@ use storyboard::core::{
     },
     palette::LinSrgba,
     store::{Store, StoreResources},
-    unit::{PixelUnit, RenderUnit, TextureUnit},
+    unit::{LogicalPixelUnit, RenderUnit, TextureUnit},
     wgpu::{
         util::RenderEncoder, vertex_attr_array, BindGroupLayout, BlendState, ColorTargetState,
         ColorWrites, CommandEncoder, DepthStencilState, Device, FragmentState, MultisampleState,
@@ -76,7 +76,7 @@ pub struct TextRenderBatch {
 
 #[derive(Debug, Clone)]
 pub struct GlyphRect {
-    pub rect: Rect<f32, PixelUnit>,
+    pub rect: Rect<f32, LogicalPixelUnit>,
     pub texture_rect: Rect<f32, TextureUnit>,
 }
 

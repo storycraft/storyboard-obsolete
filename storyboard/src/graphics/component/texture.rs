@@ -7,7 +7,7 @@
 use std::sync::Arc;
 use storyboard_core::{
     euclid::{Point2D, Rect, Size2D},
-    unit::{PixelUnit, TextureUnit},
+    unit::{LogicalPixelUnit, TextureUnit, PhyiscalPixelUnit},
 };
 
 use crate::graphics::texture::RenderTexture2D;
@@ -26,13 +26,13 @@ impl ComponentTexture {
 
     pub fn get_texture_bounds(
         &self,
-        rect: Rect<f32, PixelUnit>,
-        screen_size: Size2D<f32, PixelUnit>,
-    ) -> Rect<f32, PixelUnit> {
+        rect: Rect<f32, LogicalPixelUnit>,
+        screen_size: Size2D<f32, LogicalPixelUnit>,
+    ) -> Rect<f32, LogicalPixelUnit> {
         self.layout.get_bounds(rect, screen_size, self.inner.view().size().cast())
     }
 
-    pub fn option_get_texture_bounds(this: Option<&Self>, rect: Rect<f32, PixelUnit>, screen_size: Size2D<f32, PixelUnit>) -> Rect<f32, PixelUnit> {
+    pub fn option_get_texture_bounds(this: Option<&Self>, rect: Rect<f32, LogicalPixelUnit>, screen_size: Size2D<f32, LogicalPixelUnit>) -> Rect<f32, LogicalPixelUnit> {
         match this {
             Some(this) => this.get_texture_bounds(rect, screen_size),
             None => Rect::new(Point2D::new(0.0, 0.0), Size2D::new(1.0, 1.0)),
@@ -69,10 +69,10 @@ pub enum TextureLayout {
 impl TextureLayout {
     pub fn get_bounds(
         &self,
-        rect: Rect<f32, PixelUnit>,
-        screen_size: Size2D<f32, PixelUnit>,
-        texture_size: Size2D<f32, PixelUnit>,
-    ) -> Rect<f32, PixelUnit> {
+        rect: Rect<f32, LogicalPixelUnit>,
+        screen_size: Size2D<f32, LogicalPixelUnit>,
+        texture_size: Size2D<f32, PhyiscalPixelUnit>,
+    ) -> Rect<f32, LogicalPixelUnit> {
         match self {
             TextureLayout::Absolute(style) => style.get_coord_rect(screen_size, texture_size),
             TextureLayout::Relative(style) => style
@@ -97,57 +97,57 @@ pub enum TextureLayoutStyle {
     FitWidth,
     FitHeight,
     Fit,
-    Custom(Rect<f32, PixelUnit>),
+    Custom(Rect<f32, LogicalPixelUnit>),
 }
 
 impl TextureLayoutStyle {
-    fn none(texture_size: Size2D<f32, PixelUnit>) -> Rect<f32, PixelUnit> {
-        Rect::new(Point2D::zero(), texture_size)
+    fn none(texture_size: Size2D<f32, PhyiscalPixelUnit>) -> Rect<f32, LogicalPixelUnit> {
+        Rect::new(Point2D::zero(), texture_size.cast_unit())
     }
 
     fn centered(
-        rect_size: Size2D<f32, PixelUnit>,
-        texture_size: Size2D<f32, PixelUnit>,
-    ) -> Rect<f32, PixelUnit> {
+        rect_size: Size2D<f32, LogicalPixelUnit>,
+        texture_size: Size2D<f32, PhyiscalPixelUnit>,
+    ) -> Rect<f32, LogicalPixelUnit> {
         Rect::new(
-            ((rect_size - texture_size) / 2.0).to_vector().to_point(),
-            texture_size,
+            ((rect_size - texture_size.cast_unit()) / 2.0).to_vector().to_point(),
+            texture_size.cast_unit(),
         )
     }
 
     fn fit_width(
-        rect_size: Size2D<f32, PixelUnit>,
-        texture_size: Size2D<f32, PixelUnit>,
-    ) -> Rect<f32, PixelUnit> {
+        rect_size: Size2D<f32, LogicalPixelUnit>,
+        texture_size: Size2D<f32, PhyiscalPixelUnit>,
+    ) -> Rect<f32, LogicalPixelUnit> {
         let scale = rect_size.width / texture_size.width;
 
         let size = texture_size * scale;
 
         Rect::new(
             Point2D::new(0.0, (rect_size.height - size.height) / 2.0),
-            size,
+            size.cast_unit(),
         )
     }
 
     fn fit_height(
-        rect_size: Size2D<f32, PixelUnit>,
-        texture_size: Size2D<f32, PixelUnit>,
-    ) -> Rect<f32, PixelUnit> {
+        rect_size: Size2D<f32, LogicalPixelUnit>,
+        texture_size: Size2D<f32, PhyiscalPixelUnit>,
+    ) -> Rect<f32, LogicalPixelUnit> {
         let scale = rect_size.height / texture_size.height;
 
         let size = texture_size * scale;
 
         Rect::new(
             Point2D::new((rect_size.width - size.width) / 2.0, 0.0),
-            size,
+            size.cast_unit(),
         )
     }
 
     pub fn get_coord_rect(
         &self,
-        rect_size: Size2D<f32, PixelUnit>,
-        texture_size: Size2D<f32, PixelUnit>,
-    ) -> Rect<f32, PixelUnit> {
+        rect_size: Size2D<f32, LogicalPixelUnit>,
+        texture_size: Size2D<f32, PhyiscalPixelUnit>,
+    ) -> Rect<f32, LogicalPixelUnit> {
         match self {
             TextureLayoutStyle::None => Self::none(texture_size),
             TextureLayoutStyle::Fill => {

@@ -28,7 +28,7 @@ use crate::{
     observable::Observable,
     store::Store,
     trait_stack::TraitStack,
-    unit::{PixelUnit, RenderUnit},
+    unit::{LogicalPixelUnit, PhyiscalPixelUnit, RenderUnit},
     wgpu::{
         BufferUsages, CommandEncoder, CommandEncoderDescriptor, CompareFunction, DepthBiasState,
         DepthStencilState, LoadOp, Operations, RenderPassColorAttachment,
@@ -41,10 +41,10 @@ use crate::{
 pub struct StoryboardRenderer {
     backend: Arc<StoryboardBackend>,
 
-    screen: Observable<(Size2D<u32, PixelUnit>, f32)>,
+    screen: Observable<(Size2D<u32, PhyiscalPixelUnit>, f32)>,
 
     screen_format: TextureFormat,
-    screen_matrix: Transform3D<f32, PixelUnit, RenderUnit>,
+    screen_matrix: Transform3D<f32, LogicalPixelUnit, RenderUnit>,
 
     drawables: TraitStack<dyn Drawable>,
 
@@ -64,7 +64,7 @@ impl StoryboardRenderer {
 
     pub fn new(
         backend: Arc<StoryboardBackend>,
-        screen_size: Size2D<u32, PixelUnit>,
+        screen_size: Size2D<u32, PhyiscalPixelUnit>,
         screen_scale: f32,
         screen_format: TextureFormat,
     ) -> Self {
@@ -102,7 +102,7 @@ impl StoryboardRenderer {
         &self.backend
     }
 
-    pub fn screen_size(&self) -> Size2D<u32, PixelUnit> {
+    pub fn screen_size(&self) -> Size2D<u32, PhyiscalPixelUnit> {
         self.screen.0
     }
 
@@ -110,7 +110,11 @@ impl StoryboardRenderer {
         self.screen.1
     }
 
-    pub fn set_screen_size(&mut self, screen_size: Size2D<u32, PixelUnit>, screen_scale: f32) {
+    pub fn set_screen_size(
+        &mut self,
+        screen_size: Size2D<u32, PhyiscalPixelUnit>,
+        screen_scale: f32,
+    ) {
         if self.screen.ne(&(screen_size, screen_scale)) {
             self.screen = (screen_size, screen_scale).into();
         }
@@ -191,8 +195,11 @@ impl StoryboardRenderer {
 
         let mut draw_context = DrawContext {
             backend: backend_context,
-            screen: Rect::new(Point2D::zero(), self.screen.0.cast()),
-            screen_scale: self.screen.1,
+            screen: Rect::new(
+                Point2D::zero(),
+                (self.screen.0.cast() / self.screen.1).cast_unit(),
+            ),
+            pixel_density: self.screen.1,
             screen_matrix: &self.screen_matrix,
             resources: &self.store,
             vertex_stream: &mut self.vertex_stream,
@@ -280,7 +287,11 @@ impl StoryboardRenderer {
         Some(encoder)
     }
 
-    pub fn clone_shared(&self, screen_size: Size2D<u32, PixelUnit>, screen_scale: f32) -> Self {
+    pub fn clone_shared(
+        &self,
+        screen_size: Size2D<u32, PhyiscalPixelUnit>,
+        screen_scale: f32,
+    ) -> Self {
         Self {
             store: self.store.clone(),
             ..Self::new(

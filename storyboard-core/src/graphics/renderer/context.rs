@@ -8,11 +8,9 @@ use euclid::{Rect, Transform3D};
 use wgpu::{DepthStencilState, Device, Queue, TextureFormat};
 
 use crate::{
-    graphics::{
-        buffer::stream::{BufferStream, StreamBuffer},
-    },
+    graphics::buffer::stream::{BufferStream, StreamBuffer},
     store::{Store, StoreResources},
-    unit::{PixelUnit, RenderUnit},
+    unit::{LogicalPixelUnit, RenderUnit},
 };
 
 #[derive(Debug, Clone)]
@@ -32,9 +30,9 @@ pub struct DrawContext<'a> {
     pub backend: BackendContext<'a>,
     pub(crate) resources: &'a Store,
 
-    pub screen: Rect<f32, PixelUnit>,
-    pub screen_scale: f32,
-    pub screen_matrix: &'a Transform3D<f32, PixelUnit, RenderUnit>,
+    pub screen: Rect<f32, LogicalPixelUnit>,
+    pub pixel_density: f32,
+    pub screen_matrix: &'a Transform3D<f32, LogicalPixelUnit, RenderUnit>,
 
     pub vertex_stream: &'a mut BufferStream<'static>,
     pub index_stream: &'a mut BufferStream<'static>,

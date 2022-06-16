@@ -14,17 +14,17 @@ use font::Font;
 use ab_glyph_rasterizer::{Point, Rasterizer};
 use storyboard::core::{
     euclid::{Point2D, Vector2D},
-    unit::PixelUnit,
+    unit::LogicalPixelUnit,
 };
 use ttf_parser::{OutlineBuilder};
 
 #[derive(Debug)]
 pub struct GlyphOutlineBuilder {
     rasterizer: Rasterizer,
-    origin: Vector2D<f32, PixelUnit>,
+    origin: Vector2D<f32, LogicalPixelUnit>,
     scale: f32,
-    point: Point2D<f32, PixelUnit>,
-    last_move_point: Option<Point2D<f32, PixelUnit>>,
+    point: Point2D<f32, LogicalPixelUnit>,
+    last_move_point: Option<Point2D<f32, LogicalPixelUnit>>,
 }
 
 impl GlyphOutlineBuilder {

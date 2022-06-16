@@ -20,7 +20,7 @@ use storyboard::core::{
     component::color::ShapeColor,
     euclid::{Point2D, Vector2D},
     observable::Observable,
-    unit::PixelUnit,
+    unit::LogicalPixelUnit,
     wgpu::{Device, Queue},
 };
 
@@ -33,8 +33,8 @@ use crate::{
 use super::TextRenderBatch;
 
 pub struct Text<'face> {
-    pub position: Point2D<f32, PixelUnit>,
-    pub size_px: u32,
+    pub position: Point2D<f32, LogicalPixelUnit>,
+    pub size_pt: u32,
     pub color: ShapeColor<4>,
 
     text: Observable<Cow<'static, str>>,
@@ -44,7 +44,7 @@ pub struct Text<'face> {
 
 impl<'face> Text<'face> {
     pub fn new(
-        position: Point2D<f32, PixelUnit>,
+        position: Point2D<f32, LogicalPixelUnit>,
         size_px: u32,
         color: ShapeColor<4>,
         font: Font<'face>,
@@ -52,7 +52,7 @@ impl<'face> Text<'face> {
     ) -> Self {
         Self {
             position,
-            size_px,
+            size_pt: size_px,
             color,
             shaper: allsorts::Font::new(font).unwrap().unwrap().into(),
             text: text.into(),
@@ -89,7 +89,7 @@ impl<'face> Text<'face> {
         let font_invalidated = Observable::invalidate(&mut self.shaper);
         let text_invalidated = Observable::invalidate(&mut self.text);
 
-        let size_px = (self.size_px as f32 * scale_factor).ceil() as u32;
+        let size_px = (self.size_pt as f32 * scale_factor).ceil() as u32;
 
         if font_invalidated || text_invalidated {
             let glyphs = self
@@ -123,7 +123,7 @@ impl<'face> Text<'face> {
 
                 let mut positions_iter = positions.iter();
 
-                let mut offset = Vector2D::<f32, PixelUnit>::new(0.0, 0.0);
+                let mut offset = Vector2D::<f32, LogicalPixelUnit>::new(0.0, 0.0);
                 for view_batch in view_batches {
                     let texture = Arc::new(RenderTexture2D::init(
                         device,
@@ -148,7 +148,7 @@ impl<'face> Text<'face> {
                             texture_rect: texture_rect.tex_rect,
                         });
 
-                        offset += Vector2D::<f32, PixelUnit>::new(
+                        offset += Vector2D::<f32, LogicalPixelUnit>::new(
                             pos.hori_advance as f32 * scale,
                             pos.vert_advance as f32 * scale,
                         );
@@ -172,7 +172,7 @@ impl Debug for Text<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Text")
             .field("position", &self.position)
-            .field("size_px", &self.size_px)
+            .field("size_px", &self.size_pt)
             .field("color", &self.color)
             .field("text", &self.text)
             .field("glyphs", &self.batches)
