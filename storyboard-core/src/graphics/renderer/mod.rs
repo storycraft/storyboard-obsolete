@@ -46,8 +46,6 @@ pub struct StoryboardRenderer {
     screen_format: TextureFormat,
     screen_matrix: Transform3D<f32, LogicalPixelUnit, RenderUnit>,
 
-    drawables: TraitStack<dyn Drawable>,
-
     opaque_component: TraitStack<dyn Component>,
     transparent_component: TraitStack<dyn Component>,
 
@@ -83,8 +81,6 @@ impl StoryboardRenderer {
 
             screen_format,
             screen_matrix: Transform3D::identity(),
-
-            drawables: TraitStack::new(),
 
             opaque_component: TraitStack::new(),
             transparent_component: TraitStack::new(),
@@ -124,10 +120,6 @@ impl StoryboardRenderer {
         self.screen_format
     }
 
-    pub fn push(&mut self, drawable: impl Drawable + 'static) {
-        self.drawables.push(drawable);
-    }
-
     fn prepare_screen_matrix(&mut self) {
         if Observable::invalidate(&mut self.screen) {
             self.screen_matrix = Transform3D::ortho(
@@ -161,9 +153,10 @@ impl StoryboardRenderer {
 
     pub fn render(
         &mut self,
+        drawables: &TraitStack<dyn Drawable>,
         mut color_attachment: RenderPassColorAttachment,
     ) -> Option<CommandEncoder> {
-        if self.drawables.len() <= 0 {
+        if drawables.len() <= 0 {
             return None;
         }
 
@@ -212,8 +205,8 @@ impl StoryboardRenderer {
                 transparent: &mut self.transparent_component,
             };
 
-            let total = self.drawables.len() as f32;
-            for (i, drawable) in self.drawables.iter().enumerate() {
+            let total = drawables.len() as f32;
+            for (i, drawable) in drawables.iter().enumerate() {
                 drawable.prepare(
                     &mut components_queue,
                     &mut draw_context,
@@ -221,8 +214,6 @@ impl StoryboardRenderer {
                     1.0_f32 - ((1.0_f32 + i as f32) / total),
                 );
             }
-
-            self.drawables.clear();
         }
 
         let render_opaque = self.opaque_component.len() > 0;

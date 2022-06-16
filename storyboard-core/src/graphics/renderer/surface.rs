@@ -10,6 +10,7 @@ use crate::{
     euclid::Size2D,
     graphics::{backend::StoryboardBackend, component::Drawable, renderer::StoryboardRenderer},
     observable::Observable,
+    trait_stack::TraitStack,
     unit::PhyiscalPixelUnit,
 };
 
@@ -47,6 +48,10 @@ impl StoryboardSurfaceRenderer {
         }
     }
 
+    pub const fn backend(&self) -> &Arc<StoryboardBackend> {
+        self.renderer.backend()
+    }
+
     pub fn configuration(&self) -> SurfaceConfiguration {
         *self.configuration
     }
@@ -57,11 +62,7 @@ impl StoryboardSurfaceRenderer {
         }
     }
 
-    pub fn push(&mut self, drawable: impl Drawable + 'static) {
-        self.renderer.push(drawable)
-    }
-
-    pub fn render(&mut self) -> Option<SurfaceRenderResult> {
+    pub fn render(&mut self, drawables: &TraitStack<dyn Drawable>) -> Option<SurfaceRenderResult> {
         if self.renderer.screen_size().area() <= 0 {
             return None;
         }
@@ -85,16 +86,19 @@ impl StoryboardSurfaceRenderer {
         }
 
         if let Ok(surface_texture) = self.surface.get_current_texture() {
-            let renderer_encoder = self.renderer.render(RenderPassColorAttachment {
-                view: &surface_texture
-                    .texture
-                    .create_view(&TextureViewDescriptor::default()),
-                resolve_target: None,
-                ops: Operations {
-                    load: LoadOp::Clear(Color::BLACK),
-                    store: true,
+            let renderer_encoder = self.renderer.render(
+                drawables,
+                RenderPassColorAttachment {
+                    view: &surface_texture
+                        .texture
+                        .create_view(&TextureViewDescriptor::default()),
+                    resolve_target: None,
+                    ops: Operations {
+                        load: LoadOp::Clear(Color::BLACK),
+                        store: true,
+                    },
                 },
-            })?;
+            )?;
 
             return Some(SurfaceRenderResult {
                 surface_texture,
@@ -103,6 +107,10 @@ impl StoryboardSurfaceRenderer {
         }
 
         return None;
+    }
+
+    pub fn into_inner(self) -> Surface {
+        self.surface
     }
 }
 

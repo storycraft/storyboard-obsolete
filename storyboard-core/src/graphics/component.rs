@@ -13,7 +13,7 @@ use crate::graphics::renderer::{
     ComponentQueue,
 };
 
-pub trait Drawable: Send + Sync {
+pub trait Drawable: Send {
     fn prepare(
         &self,
         component_queue: &mut ComponentQueue,
@@ -29,7 +29,7 @@ impl Debug for dyn Drawable {
     }
 }
 
-pub trait Component {
+pub trait Component: Send {
     fn render_opaque<'rpass>(
         &'rpass self,
         ctx: &RenderContext<'rpass>,

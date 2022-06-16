@@ -10,24 +10,28 @@
 pub mod graphics;
 pub mod math;
 pub mod state;
+pub mod thread;
 
 // Reexports
 pub use storyboard_core as core;
+use thread::render::RenderThread;
 pub use winit;
 
 use graphics::texture::data::TextureData;
 use instant::Instant;
 
 use state::{StoryboardStateData, StoryboardSystemProp, StoryboardSystemState};
-use std::{iter, sync::Arc, time::Duration};
+use std::{mem, sync::Arc, time::Duration};
 use storyboard_core::{
     euclid::Size2D,
     graphics::{
         backend::{BackendInitError, BackendOptions, StoryboardBackend},
+        component::Drawable,
         renderer::surface::{StoryboardSurfaceRenderer, SurfaceConfiguration},
     },
     state::{State, StateSystem, SystemStatus},
     store::Store,
+    trait_stack::TraitStack,
     wgpu::TextureFormat,
     wgpu::{Backends, Features, Instance, PresentMode, Surface},
 };
@@ -115,7 +119,7 @@ impl Storyboard {
             Size2D::new(width, height)
         };
 
-        let mut surface_renderer = StoryboardSurfaceRenderer::new(
+        let surface_renderer = StoryboardSurfaceRenderer::new(
             backend.clone(),
             self.surface,
             SurfaceConfiguration {
@@ -125,6 +129,9 @@ impl Storyboard {
             },
             self.screen_format,
         );
+        let render_thread = RenderThread::run(surface_renderer);
+
+        let mut drawables = TraitStack::<dyn Drawable + 'static>::new();
 
         let mut system_prop = StoryboardSystemProp {
             backend,
@@ -132,6 +139,7 @@ impl Storyboard {
             texture_data,
             elapsed: Duration::ZERO,
             window: self.window,
+            render_thread,
             store: Arc::new(Store::new()),
         };
 
@@ -141,7 +149,7 @@ impl Storyboard {
             let instant = Instant::now();
 
             let mut system_state = StoryboardSystemState {
-                surface_renderer: &mut surface_renderer,
+                drawables: &mut drawables,
                 event,
             };
 
@@ -156,12 +164,10 @@ impl Storyboard {
                         Size2D::new(width, height)
                     };
 
-                    system_state
-                        .surface_renderer
-                        .set_configuration(SurfaceConfiguration {
-                            screen_size: win_size,
-                            ..system_state.surface_renderer.configuration()
-                        });
+                    system_prop.render_thread.set_configuration(SurfaceConfiguration {
+                        screen_size: win_size,
+                        ..system_prop.render_thread.configuration()
+                    });
                 }
 
                 Event::WindowEvent {
@@ -178,13 +184,11 @@ impl Storyboard {
                         Size2D::new(width, height)
                     };
 
-                    system_state
-                        .surface_renderer
-                        .set_configuration(SurfaceConfiguration {
-                            screen_size: win_size,
-                            screen_scale: *scale_factor as _,
-                            ..system_state.surface_renderer.configuration()
-                        });
+                    system_prop.render_thread.set_configuration(SurfaceConfiguration {
+                        screen_size: win_size,
+                        screen_scale: *scale_factor as _,
+                        ..system_prop.render_thread.configuration()
+                    });
                 }
 
                 _ => {}
@@ -193,6 +197,7 @@ impl Storyboard {
             let status = state_system.run(&system_prop, &mut system_state);
 
             if state_system.finished() {
+                system_prop.render_thread.interrupt();
                 *control_flow = ControlFlow::Exit;
                 return;
             } else {
@@ -202,15 +207,11 @@ impl Storyboard {
                 }
             };
 
-            // TODO:: Threading
-            if let Event::RedrawRequested(_) = &system_state.event {
-                if let Some(res) = surface_renderer.render() {
-                    system_prop
-                        .backend
-                        .queue()
-                        .submit(iter::once(res.command_buffer));
-                    res.surface_texture.present();
-                }
+            if system_state.drawables.len() > 0 {
+                let mut submit_drawables = TraitStack::new();
+                mem::swap(&mut drawables, &mut submit_drawables);
+
+                system_prop.render_thread.submit(submit_drawables);
             }
 
             system_prop.elapsed = instant.elapsed();

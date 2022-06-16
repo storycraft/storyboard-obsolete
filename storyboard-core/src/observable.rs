@@ -31,7 +31,7 @@ impl<T> Observable<T> {
         }
     }
 
-    pub fn changed(this: &Self) -> bool {
+    pub const fn changed(this: &Self) -> bool {
         this.changed
     }
 
@@ -52,6 +52,7 @@ impl<T> Observable<T> {
     }
 
     /// Mark data changed.
+    #[inline]
     pub fn mark(this: &mut Self) {
         if !this.changed {
             this.changed = true;

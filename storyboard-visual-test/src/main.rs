@@ -155,19 +155,21 @@ impl State<StoryboardStateData> for SampleApp {
         system_state: &mut StoryboardSystemState,
     ) -> StoryboardStateStatus {
         if let Event::RedrawRequested(_) = system_state.event {
-            system_state.draw(Box2D {
-                bounds: Rect::new(self.cursor, Size2D::new(25.0, 25.0)),
-                fill_color: ShapeColor::WHITE,
-                border_color: ShapeColor::RED,
-                texture: self.texture.clone(),
-                style: Box2DStyle {
-                    border_thickness: 5.0,
-                    shadow_offset: Vector2D::new(100.0, 100.0),
-                    shadow_radius: 0.0,
-                    shadow_color: ShapeColor::BLUE.into(),
-                    ..Default::default()
-                },
-            });
+            for _ in 0..100 {
+                system_state.draw(Box2D {
+                    bounds: Rect::new(self.cursor, Size2D::new(50.0, 50.0)),
+                    fill_color: ShapeColor::WHITE,
+                    border_color: ShapeColor::RED,
+                    texture: self.texture.clone(),
+                    style: Box2DStyle {
+                        border_thickness: 5.0,
+                        shadow_offset: Vector2D::new(100.0, 100.0),
+                        shadow_radius: 0.0,
+                        shadow_color: ShapeColor::BLUE.into(),
+                        ..Default::default()
+                    },
+                });
+            }
 
             self.text.draw(
                 system_prop.backend.device(),
