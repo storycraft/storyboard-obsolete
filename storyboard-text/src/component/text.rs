@@ -81,12 +81,15 @@ impl<'face> Text<'face> {
         &mut self,
         device: &Device,
         queue: &Queue,
+        scale_factor: f32,
         textures: &TextureData,
         cache: &mut GlyphCache,
         mut submit: impl FnMut(TextDrawable),
     ) {
         let font_invalidated = Observable::invalidate(&mut self.shaper);
         let text_invalidated = Observable::invalidate(&mut self.text);
+
+        let size_px = (self.size_px as f32 * scale_factor).ceil() as u32;
 
         if font_invalidated || text_invalidated {
             let glyphs = self
@@ -98,7 +101,7 @@ impl<'face> Text<'face> {
                 queue,
                 &self.shaper.font_table_provider,
                 glyphs.iter().map(|glyph| glyph.glyph_index),
-                self.size_px,
+                size_px,
             );
 
             let mut batches = Vec::new();
@@ -111,7 +114,7 @@ impl<'face> Text<'face> {
                 true,
             ) {
                 let scale =
-                    self.size_px as f32 / self.shaper.font_table_provider.units_per_em() as f32;
+                size_px as f32 / self.shaper.font_table_provider.units_per_em() as f32;
 
                 let mut layout =
                     GlyphLayout::new(&mut self.shaper, &infos, TextDirection::LeftToRight, false);

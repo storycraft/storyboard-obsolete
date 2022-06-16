@@ -172,6 +172,7 @@ impl State<StoryboardStateData> for SampleApp {
             self.text.draw(
                 system_prop.backend.device(),
                 system_prop.backend.queue(),
+                system_prop.window.scale_factor() as _,
                 &system_prop.texture_data,
                 &mut self.cache,
                 |glyph| system_state.draw(glyph),
@@ -187,12 +188,15 @@ impl State<StoryboardStateData> for SampleApp {
             ..
         } = system_state.event
         {
-            self.cursor = Point2D::new(position.x as f32, position.y as f32);
+            self.cursor = Point2D::new(position.x as f32, position.y as f32)
+                / system_prop.window.scale_factor() as f32;
 
             self.text.position = self.cursor;
 
-            self.text
-                .set_text(Cow::Owned(format!("{:?} 렌더링 테스트", self.cursor)));
+            self.text.set_text(Cow::Owned(format!(
+                "{:?} 렌더링 테스트",
+                self.cursor * system_prop.window.scale_factor() as f32
+            )));
             system_prop.request_redraw();
         }
 

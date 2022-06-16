@@ -128,8 +128,8 @@ impl StoryboardRenderer {
         if Observable::invalidate(&mut self.screen) {
             self.screen_matrix = Transform3D::ortho(
                 0.0_f32,
-                self.screen.0.width as f32,
-                self.screen.0.height as f32,
+                self.screen.0.width as f32 / self.screen.1,
+                self.screen.0.height as f32 / self.screen.1,
                 0.0,
                 0.0,
                 1.0,
