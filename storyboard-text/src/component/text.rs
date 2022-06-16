@@ -34,7 +34,7 @@ use super::TextRenderBatch;
 
 pub struct Text<'face> {
     pub position: Point2D<f32, LogicalPixelUnit>,
-    pub size_pt: u32,
+    pub size_px: u32,
     pub color: ShapeColor<4>,
 
     text: Observable<Cow<'static, str>>,
@@ -52,7 +52,7 @@ impl<'face> Text<'face> {
     ) -> Self {
         Self {
             position,
-            size_pt: size_px,
+            size_px,
             color,
             shaper: allsorts::Font::new(font).unwrap().unwrap().into(),
             text: text.into(),
@@ -89,19 +89,18 @@ impl<'face> Text<'face> {
         let font_invalidated = Observable::invalidate(&mut self.shaper);
         let text_invalidated = Observable::invalidate(&mut self.text);
 
-        let size_px = (self.size_pt as f32 * scale_factor).ceil() as u32;
-
         if font_invalidated || text_invalidated {
             let glyphs = self
                 .shaper
                 .map_glyphs(&self.text, 0, MatchingPresentation::NotRequired);
 
+            let scaled_size = (self.size_px as f32 * scale_factor).ceil() as u32;
             let view_batches = cache.get_batch(
                 device,
                 queue,
                 &self.shaper.font_table_provider,
                 glyphs.iter().map(|glyph| glyph.glyph_index),
-                size_px,
+                scaled_size,
             );
 
             let mut batches = Vec::new();
@@ -114,7 +113,7 @@ impl<'face> Text<'face> {
                 true,
             ) {
                 let scale =
-                size_px as f32 / self.shaper.font_table_provider.units_per_em() as f32;
+                    self.size_px as f32 / self.shaper.font_table_provider.units_per_em() as f32;
 
                 let mut layout =
                     GlyphLayout::new(&mut self.shaper, &infos, TextDirection::LeftToRight, false);
@@ -139,11 +138,12 @@ impl<'face> Text<'face> {
                                 self.position
                                     + Vector2D::new(
                                         0.0,
-                                        self.shaper.font_table_provider.ascender() as f32 * scale - texture_rect.rasterized_size.height,
+                                        self.shaper.font_table_provider.ascender() as f32 * scale
+                                            - texture_rect.rasterized_size.height / scale_factor,
                                     )
                                     + offset
-                                    + texture_rect.glyph_offset,
-                                texture_rect.rasterized_size,
+                                    + texture_rect.glyph_offset / scale_factor,
+                                texture_rect.rasterized_size / scale_factor,
                             ),
                             texture_rect: texture_rect.tex_rect,
                         });
@@ -172,7 +172,7 @@ impl Debug for Text<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Text")
             .field("position", &self.position)
-            .field("size_px", &self.size_pt)
+            .field("size_px", &self.size_px)
             .field("color", &self.color)
             .field("text", &self.text)
             .field("glyphs", &self.batches)
