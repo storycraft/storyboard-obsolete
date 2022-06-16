@@ -11,7 +11,7 @@ use smallvec::SmallVec;
 use storyboard::core::{
     euclid::{Rect, Size2D, Vector2D},
     graphics::texture::{packed::PackedTexture, SizedTexture2D, SizedTextureView2D},
-    unit::{LogicalPixelUnit, TextureUnit, PhyiscalPixelUnit},
+    unit::{PhyiscalPixelUnit, TextureUnit},
     wgpu::{Device, Queue, TextureFormat, TextureUsages},
 };
 use ttf_parser::GlyphId;
@@ -134,7 +134,11 @@ pub struct GlyphAtlasMap {
 }
 
 impl GlyphAtlasMap {
-    pub fn init(device: &Device, size: Size2D<u32, PhyiscalPixelUnit>, format: TextureFormat) -> Self {
+    pub fn init(
+        device: &Device,
+        size: Size2D<u32, PhyiscalPixelUnit>,
+        format: TextureFormat,
+    ) -> Self {
         let texture = PackedTexture::new(SizedTexture2D::init(
             device,
             Some("GlyphAtlasTexture texture"),
@@ -180,12 +184,12 @@ impl GlyphAtlasMap {
                     vec![0; rasterizer.dimensions().0 * rasterizer.dimensions().1];
                 rasterizer.for_each_pixel(|i, alpha| data[i] = (alpha * 255.0) as u8);
 
-                let offset = Vector2D::<f32, LogicalPixelUnit>::new(
+                let offset = Vector2D::<f32, PhyiscalPixelUnit>::new(
                     size_px as f32 * bounding_box.x_min as f32 / font.units_per_em() as f32,
                     -1.0 * size_px as f32 * bounding_box.y_min as f32 / font.units_per_em() as f32,
                 );
 
-                let rect: Rect<u32, LogicalPixelUnit> = self.texture.pack(
+                let rect: Rect<u32, PhyiscalPixelUnit> = self.texture.pack(
                     queue,
                     Size2D::new(
                         rasterizer.dimensions().0 as u32,
@@ -220,8 +224,8 @@ impl GlyphAtlasMap {
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct GlyphTextureRect {
-    pub glyph_offset: Vector2D<f32, LogicalPixelUnit>,
-    pub rasterized_size: Size2D<f32, LogicalPixelUnit>,
+    pub glyph_offset: Vector2D<f32, PhyiscalPixelUnit>,
+    pub rasterized_size: Size2D<f32, PhyiscalPixelUnit>,
     pub tex_rect: Rect<f32, TextureUnit>,
 }
 

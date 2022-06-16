@@ -142,8 +142,8 @@ impl<'face> Text<'face> {
                                             - texture_rect.rasterized_size.height / scale_factor,
                                     )
                                     + offset
-                                    + texture_rect.glyph_offset / scale_factor,
-                                texture_rect.rasterized_size / scale_factor,
+                                    + (texture_rect.glyph_offset / scale_factor).cast_unit(),
+                                (texture_rect.rasterized_size / scale_factor).cast_unit(),
                             ),
                             texture_rect: texture_rect.tex_rect,
                         });

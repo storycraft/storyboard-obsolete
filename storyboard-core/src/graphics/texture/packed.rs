@@ -9,7 +9,7 @@ use rect_packer::DensePacker;
 use std::{fmt::Debug, num::NonZeroU32};
 use wgpu::{Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, TextureAspect};
 
-use crate::unit::LogicalPixelUnit;
+use crate::unit::PhyiscalPixelUnit;
 
 use super::SizedTexture2D;
 
@@ -31,9 +31,9 @@ impl PackedTexture {
     pub fn pack(
         &mut self,
         queue: &Queue,
-        size: Size2D<u32, LogicalPixelUnit>,
+        size: Size2D<u32, PhyiscalPixelUnit>,
         data: &[u8],
-    ) -> Option<Rect<u32, LogicalPixelUnit>> {
+    ) -> Option<Rect<u32, PhyiscalPixelUnit>> {
         let rect = self
             .packer
             .pack(size.width as i32, size.height as i32, false)?;
