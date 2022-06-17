@@ -1,5 +1,5 @@
 use std::{
-    io, iter,
+    iter,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -22,12 +22,12 @@ use triple_buffer::{Input, Output, TripleBuffer};
 pub struct RenderTask {
     renderer_config: Arc<(Mutex<SurfaceConfiguration>, AtomicBool)>,
     input: Input<TraitStack<dyn Drawable + 'static>>,
-    signal_sender: Option<Sender<()>>,
+    signal_sender: Sender<()>,
     task: DedicatedTickTask<RenderTaskData>,
 }
 
 impl RenderTask {
-    pub fn run(renderer: StoryboardSurfaceRenderer) -> io::Result<Self> {
+    pub fn run(renderer: StoryboardSurfaceRenderer) -> Self {
         let (input, output) = TripleBuffer::default().split();
         let (signal_sender, signal_receiver) = bounded(1);
 
@@ -44,31 +44,31 @@ impl RenderTask {
 
         let task = DedicatedTickTask::run(data, |data| {
             if let Ok(_) = data.signal_receiver.recv() {
-                let drawables = data.output.read();
-
                 if data.configuration.1.load(Ordering::Relaxed) {
                     data.configuration.1.store(false, Ordering::Relaxed);
-    
+
                     data.renderer
                         .set_configuration(*data.configuration.0.lock());
                 }
-    
-                if let Some(res) = data.renderer.render(&drawables) {
-                    data.renderer
-                        .backend()
-                        .queue()
-                        .submit(iter::once(res.command_buffer));
-                    res.surface_texture.present();
+
+                if data.output.update() {
+                    if let Some(res) = data.renderer.render(data.output.output_buffer()) {
+                        data.renderer
+                            .backend()
+                            .queue()
+                            .submit(iter::once(res.command_buffer));
+                        res.surface_texture.present();
+                    }
                 }
             }
-        })?;
+        });
 
-        Ok(Self {
+        Self {
             renderer_config,
             input,
-            signal_sender: Some(signal_sender),
+            signal_sender,
             task,
-        })
+        }
     }
 
     pub fn configuration(&self) -> SurfaceConfiguration {
@@ -85,8 +85,19 @@ impl RenderTask {
     }
 
     pub fn interrupt(&mut self) {
-        self.signal_sender.take();
-        self.task.interrupt()
+        self.task.interrupt();
+        self.signal_sender.try_send(()).ok();
+    }
+
+    pub fn to_threaded(&mut self) {
+        self.task.to_threaded();
+    }
+
+    pub fn to_non_threaded(&mut self) {
+        if self.threaded() {
+            self.interrupt();
+            self.task.to_non_threaded();
+        }
     }
 
     pub fn push(&mut self, item: impl Drawable + 'static) {
@@ -94,12 +105,11 @@ impl RenderTask {
     }
 
     pub fn submit(&mut self) {
-        if let Some(signal_sender) = &self.signal_sender {
-            self.input.publish();
-            self.input.input_buffer().clear();
-            signal_sender.send(()).ok();
-            self.task.tick();
-        }
+        self.input.publish();
+        self.input.input_buffer().clear();
+        self.signal_sender.try_send(()).ok();
+
+        self.task.tick();
     }
 
     pub fn threaded(&self) -> bool {

@@ -122,7 +122,7 @@ impl Storyboard {
             self.screen_format,
         );
 
-        let mut render_task = RenderTask::run(surface_renderer).unwrap();
+        let mut render_task = Some(RenderTask::run(surface_renderer));
 
         let mut system_prop = StoryboardSystemProp {
             backend,
@@ -139,7 +139,7 @@ impl Storyboard {
             let instant = Instant::now();
 
             let mut system_state = StoryboardSystemState {
-                render_task: &mut render_task,
+                render_task: &mut render_task.as_mut().unwrap(),
                 event,
             };
 

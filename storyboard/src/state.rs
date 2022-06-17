@@ -132,10 +132,31 @@ impl<'a> StoryboardSystemState<'a> {
         self.render_task
     }
 
+    pub fn render_mode(&self) -> RenderMode {
+        if self.render_task.threaded() {
+            RenderMode::Threaded
+        } else {
+            RenderMode::NonThreaded
+        }
+    }
+
+    pub fn set_render_mode(&mut self, mode: RenderMode) {
+        match mode {
+            RenderMode::Threaded => self.render_task.to_threaded(),
+            RenderMode::NonThreaded => self.render_task.to_non_threaded(),
+        }
+    }
+
     #[inline]
     pub fn draw(&mut self, drawable: impl Drawable + 'static) {
         self.render_task.push(drawable);
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum RenderMode {
+    Threaded,
+    NonThreaded
 }
 
 pub struct StoryboardStateData {}

@@ -1,12 +1,14 @@
 use std::{
     fmt::Debug,
-    io, panic,
+    panic,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
     },
     thread::{self, JoinHandle},
 };
+
+use replace_with::replace_with_or_abort;
 
 #[derive(Debug)]
 pub enum DedicatedTickTask<T> {
@@ -16,16 +18,16 @@ pub enum DedicatedTickTask<T> {
 
 impl<T: Send + 'static> DedicatedTickTask<T> {
     #[cfg(not(target_family = "wasm"))]
-    pub fn run(item: T, func: impl FnMut(&mut T) + Send + 'static) -> io::Result<Self> {
+    pub fn run(item: T, func: impl FnMut(&mut T) + Send + 'static) -> Self {
         Self::run_threaded(item, func)
     }
 
     #[cfg(target_family = "wasm")]
-    pub fn run(item: T, func: impl FnMut(&mut T) + Send + 'static) -> io::Result<Self> {
-        Ok(Self::run_none_threaded(item, func))
+    pub fn run(item: T, func: impl FnMut(&mut T) + Send + 'static) -> Self {
+        Self::run_none_threaded(item, func)
     }
 
-    pub fn run_threaded(item: T, func: impl FnMut(&mut T) + Send + 'static) -> io::Result<Self> {
+    pub fn run_threaded(item: T, func: impl FnMut(&mut T) + Send + 'static) -> Self {
         let interrupted = Arc::new(AtomicBool::new(false));
 
         let handle = {
@@ -33,7 +35,7 @@ impl<T: Send + 'static> DedicatedTickTask<T> {
             let mut func = func;
             let interrupted = interrupted.clone();
 
-            thread::Builder::new().spawn(move || {
+            thread::spawn(move || {
                 while !interrupted.load(Ordering::Relaxed) {
                     func(&mut item);
                 }
@@ -42,13 +44,13 @@ impl<T: Send + 'static> DedicatedTickTask<T> {
                     item,
                     Box::new(func) as Box<dyn FnMut(&mut T) + Send + 'static>,
                 )
-            })?
+            })
         };
 
-        Ok(Self::Threaded(ThreadedTask {
+        Self::Threaded(ThreadedTask {
             interrupted,
             handle: Some(handle),
-        }))
+        })
     }
 
     pub fn threaded(&self) -> bool {
@@ -83,26 +85,29 @@ impl<T: Send + 'static> DedicatedTickTask<T> {
         }
     }
 
-    pub fn to_threaded(self) -> io::Result<Self> {
-        if let Self::NonThreaded(task) = self {
-            Self::run_threaded(task.item, task.func)
-        } else {
-            Ok(self)
-        }
+    pub fn to_threaded(&mut self) {
+        replace_with_or_abort(self, |this| {
+            if let Self::NonThreaded(task) = this {
+                Self::run_threaded(task.item, task.func)
+            } else {
+                this
+            }
+        });
     }
 
-    pub fn to_non_threaded(self) -> Self {
-        if let Self::Threaded(task) = self {
-            task.interrupt();
-            let (item, func) = match task.handle.unwrap().join() {
-                Ok(items) => items,
-                Err(err) => panic::resume_unwind(err),
-            };
+    pub fn to_non_threaded(&mut self) {
+        replace_with_or_abort(self, |this| {
+            if let Self::Threaded(task) = this {
+                let (item, func) = match task.handle.unwrap().join() {
+                    Ok(items) => items,
+                    Err(err) => panic::resume_unwind(err),
+                };
 
-            Self::run_none_threaded(item, func)
-        } else {
-            self
-        }
+                Self::run_none_threaded(item, func)
+            } else {
+                this
+            }
+        });
     }
 
     pub fn join(self) -> T {
