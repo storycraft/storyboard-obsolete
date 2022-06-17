@@ -18,21 +18,21 @@ pub enum DedicatedTickTask<T> {
 
 impl<T: Send + 'static> DedicatedTickTask<T> {
     #[cfg(not(target_family = "wasm"))]
-    pub fn run(item: T, func: impl FnMut(&mut T) + Send + 'static) -> Self {
+    pub fn run(item: T, func: fn (&mut T)) -> Self {
         Self::run_threaded(item, func)
     }
 
     #[cfg(target_family = "wasm")]
-    pub fn run(item: T, func: impl FnMut(&mut T) + Send + 'static) -> Self {
+    pub fn run(item: T, func: fn (&mut T)) -> Self {
         Self::run_none_threaded(item, func)
     }
 
-    pub fn run_threaded(item: T, func: impl FnMut(&mut T) + Send + 'static) -> Self {
+    pub fn run_threaded(item: T, func: fn (&mut T)) -> Self {
         let interrupted = Arc::new(AtomicBool::new(false));
 
         let handle = {
             let mut item = item;
-            let mut func = func;
+            let func = func;
             let interrupted = interrupted.clone();
 
             thread::spawn(move || {
@@ -42,7 +42,7 @@ impl<T: Send + 'static> DedicatedTickTask<T> {
 
                 (
                     item,
-                    Box::new(func) as Box<dyn FnMut(&mut T) + Send + 'static>,
+                    func,
                 )
             })
         };
@@ -57,11 +57,11 @@ impl<T: Send + 'static> DedicatedTickTask<T> {
         matches!(self, Self::Threaded(_))
     }
 
-    pub fn run_none_threaded(item: T, func: impl FnMut(&mut T) + Send + 'static) -> Self {
+    pub fn run_none_threaded(item: T, func: fn (&mut T)) -> Self {
         Self::NonThreaded(NonThreadedTask {
             interrupted: false,
             item,
-            func: Box::new(func),
+            func,
         })
     }
 
@@ -121,7 +121,7 @@ impl<T: Send + 'static> DedicatedTickTask<T> {
 #[derive(Debug)]
 pub struct ThreadedTask<T> {
     interrupted: Arc<AtomicBool>,
-    handle: Option<JoinHandle<(T, Box<dyn FnMut(&mut T) + Send + 'static>)>>,
+    handle: Option<JoinHandle<(T, fn (&mut T))>>,
 }
 
 impl<T> ThreadedTask<T> {
@@ -150,7 +150,7 @@ impl<T> ThreadedTask<T> {
 pub struct NonThreadedTask<T> {
     interrupted: bool,
     item: T,
-    func: Box<dyn FnMut(&mut T) + Send + 'static>,
+    func: fn (&mut T),
 }
 
 impl<T> NonThreadedTask<T> {
@@ -164,7 +164,7 @@ impl<T> NonThreadedTask<T> {
 
     pub fn tick(&mut self) {
         if !self.interrupted {
-            self.func.as_mut()(&mut self.item);
+            (self.func)(&mut self.item);
         }
     }
 
