@@ -8,6 +8,7 @@ use std::{
     thread::{self, JoinHandle},
 };
 
+use crossbeam_channel::bounded;
 use replace_with::replace_with_or_abort;
 
 #[derive(Debug)]
@@ -17,25 +18,26 @@ pub enum DedicatedTickTask<T> {
 }
 
 impl<T: Send + 'static> DedicatedTickTask<T> {
-    #[cfg(not(target_family = "wasm"))]
     pub fn run(item: T, func: fn (&mut T)) -> Self {
         Self::run_threaded(item, func)
     }
 
-    #[cfg(target_family = "wasm")]
-    pub fn run(item: T, func: fn (&mut T)) -> Self {
-        Self::run_none_threaded(item, func)
-    }
-
+    /// Try running task on newly created thread. If thread cannot be made, fallback to [`DedicatedTickTask::run_none_threaded`]
     pub fn run_threaded(item: T, func: fn (&mut T)) -> Self {
         let interrupted = Arc::new(AtomicBool::new(false));
 
+        // Using channel to fallback if thread fail to spawn.
+        let (sender, receiver) = bounded(1);
+
+        sender.send((item, func)).unwrap();
+
         let handle = {
-            let mut item = item;
-            let func = func;
+            let receiver = receiver.clone();
             let interrupted = interrupted.clone();
 
-            thread::spawn(move || {
+            thread::Builder::new().spawn(move || {
+                let (mut item, func) = receiver.try_recv().unwrap();
+
                 while !interrupted.load(Ordering::Relaxed) {
                     func(&mut item);
                 }
@@ -47,10 +49,17 @@ impl<T: Send + 'static> DedicatedTickTask<T> {
             })
         };
 
-        Self::Threaded(ThreadedTask {
-            interrupted,
-            handle: Some(handle),
-        })
+        match handle {
+            Ok(handle) => Self::Threaded(ThreadedTask {
+                interrupted,
+                handle: Some(handle),
+            }),
+
+            Err(_) => {
+                let (item, func) = receiver.try_recv().unwrap();
+                Self::run_none_threaded(item, func)
+            },
+        }
     }
 
     pub fn threaded(&self) -> bool {
