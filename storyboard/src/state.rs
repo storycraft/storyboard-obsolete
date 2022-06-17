@@ -117,7 +117,7 @@ pub struct GlobalStoreContext<'a> {
     pub texture_data: &'a Arc<TextureData>,
 }
 
-/// Mutable system state for [StoryboardState].
+/// Mutable system state.
 ///
 /// Contains event.
 #[derive(Debug)]
