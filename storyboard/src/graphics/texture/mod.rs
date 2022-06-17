@@ -9,10 +9,9 @@ pub mod data;
 use storyboard_core::{
     graphics::texture::TextureView2D,
     wgpu::{
-        util::RenderEncoder, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
-        BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType, Device,
-        Sampler, SamplerBindingType, ShaderStages, TextureSampleType, TextureView,
-        TextureViewDimension,
+        BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
+        BindGroupLayoutEntry, BindingResource, BindingType, Device, Sampler, SamplerBindingType,
+        ShaderStages, TextureSampleType, TextureView, TextureViewDimension,
     },
 };
 
@@ -42,8 +41,8 @@ impl RenderTexture2D {
         &self.view
     }
 
-    pub fn bind<'a>(&'a self, index: u32, pass: &mut (impl RenderEncoder<'a> + ?Sized)) {
-        pass.set_bind_group(index, &self.bind_group, &[])
+    pub const fn bind_group(&self) -> &BindGroup {
+        &self.bind_group
     }
 }
 

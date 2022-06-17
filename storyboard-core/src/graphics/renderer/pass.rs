@@ -8,21 +8,21 @@ use std::{hash::BuildHasherDefault, ops::Range};
 
 use rustc_hash::FxHashMap;
 use wgpu::{
-    util::RenderEncoder, BindGroup, Buffer, BufferAddress, BufferSlice, DynamicOffset,
-    IndexFormat, RenderPipeline, ShaderStages,
+    BindGroup, Buffer, BufferAddress, BufferSlice, DynamicOffset,
+    IndexFormat, RenderPipeline, ShaderStages, RenderPass,
 };
 
 #[derive(Debug)]
-pub struct StoryboardRenderPass<'a, T> {
-    pass: T,
+pub struct StoryboardRenderPass<'a> {
+    pass: RenderPass<'a>,
 
     current_bind_groups: FxHashMap<u32, (&'a BindGroup, usize)>,
 
     current_pipeline: Option<&'a RenderPipeline>
 }
 
-impl<'a, T: RenderEncoder<'a>> StoryboardRenderPass<'a, T> {
-    pub fn new(pass: T) -> Self {
+impl<'a> StoryboardRenderPass<'a> {
+    pub fn new(pass: RenderPass<'a>) -> Self {
         Self {
             pass,
 
@@ -112,47 +112,5 @@ impl<'a, T: RenderEncoder<'a>> StoryboardRenderPass<'a, T> {
 
     fn reset_pipeline_desc(&mut self) {
         self.current_bind_groups.clear();
-    }
-}
-
-impl<'a, T: RenderEncoder<'a>> RenderEncoder<'a> for StoryboardRenderPass<'a, T> {
-    fn set_bind_group(&mut self, index: u32, bind_group: &'a BindGroup, offsets: &[DynamicOffset]) {
-        self.set_bind_group(index, bind_group, offsets)
-    }
-
-    fn set_pipeline(&mut self, pipeline: &'a RenderPipeline) {
-        self.set_pipeline(pipeline)
-    }
-
-    fn set_index_buffer(&mut self, slice: BufferSlice<'a>, index_format: IndexFormat) {
-        self.set_index_buffer(slice, index_format)
-    }
-
-    fn set_vertex_buffer(&mut self, slot: u32, slice: BufferSlice<'a>) {
-        self.set_vertex_buffer(slot, slice)
-    }
-
-    fn draw(&mut self, vertices: Range<u32>, instances: Range<u32>) {
-        self.draw(vertices, instances)
-    }
-
-    fn draw_indexed(&mut self, indices: Range<u32>, base_vertex: i32, instances: Range<u32>) {
-        self.draw_indexed(indices, base_vertex, instances)
-    }
-
-    fn draw_indirect(&mut self, indirect_buffer: &'a Buffer, indirect_offset: BufferAddress) {
-        self.draw_indirect(indirect_buffer, indirect_offset)
-    }
-
-    fn draw_indexed_indirect(
-        &mut self,
-        indirect_buffer: &'a Buffer,
-        indirect_offset: BufferAddress,
-    ) {
-        self.draw_indexed_indirect(indirect_buffer, indirect_offset)
-    }
-
-    fn set_push_constants(&mut self, stages: ShaderStages, offset: u32, data: &[u8]) {
-        self.set_push_constants(stages, offset, data)
     }
 }

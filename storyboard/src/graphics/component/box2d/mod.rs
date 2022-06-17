@@ -10,12 +10,12 @@ use bytemuck::{Pod, Zeroable};
 use storyboard_core::{
     component::color::ShapeColor,
     euclid::{Point2D, Point3D, Rect, Vector2D},
-    graphics::buffer::stream::StreamRange,
+    graphics::{buffer::stream::StreamRange, renderer::pass::StoryboardRenderPass},
     palette::LinSrgba,
     store::{Store, StoreResources},
     unit::{LogicalPixelUnit, RenderUnit, TextureUnit},
     wgpu::{
-        util::{BufferInitDescriptor, DeviceExt, RenderEncoder},
+        util::{BufferInitDescriptor, DeviceExt},
         vertex_attr_array, BindGroupLayout, BlendState, Buffer, BufferAddress, BufferUsages,
         ColorTargetState, ColorWrites, CommandEncoder, DepthStencilState, Device, FragmentState,
         IndexFormat, MultisampleState, PipelineLayout, PipelineLayoutDescriptor, PrimitiveState,
@@ -32,7 +32,10 @@ use storyboard_core::graphics::{
     },
 };
 
-use crate::{graphics::texture::{data::TextureData, RenderTexture2D}, math::RectExt};
+use crate::{
+    graphics::texture::{data::TextureData, RenderTexture2D},
+    math::RectExt,
+};
 
 use super::{common::EmptyTextureResources, texture::ComponentTexture};
 
@@ -284,7 +287,7 @@ impl Component for Box2DComponent {
     fn render_opaque<'rpass>(
         &'rpass self,
         _: &RenderContext<'rpass>,
-        _: &mut dyn RenderEncoder<'rpass>,
+        _: &mut StoryboardRenderPass<'rpass>,
     ) {
         unreachable!()
     }
@@ -292,7 +295,7 @@ impl Component for Box2DComponent {
     fn render_transparent<'rpass>(
         &'rpass self,
         ctx: &RenderContext<'rpass>,
-        pass: &mut dyn RenderEncoder<'rpass>,
+        pass: &mut StoryboardRenderPass<'rpass>,
     ) {
         let box_resources = ctx.get::<Box2DResources>();
 
@@ -306,11 +309,15 @@ impl Component for Box2DComponent {
             IndexFormat::Uint16,
         );
 
-        self.texture
-            .as_deref()
-            .or_else(|| Some(&ctx.get::<EmptyTextureResources>().empty_texture))
-            .unwrap()
-            .bind(0, pass);
+        pass.set_bind_group(
+            0,
+            self.texture
+                .as_deref()
+                .or_else(|| Some(&ctx.get::<EmptyTextureResources>().empty_texture))
+                .unwrap()
+                .bind_group(),
+            &[],
+        );
 
         pass.draw_indexed(0..self.indices, 0, 0..1);
     }

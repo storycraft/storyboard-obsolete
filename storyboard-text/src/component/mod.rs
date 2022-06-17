@@ -17,6 +17,7 @@ use storyboard::core::{
         component::{Component, Drawable},
         renderer::{
             context::{BackendContext, DrawContext, RenderContext},
+            pass::StoryboardRenderPass,
             ComponentQueue,
         },
     },
@@ -24,11 +25,11 @@ use storyboard::core::{
     store::{Store, StoreResources},
     unit::{LogicalPixelUnit, RenderUnit, TextureUnit},
     wgpu::{
-        util::RenderEncoder, vertex_attr_array, BindGroupLayout, BlendState, ColorTargetState,
-        ColorWrites, CommandEncoder, DepthStencilState, Device, FragmentState, MultisampleState,
-        PipelineLayout, PipelineLayoutDescriptor, PrimitiveState, PrimitiveTopology,
-        RenderPipeline, RenderPipelineDescriptor, ShaderModule, ShaderModuleDescriptor,
-        ShaderSource, VertexBufferLayout, VertexState, VertexStepMode,
+        vertex_attr_array, BindGroupLayout, BlendState, ColorTargetState, ColorWrites,
+        CommandEncoder, DepthStencilState, Device, FragmentState, MultisampleState, PipelineLayout,
+        PipelineLayoutDescriptor, PrimitiveState, PrimitiveTopology, RenderPipeline,
+        RenderPipelineDescriptor, ShaderModule, ShaderModuleDescriptor, ShaderSource,
+        VertexBufferLayout, VertexState, VertexStepMode,
     },
 };
 
@@ -179,7 +180,7 @@ impl Component for GlyphComponent {
     fn render_opaque<'rpass>(
         &'rpass self,
         _: &RenderContext<'rpass>,
-        _: &mut dyn RenderEncoder<'rpass>,
+        _: &mut StoryboardRenderPass<'rpass>,
     ) {
         unreachable!()
     }
@@ -187,16 +188,13 @@ impl Component for GlyphComponent {
     fn render_transparent<'rpass>(
         &'rpass self,
         ctx: &RenderContext<'rpass>,
-        pass: &mut dyn RenderEncoder<'rpass>,
+        pass: &mut StoryboardRenderPass<'rpass>,
     ) {
         let text_resources = ctx.get::<TextResources>();
 
         pass.set_pipeline(&text_resources.pipeline);
-
-        self.texture.bind(0, pass);
-
+        pass.set_bind_group(0, self.texture.bind_group(), &[]);
         pass.set_vertex_buffer(0, ctx.vertex_stream.slice(self.vertices_slice.clone()));
-
         pass.draw(0..self.vertices, 0..1);
     }
 }

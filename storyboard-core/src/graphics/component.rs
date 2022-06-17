@@ -4,7 +4,7 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
-use wgpu::{util::RenderEncoder, CommandEncoder};
+use wgpu::CommandEncoder;
 
 use std::fmt::Debug;
 
@@ -12,6 +12,8 @@ use crate::graphics::renderer::{
     context::{DrawContext, RenderContext},
     ComponentQueue,
 };
+
+use super::renderer::pass::StoryboardRenderPass;
 
 pub trait Drawable: Send {
     fn prepare(
@@ -33,13 +35,13 @@ pub trait Component: Send {
     fn render_opaque<'rpass>(
         &'rpass self,
         ctx: &RenderContext<'rpass>,
-        pass: &mut dyn RenderEncoder<'rpass>,
+        pass: &mut StoryboardRenderPass<'rpass>,
     );
 
     fn render_transparent<'rpass>(
         &'rpass self,
         ctx: &RenderContext<'rpass>,
-        pass: &mut dyn RenderEncoder<'rpass>,
+        pass: &mut StoryboardRenderPass<'rpass>,
     );
 }
 
@@ -48,4 +50,3 @@ impl Debug for dyn Component {
         f.debug_struct("Component").finish_non_exhaustive()
     }
 }
-

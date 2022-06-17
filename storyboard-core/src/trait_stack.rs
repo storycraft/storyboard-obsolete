@@ -105,7 +105,10 @@ impl<T: ?Sized + Pointee<Metadata = DynMetadata<T>>> TraitStack<T> {
     }
 }
 
+// SAFETY: All data stored in [TraitStack] is Send
 unsafe impl<T: ?Sized + Pointee<Metadata = DynMetadata<T>> + Send> Send for TraitStack<T> {}
+
+// SAFETY: All data stored in [TraitStack] is Sync
 unsafe impl<T: ?Sized + Pointee<Metadata = DynMetadata<T>> + Sync> Sync for TraitStack<T> {}
 
 impl<T: ?Sized + Pointee<Metadata = DynMetadata<T>> + Debug> Debug for TraitStack<T> {

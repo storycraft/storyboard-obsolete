@@ -10,16 +10,16 @@ use bytemuck::{Pod, Zeroable};
 use storyboard_core::{
     component::color::ShapeColor,
     euclid::{Point2D, Point3D, Rect},
-    graphics::buffer::stream::StreamRange,
+    graphics::{buffer::stream::StreamRange, renderer::pass::StoryboardRenderPass},
     palette::LinSrgba,
     store::{Store, StoreResources},
     unit::{LogicalPixelUnit, RenderUnit, TextureUnit},
     wgpu::{
-        util::RenderEncoder, vertex_attr_array, BindGroupLayout, BlendState, ColorTargetState,
-        ColorWrites, CommandEncoder, DepthStencilState, Device, FragmentState, MultisampleState,
-        PipelineLayout, PipelineLayoutDescriptor, PrimitiveState, PrimitiveTopology,
-        RenderPipeline, RenderPipelineDescriptor, ShaderModule, ShaderModuleDescriptor,
-        ShaderSource, VertexBufferLayout, VertexState, VertexStepMode,
+        vertex_attr_array, BindGroupLayout, BlendState, ColorTargetState, ColorWrites,
+        CommandEncoder, DepthStencilState, Device, FragmentState, MultisampleState, PipelineLayout,
+        PipelineLayoutDescriptor, PrimitiveState, PrimitiveTopology, RenderPipeline,
+        RenderPipelineDescriptor, ShaderModule, ShaderModuleDescriptor, ShaderSource,
+        VertexBufferLayout, VertexState, VertexStepMode,
     },
 };
 
@@ -293,15 +293,21 @@ impl Component for PrimitiveComponent {
     fn render_opaque<'rpass>(
         &'rpass self,
         ctx: &RenderContext<'rpass>,
-        pass: &mut dyn RenderEncoder<'rpass>,
+        pass: &mut StoryboardRenderPass<'rpass>,
     ) {
         let primitive_resources = ctx.get::<PrimitiveResources>();
 
         pass.set_pipeline(&primitive_resources.opaque_pipeline);
 
-        ctx.get::<EmptyTextureResources>()
-            .empty_texture
-            .bind(0, pass);
+        pass.set_bind_group(
+            0,
+            self.texture
+                .as_deref()
+                .or_else(|| Some(&ctx.get::<EmptyTextureResources>().empty_texture))
+                .unwrap()
+                .bind_group(),
+            &[],
+        );
 
         pass.set_vertex_buffer(0, ctx.vertex_stream.slice(self.vertices_slice.clone()));
         pass.set_vertex_buffer(1, ctx.vertex_stream.slice(self.instance_slice.clone()));
@@ -327,17 +333,21 @@ impl Component for PrimitiveComponent {
     fn render_transparent<'rpass>(
         &'rpass self,
         ctx: &RenderContext<'rpass>,
-        pass: &mut dyn RenderEncoder<'rpass>,
+        pass: &mut StoryboardRenderPass<'rpass>,
     ) {
         let primitive_resources = ctx.get::<PrimitiveResources>();
 
         pass.set_pipeline(&primitive_resources.transparent_pipeline);
 
-        self.texture
-            .as_deref()
-            .or_else(|| Some(&ctx.get::<EmptyTextureResources>().empty_texture))
-            .unwrap()
-            .bind(0, pass);
+        pass.set_bind_group(
+            0,
+            self.texture
+                .as_deref()
+                .or_else(|| Some(&ctx.get::<EmptyTextureResources>().empty_texture))
+                .unwrap()
+                .bind_group(),
+            &[],
+        );
 
         pass.set_vertex_buffer(0, ctx.vertex_stream.slice(self.vertices_slice.clone()));
         pass.set_vertex_buffer(1, ctx.vertex_stream.slice(self.instance_slice.clone()));
