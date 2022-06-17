@@ -14,9 +14,10 @@ pub mod graphics;
 pub mod observable;
 pub mod state;
 pub mod store;
-pub mod task;
+pub mod tick_task;
 pub mod trait_stack;
 pub mod unit;
+pub mod time_sampler;
 
 // Reexports
 pub use euclid;

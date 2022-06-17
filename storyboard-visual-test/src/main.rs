@@ -155,7 +155,7 @@ impl State<StoryboardStateData> for SampleApp {
         system_state: &mut StoryboardSystemState,
     ) -> StoryboardStateStatus {
         if let Event::RedrawRequested(_) = system_state.event {
-            for _ in 0..100 {
+            for _ in 0..50 {
                 system_state.draw(Box2D {
                     bounds: Rect::new(self.cursor, Size2D::new(50.0, 50.0)),
                     fill_color: ShapeColor::WHITE,

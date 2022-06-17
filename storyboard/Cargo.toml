@@ -10,6 +10,7 @@ winit = "0.26.1"
 bytemuck = { version = "1.9.1", features = ["derive"] }
 rustc-hash = "1.1.0"
 instant = "0.1.12"
-ring-channel = "0.11.0"
+triple_buffer = "6.1.0"
+crossbeam-channel = "0.5.5"
 
 parking_lot = "0.12.1"

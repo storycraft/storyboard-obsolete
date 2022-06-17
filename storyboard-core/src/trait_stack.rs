@@ -105,6 +105,12 @@ impl<T: ?Sized + Pointee<Metadata = DynMetadata<T>>> TraitStack<T> {
     }
 }
 
+impl<T: ?Sized + Pointee<Metadata = DynMetadata<T>>> Default for TraitStack<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 // SAFETY: All data stored in [TraitStack] is Send
 unsafe impl<T: ?Sized + Pointee<Metadata = DynMetadata<T>> + Send> Send for TraitStack<T> {}
 
@@ -113,7 +119,7 @@ unsafe impl<T: ?Sized + Pointee<Metadata = DynMetadata<T>> + Sync> Sync for Trai
 
 impl<T: ?Sized + Pointee<Metadata = DynMetadata<T>> + Debug> Debug for TraitStack<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_list().entries(self.iter()).finish()
+        f.debug_list().entries(self).finish()
     }
 }
 

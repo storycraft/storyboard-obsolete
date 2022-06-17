@@ -16,13 +16,15 @@ use storyboard_core::{
     },
     state::{StateData, StateStatus},
     store::{Store, StoreResources},
-    trait_stack::TraitStack,
     unit::PhyiscalPixelUnit,
     wgpu::{Sampler, TextureFormat, TextureUsages},
 };
 use winit::{event::Event, window::Window};
 
-use crate::{graphics::texture::{data::TextureData, RenderTexture2D}, thread::render::RenderThread};
+use crate::{
+    graphics::texture::{data::TextureData, RenderTexture2D},
+    task::render::RenderTask,
+};
 
 /// System properties for [StoryboardState].
 ///
@@ -35,8 +37,6 @@ pub struct StoryboardSystemProp {
     pub window: Window,
 
     pub elapsed: Duration,
-
-    pub render_thread: RenderThread,
 
     pub(crate) store: Arc<Store>,
 }
@@ -129,14 +129,18 @@ pub struct GlobalStoreContext<'a> {
 #[derive(Debug)]
 pub struct StoryboardSystemState<'a> {
     pub event: Event<'a, ()>,
-
-    pub(crate) drawables: &'a mut TraitStack<dyn Drawable + 'static>,
+    
+    pub(crate) render_task: &'a mut RenderTask,
 }
 
 impl<'a> StoryboardSystemState<'a> {
+    pub const fn render_task(&self) -> &RenderTask {
+        self.render_task
+    }
+
     #[inline]
     pub fn draw(&mut self, drawable: impl Drawable + 'static) {
-        self.drawables.push(drawable);
+        self.render_task.push(drawable);
     }
 }
 

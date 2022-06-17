@@ -4,5 +4,4 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
-
 pub mod render;

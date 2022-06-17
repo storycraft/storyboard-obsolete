@@ -10,28 +10,26 @@
 pub mod graphics;
 pub mod math;
 pub mod state;
-pub mod thread;
+pub mod task;
 
 // Reexports
 pub use storyboard_core as core;
-use thread::render::RenderThread;
+use task::render::RenderTask;
 pub use winit;
 
 use graphics::texture::data::TextureData;
 use instant::Instant;
 
 use state::{StoryboardStateData, StoryboardSystemProp, StoryboardSystemState};
-use std::{mem, sync::Arc, time::Duration};
+use std::{sync::Arc, time::Duration};
 use storyboard_core::{
     euclid::Size2D,
     graphics::{
         backend::{BackendInitError, BackendOptions, StoryboardBackend},
-        component::Drawable,
         renderer::surface::{StoryboardSurfaceRenderer, SurfaceConfiguration},
     },
     state::{State, StateSystem, SystemStatus},
     store::Store,
-    trait_stack::TraitStack,
     wgpu::TextureFormat,
     wgpu::{Backends, Features, Instance, PresentMode, Surface},
 };
@@ -129,9 +127,8 @@ impl Storyboard {
             },
             self.screen_format,
         );
-        let render_thread = RenderThread::run(surface_renderer);
 
-        let mut drawables = TraitStack::<dyn Drawable + 'static>::new();
+        let mut render_task = RenderTask::run(surface_renderer).unwrap();
 
         let mut system_prop = StoryboardSystemProp {
             backend,
@@ -139,7 +136,6 @@ impl Storyboard {
             texture_data,
             elapsed: Duration::ZERO,
             window: self.window,
-            render_thread,
             store: Arc::new(Store::new()),
         };
 
@@ -149,7 +145,7 @@ impl Storyboard {
             let instant = Instant::now();
 
             let mut system_state = StoryboardSystemState {
-                drawables: &mut drawables,
+                render_task: &mut render_task,
                 event,
             };
 
@@ -164,10 +160,12 @@ impl Storyboard {
                         Size2D::new(width, height)
                     };
 
-                    system_prop.render_thread.set_configuration(SurfaceConfiguration {
-                        screen_size: win_size,
-                        ..system_prop.render_thread.configuration()
-                    });
+                    system_state
+                        .render_task
+                        .set_configuration(SurfaceConfiguration {
+                            screen_size: win_size,
+                            ..system_state.render_task.configuration()
+                        });
                 }
 
                 Event::WindowEvent {
@@ -184,11 +182,13 @@ impl Storyboard {
                         Size2D::new(width, height)
                     };
 
-                    system_prop.render_thread.set_configuration(SurfaceConfiguration {
-                        screen_size: win_size,
-                        screen_scale: *scale_factor as _,
-                        ..system_prop.render_thread.configuration()
-                    });
+                    system_state
+                        .render_task
+                        .set_configuration(SurfaceConfiguration {
+                            screen_size: win_size,
+                            screen_scale: *scale_factor as _,
+                            ..system_state.render_task.configuration()
+                        });
                 }
 
                 _ => {}
@@ -197,7 +197,7 @@ impl Storyboard {
             let status = state_system.run(&system_prop, &mut system_state);
 
             if state_system.finished() {
-                system_prop.render_thread.interrupt();
+                system_state.render_task.interrupt();
                 *control_flow = ControlFlow::Exit;
                 return;
             } else {
@@ -207,11 +207,8 @@ impl Storyboard {
                 }
             };
 
-            if system_state.drawables.len() > 0 {
-                let mut submit_drawables = TraitStack::new();
-                mem::swap(&mut drawables, &mut submit_drawables);
-
-                system_prop.render_thread.submit(submit_drawables);
+            if let Event::RedrawRequested(_) = &system_state.event {
+                system_state.render_task.submit();
             }
 
             system_prop.elapsed = instant.elapsed();
