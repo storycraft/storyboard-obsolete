@@ -1,4 +1,5 @@
-use std::time::{Duration, Instant};
+use instant::Instant;
+use std::time::Duration;
 
 /// Run task for at least interval time
 #[derive(Debug)]

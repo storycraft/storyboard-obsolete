@@ -32,7 +32,7 @@ pub struct StoryboardSystemProp {
 
     pub elapsed: Duration,
 
-    pub(crate) store: Arc<Store>,
+    pub store: Arc<Store>,
 }
 
 impl StoryboardSystemProp {
@@ -93,10 +93,6 @@ impl StoryboardSystemProp {
         )
     }
 
-    pub const fn store(&self) -> &Arc<Store> {
-        &self.store
-    }
-
     pub fn get<'a, T: StoreResources<GlobalStoreContext<'a>> + Sized + 'static>(
         &'a mut self,
     ) -> &'a T {
@@ -124,39 +120,15 @@ pub struct GlobalStoreContext<'a> {
 pub struct StoryboardSystemState<'a> {
     pub event: Event<'a, ()>,
     
-    pub(crate) render_task: &'a mut RenderTask,
+    pub render_task: &'a mut RenderTask,
 }
 
 impl<'a> StoryboardSystemState<'a> {
-    pub const fn render_task(&self) -> &RenderTask {
-        self.render_task
-    }
-
-    pub fn render_mode(&self) -> RenderMode {
-        if self.render_task.threaded() {
-            RenderMode::Threaded
-        } else {
-            RenderMode::NonThreaded
-        }
-    }
-
-    pub fn set_render_mode(&mut self, mode: RenderMode) {
-        match mode {
-            RenderMode::Threaded => self.render_task.to_threaded(),
-            RenderMode::NonThreaded => self.render_task.to_non_threaded(),
-        }
-    }
 
     #[inline]
     pub fn draw(&mut self, drawable: impl Drawable + 'static) {
         self.render_task.push(drawable);
     }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum RenderMode {
-    Threaded,
-    NonThreaded
 }
 
 pub struct StoryboardStateData {}

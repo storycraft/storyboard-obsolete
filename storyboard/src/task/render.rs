@@ -89,15 +89,17 @@ impl RenderTask {
         self.signal_sender.try_send(()).ok();
     }
 
-    pub fn to_threaded(&mut self) {
-        self.task.to_threaded();
+    #[inline]
+    pub const fn threaded(&self) -> bool {
+        self.task.threaded()
     }
 
-    pub fn to_non_threaded(&mut self) {
-        if self.threaded() {
+    pub fn set_threaded(&mut self, threaded: bool) {
+        if self.threaded() && !threaded {
             self.interrupt();
-            self.task.to_non_threaded();
         }
+
+        self.task.set_threaded(threaded);
     }
 
     pub fn push(&mut self, item: impl Drawable + 'static) {
@@ -106,14 +108,10 @@ impl RenderTask {
 
     pub fn submit(&mut self) {
         self.input.publish();
-        self.input.input_buffer().clear();
         self.signal_sender.try_send(()).ok();
 
         self.task.tick();
-    }
-
-    pub fn threaded(&self) -> bool {
-        self.task.threaded()
+        self.input.input_buffer().clear();
     }
 
     pub fn join(self) -> StoryboardSurfaceRenderer {

@@ -18,12 +18,12 @@ pub enum DedicatedTickTask<T> {
 }
 
 impl<T: Send + 'static> DedicatedTickTask<T> {
-    pub fn run(item: T, func: fn (&mut T)) -> Self {
+    pub fn run(item: T, func: fn(&mut T)) -> Self {
         Self::run_threaded(item, func)
     }
 
     /// Try running task on newly created thread. If thread cannot be made, fallback to [`DedicatedTickTask::run_none_threaded`]
-    pub fn run_threaded(item: T, func: fn (&mut T)) -> Self {
+    pub fn run_threaded(item: T, func: fn(&mut T)) -> Self {
         let interrupted = Arc::new(AtomicBool::new(false));
 
         // Using channel to fallback if thread fail to spawn.
@@ -42,10 +42,7 @@ impl<T: Send + 'static> DedicatedTickTask<T> {
                     func(&mut item);
                 }
 
-                (
-                    item,
-                    func,
-                )
+                (item, func)
             })
         };
 
@@ -58,15 +55,11 @@ impl<T: Send + 'static> DedicatedTickTask<T> {
             Err(_) => {
                 let (item, func) = receiver.try_recv().unwrap();
                 Self::run_none_threaded(item, func)
-            },
+            }
         }
     }
 
-    pub fn threaded(&self) -> bool {
-        matches!(self, Self::Threaded(_))
-    }
-
-    pub fn run_none_threaded(item: T, func: fn (&mut T)) -> Self {
+    pub fn run_none_threaded(item: T, func: fn(&mut T)) -> Self {
         Self::NonThreaded(NonThreadedTask {
             interrupted: false,
             item,
@@ -87,36 +80,36 @@ impl<T: Send + 'static> DedicatedTickTask<T> {
             DedicatedTickTask::NonThreaded(task) => task.interrupt(),
         };
     }
+    
+    pub const fn threaded(&self) -> bool {
+        matches!(self, Self::Threaded(_))
+    }
+
+    pub fn set_threaded(&mut self, threaded: bool) {
+        if self.interrupted() || self.threaded() == threaded {
+            return;
+        }
+
+        replace_with_or_abort(self, |this| {
+            match this {
+                DedicatedTickTask::Threaded(task) => {
+                    let (item, func) = match task.handle.unwrap().join() {
+                        Ok(items) => items,
+                        Err(err) => panic::resume_unwind(err),
+                    };
+    
+                    Self::run_none_threaded(item, func)
+                },
+                DedicatedTickTask::NonThreaded(task) => Self::run_threaded(task.item, task.func),
+            }
+        });
+    }
 
     pub fn tick(&mut self) {
-        if let Self::NonThreaded(task) = self {
-            task.tick();
+        match self {
+            DedicatedTickTask::Threaded(task) => task.tick(),
+            DedicatedTickTask::NonThreaded(task) => task.tick(),
         }
-    }
-
-    pub fn to_threaded(&mut self) {
-        replace_with_or_abort(self, |this| {
-            if let Self::NonThreaded(task) = this {
-                Self::run_threaded(task.item, task.func)
-            } else {
-                this
-            }
-        });
-    }
-
-    pub fn to_non_threaded(&mut self) {
-        replace_with_or_abort(self, |this| {
-            if let Self::Threaded(task) = this {
-                let (item, func) = match task.handle.unwrap().join() {
-                    Ok(items) => items,
-                    Err(err) => panic::resume_unwind(err),
-                };
-
-                Self::run_none_threaded(item, func)
-            } else {
-                this
-            }
-        });
     }
 
     pub fn join(self) -> T {
@@ -130,7 +123,7 @@ impl<T: Send + 'static> DedicatedTickTask<T> {
 #[derive(Debug)]
 pub struct ThreadedTask<T> {
     interrupted: Arc<AtomicBool>,
-    handle: Option<JoinHandle<(T, fn (&mut T))>>,
+    handle: Option<JoinHandle<(T, fn(&mut T))>>,
 }
 
 impl<T> ThreadedTask<T> {
@@ -159,7 +152,7 @@ impl<T> ThreadedTask<T> {
 pub struct NonThreadedTask<T> {
     interrupted: bool,
     item: T,
-    func: fn (&mut T),
+    func: fn(&mut T),
 }
 
 impl<T> NonThreadedTask<T> {
