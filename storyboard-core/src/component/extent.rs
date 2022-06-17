@@ -1,9 +1,3 @@
-/*
- * Created on Tue Sep 21 2021
- *
- * Copyright (c) storycraft. Licensed under the MIT Licence.
- */
-
 use std::ops::Mul;
 
 use euclid::{Vector2D, Vector3D};

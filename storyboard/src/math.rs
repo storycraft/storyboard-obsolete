@@ -1,9 +1,3 @@
-/*
- * Created on Mon Jun 06 2022
- *
- * Copyright (c) storycraft. Licensed under the MIT Licence.
- */
-
 //! euclid math module extension
 
 use std::ops::{Add, Div, Neg, Sub};

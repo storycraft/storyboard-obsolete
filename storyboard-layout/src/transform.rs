@@ -1,9 +1,3 @@
-/*
- * Created on Thu Sep 23 2021
- *
- * Copyright (c) storycraft. Licensed under the MIT Licence.
- */
-
 use storyboard_core::{
     component::extent::{Extent, Extent2D, Extent3D, ExtentStandard, ExtentUnit},
     euclid::{vec2, vec3, Angle, Rect, Rotation3D, Transform3D, Vector2D, Vector3D},

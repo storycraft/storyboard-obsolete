@@ -1,9 +1,3 @@
-/*
- * Created on Wed Jun 08 2022
- *
- * Copyright (c) storycraft. Licensed under the MIT Licence.
- */
-
 pub mod text;
 
 use std::{borrow::Cow, sync::Arc};

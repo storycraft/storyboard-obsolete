@@ -1,9 +1,3 @@
-/*
- * Created on Sat Apr 30 2022
- *
- * Copyright (c) storycraft. Licensed under the MIT Licence.
- */
-
 #[derive(Debug, Clone, Copy)]
 /// top-left origin 1:n matching logical Pixel unit.
 pub struct LogicalPixelUnit;

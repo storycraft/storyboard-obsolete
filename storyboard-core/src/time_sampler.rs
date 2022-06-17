@@ -1,9 +1,3 @@
-/*
- * Created on Fri Jun 17 2022
- *
- * Copyright (c) storycraft. Licensed under the MIT Licence.
- */
-
 use std::time::{Duration, Instant};
 
 /// Run task for at least interval time

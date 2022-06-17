@@ -1,9 +1,3 @@
-/*
- * Created on Sun Jun 12 2022
- *
- * Copyright (c) storycraft. Licensed under the MIT Licence.
- */
-
 use wgpu::CommandEncoder;
 
 use std::fmt::Debug;

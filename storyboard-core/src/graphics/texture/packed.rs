@@ -1,9 +1,3 @@
-/*
- * Created on Sat Apr 30 2022
- *
- * Copyright (c) storycraft. Licensed under the MIT Licence.
- */
-
 use euclid::{Point2D, Rect, Size2D};
 use rect_packer::DensePacker;
 use std::{fmt::Debug, num::NonZeroU32};

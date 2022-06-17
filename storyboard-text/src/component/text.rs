@@ -1,9 +1,3 @@
-/*
- * Created on Sat Jun 11 2022
- *
- * Copyright (c) storycraft. Licensed under the MIT Licence.
- */
-
 use std::{borrow::Cow, fmt::Debug, sync::Arc};
 
 use allsorts::{

@@ -1,7 +1,3 @@
-// Created on Thu Sep 16 2021
-//
-// Copyright (c) storycraft. Licensed under the MIT Licence.
-
 struct VertexInput {
     @location(0) position: vec3<f32>,
     @location(1) fill_color: vec4<f32>,

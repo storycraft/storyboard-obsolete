@@ -1,9 +1,3 @@
-/*
- * Created on Sat Jun 04 2022
- *
- * Copyright (c) storycraft. Licensed under the MIT Licence.
- */
-
 use std::{
     fmt::Debug,
     marker::{PhantomData, Unsize},

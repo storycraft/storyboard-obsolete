@@ -1,9 +1,3 @@
-/*
- * Created on Sun May 08 2022
- *
- * Copyright (c) storycraft. Licensed under the MIT Licence.
- */
-
 use std::{fmt::Debug, sync::Arc};
 
 use crate::{

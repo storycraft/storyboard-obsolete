@@ -1,9 +1,3 @@
-/*
- * Created on Sun Jun 12 2022
- *
- * Copyright (c) storycraft. Licensed under the MIT Licence.
- */
-
 use storyboard_core::{
     graphics::renderer::context::BackendContext,
     store::{Store, StoreResources},

@@ -1,9 +1,3 @@
-/*
- * Created on Mon May 02 2022
- *
- * Copyright (c) storycraft. Licensed under the MIT Licence.
- */
-
 //! Prop and States implemention for storyboard app.
 use std::{sync::Arc, time::Duration};
 

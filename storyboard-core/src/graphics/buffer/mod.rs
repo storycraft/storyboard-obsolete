@@ -1,9 +1,3 @@
-/*
- * Created on Sat Apr 30 2022
- *
- * Copyright (c) storycraft. Licensed under the MIT Licence.
- */
-
 pub mod stream;
 
 use std::borrow::Cow;

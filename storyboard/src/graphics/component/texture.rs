@@ -1,9 +1,3 @@
-/*
- * Created on Tue Jun 07 2022
- *
- * Copyright (c) storycraft. Licensed under the MIT Licence.
- */
-
 use std::sync::Arc;
 use storyboard_core::{
     euclid::{Point2D, Rect, Size2D},

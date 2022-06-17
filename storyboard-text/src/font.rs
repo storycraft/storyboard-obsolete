@@ -1,9 +1,3 @@
-/*
- * Created on Tue Jun 14 2022
- *
- * Copyright (c) storycraft. Licensed under the MIT Licence.
- */
-
 use core::slice;
 use std::{
     borrow::{Borrow, Cow},

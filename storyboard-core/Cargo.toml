@@ -3,6 +3,7 @@ name = "storyboard-core"
 description = "storyboard core"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
 
 [dependencies]
 # wgpu = "0.12.0"

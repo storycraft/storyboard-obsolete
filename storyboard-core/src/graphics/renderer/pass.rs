@@ -1,9 +1,3 @@
-/*
- * Created on Sat Oct 02 2021
- *
- * Copyright (c) storycraft. Licensed under the MIT Licence.
- */
-
 use std::{hash::BuildHasherDefault, ops::Range};
 
 use rustc_hash::FxHashMap;

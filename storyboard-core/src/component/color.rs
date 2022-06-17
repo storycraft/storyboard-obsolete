@@ -1,9 +1,3 @@
-/*
- * Created on Mon Sep 20 2021
- *
- * Copyright (c) storycraft. Licensed under the MIT Licence.
- */
-
 use std::{marker::PhantomData, ops::Index};
 
 use palette::rgb::{LinSrgba, Rgb};

@@ -1,9 +1,3 @@
-/*
- * Created on Sat May 14 2022
- *
- * Copyright (c) storycraft. Licensed under the MIT Licence.
- */
-
 use std::{borrow::Cow, sync::Arc};
 
 use bytemuck::{Pod, Zeroable};

@@ -1,9 +1,3 @@
-/*
- * Created on Sat Apr 30 2022
- *
- * Copyright (c) storycraft. Licensed under the MIT Licence.
- */
-
 use std::{borrow::Cow, num::NonZeroU64, ops::Range};
 
 use wgpu::{Buffer, BufferAddress, BufferBinding, BufferSlice, BufferUsages, Device, Queue};

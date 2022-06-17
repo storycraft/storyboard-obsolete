@@ -1,9 +1,3 @@
-/*
- * Created on Wed Jun 08 2022
- *
- * Copyright (c) storycraft. Licensed under the MIT Licence.
- */
-
 use std::{collections::HashMap, fmt::Debug, hash::Hash, iter::Peekable};
 
 use ringbuffer::{ConstGenericRingBuffer, RingBufferExt, RingBufferWrite};

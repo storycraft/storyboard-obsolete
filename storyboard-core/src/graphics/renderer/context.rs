@@ -1,9 +1,3 @@
-/*
- * Created on Wed Sep 29 2021
- *
- * Copyright (c) storycraft. Licensed under the MIT Licence.
- */
-
 use euclid::{Rect, Transform3D};
 use wgpu::{DepthStencilState, Device, Queue, TextureFormat};
 

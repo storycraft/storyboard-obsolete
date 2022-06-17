@@ -1,7 +1,3 @@
-// Created on Thu Nov 26 2021
-//
-// Copyright (c) storycraft. Licensed under the MIT Licence.
-
 struct VertexOutput {
     [[builtin(position)]] position: vec4<f32>;
     [[location(0)]] color: vec4<f32>;

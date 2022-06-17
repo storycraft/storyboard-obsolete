@@ -1,9 +1,3 @@
-/*
- * Created on Fri Jun 03 2022
- *
- * Copyright (c) storycraft. Licensed under the MIT Licence.
- */
-
 use std::{any::TypeId, fmt::Debug};
 
 use parking_lot::RwLock;

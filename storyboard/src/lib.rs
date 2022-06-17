@@ -1,9 +1,3 @@
-/*
- * Created on Mon May 02 2022
- *
- * Copyright (c) storycraft. Licensed under the MIT Licence.
- */
-
 // Nightly features
 #![feature(generic_associated_types)]
 
