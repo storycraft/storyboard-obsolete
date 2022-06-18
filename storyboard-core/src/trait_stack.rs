@@ -1,6 +1,6 @@
 use std::{
     fmt::Debug,
-    marker::{PhantomData, Unsize},
+    marker::Unsize,
     mem,
     ops::{Index, IndexMut},
     ptr::{self, DynMetadata, Pointee},
@@ -11,7 +11,6 @@ use std::{
 pub struct TraitStack<T: ?Sized + Pointee<Metadata = DynMetadata<T>>> {
     data: Vec<u8>,
     table: Vec<(usize, DynMetadata<T>)>,
-    phantom: PhantomData<T>,
 }
 
 impl<T: ?Sized + Pointee<Metadata = DynMetadata<T>>> TraitStack<T> {
@@ -19,7 +18,6 @@ impl<T: ?Sized + Pointee<Metadata = DynMetadata<T>>> TraitStack<T> {
         Self {
             data: Vec::new(),
             table: Vec::new(),
-            phantom: PhantomData,
         }
     }
 
@@ -79,11 +77,17 @@ impl<T: ?Sized + Pointee<Metadata = DynMetadata<T>>> TraitStack<T> {
     }
 
     pub fn iter(&self) -> Iter<T> {
-        self.into_iter()
+        Iter {
+            ptr: self.data.as_ptr(),
+            table_iter: self.table.iter(),
+        }
     }
 
     pub fn iter_mut(&mut self) -> IterMut<T> {
-        self.into_iter()
+        IterMut {
+            ptr: self.data.as_mut_ptr(),
+            table_iter: self.table.iter(),
+        }
     }
 
     pub fn clear(&mut self) {
@@ -137,10 +141,7 @@ impl<'a, T: ?Sized + Pointee<Metadata = DynMetadata<T>>> IntoIterator for &'a Tr
     type IntoIter = Iter<'a, T>;
 
     fn into_iter(self) -> Self::IntoIter {
-        Iter {
-            ptr: self.data.as_ptr(),
-            table_iter: self.table.iter(),
-        }
+        self.iter()
     }
 }
 
@@ -150,10 +151,7 @@ impl<'a, T: ?Sized + Pointee<Metadata = DynMetadata<T>>> IntoIterator for &'a mu
     type IntoIter = IterMut<'a, T>;
 
     fn into_iter(self) -> Self::IntoIter {
-        IterMut {
-            ptr: self.data.as_mut_ptr(),
-            table_iter: self.table.iter(),
-        }
+        self.iter_mut()
     }
 }
 
@@ -223,6 +221,8 @@ impl<'a, T: ?Sized + Pointee<Metadata = DynMetadata<T>>> DoubleEndedIterator for
     }
 }
 
+impl<'a, T: ?Sized + Pointee<Metadata = DynMetadata<T>>> ExactSizeIterator for Iter<'a, T> {}
+
 pub struct IterMut<'a, T: ?Sized + Pointee<Metadata = DynMetadata<T>>> {
     ptr: *mut u8,
     table_iter: slice::Iter<'a, (usize, DynMetadata<T>)>,
@@ -277,6 +277,8 @@ impl<'a, T: ?Sized + Pointee<Metadata = DynMetadata<T>>> DoubleEndedIterator for
         return Some(unsafe { self.item_at(*offset, *metadata) });
     }
 }
+
+impl<'a, T: ?Sized + Pointee<Metadata = DynMetadata<T>>> ExactSizeIterator for IterMut<'a, T> {}
 
 #[cfg(test)]
 mod tests {
