@@ -1,6 +1,9 @@
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
+use std::{
+    iter,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
 };
 
 use crossbeam_channel::{bounded, Receiver, Sender};
@@ -42,7 +45,6 @@ impl RenderTask {
             signal_receiver,
             output,
             renderer,
-            buffers: Vec::new(),
         };
 
         let task = DedicatedTickTask::run(data, |data| {
@@ -55,27 +57,30 @@ impl RenderTask {
                 }
 
                 if data.output.update() {
-                    if data.output.output_buffer().1.len() > 0 {
-                        data.buffers.append(&mut data.output.output_buffer().1);
-                    }
+                    if data.output.output_buffer().0.len() > 0 {
+                        if let Some(res) = data.renderer.render(
+                            data.backend.device(),
+                            data.backend.queue(),
+                            data.output.output_buffer().0.iter(),
+                        ) {
+                            if data.output.output_buffer().1.len() > 0 {
+                                data.backend.queue().submit(
+                                    iter::once(res.command_buffer)
+                                        .chain(data.output.output_buffer().1.drain(..)),
+                                );
+                            } else {
+                                data.backend.queue().submit(iter::once(res.command_buffer));
+                            }
 
-                    if let Some(res) = data.renderer.render(
-                        data.backend.device(),
-                        data.backend.queue(),
-                        data.output.output_buffer().0.iter(),
-                    ) {
-                        data.buffers.push(res.command_buffer);
-
-                        if data.buffers.len() > 0 {
-                            data.backend.queue().submit(data.buffers.drain(..));
+                            res.surface_texture.present();
+                            return;
                         }
-
-                        res.surface_texture.present();
-                        return;
                     }
 
-                    if data.buffers.len() > 0 {
-                        data.backend.queue().submit(data.buffers.drain(..));
+                    if data.output.output_buffer().1.len() > 0 {
+                        data.backend
+                            .queue()
+                            .submit(data.output.output_buffer().1.drain(..));
                     }
                 }
             }
@@ -149,6 +154,4 @@ struct RenderTaskData {
     signal_receiver: Receiver<()>,
     output: Output<(TraitStack<dyn Drawable + 'static>, Vec<CommandBuffer>)>,
     renderer: StoryboardSurfaceRenderer,
-
-    buffers: Vec<CommandBuffer>,
 }
