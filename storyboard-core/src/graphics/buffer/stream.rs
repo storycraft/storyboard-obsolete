@@ -15,11 +15,7 @@ pub struct BufferStream<'a> {
 impl<'a> BufferStream<'a> {
     pub fn new(label: Option<Cow<'a, str>>, usages: BufferUsages) -> Self {
         Self {
-            buffer: GrowingBuffer::new(
-                label,
-                usages | BufferUsages::COPY_DST,
-                false,
-            ),
+            buffer: GrowingBuffer::new(label, usages | BufferUsages::COPY_DST, true),
             data: Vec::new(),
         }
     }
@@ -54,10 +50,19 @@ impl<'a> BufferStream<'a> {
 
         let buf_size = size + padding;
 
-        let buffer = self.buffer.alloc(device, buf_size);
+        let (buffer, mapped) = self.buffer.alloc(device, buf_size);
 
         if size > 0 {
-            queue.write_buffer(buffer, 0, &self.data);
+            if mapped {
+                buffer
+                    .slice(..size)
+                    .get_mapped_range_mut()
+                    .copy_from_slice(&self.data);
+                buffer.unmap();
+            } else {
+                queue.write_buffer(buffer, 0, &self.data);
+            }
+
             self.data.clear();
         }
 

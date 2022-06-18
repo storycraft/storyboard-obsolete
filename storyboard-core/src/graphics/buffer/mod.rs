@@ -2,7 +2,7 @@ pub mod stream;
 
 use std::borrow::Cow;
 
-use wgpu::{BufferUsages, BufferAddress, Buffer, Device, BufferDescriptor};
+use wgpu::{Buffer, BufferAddress, BufferDescriptor, BufferUsages, Device};
 
 #[derive(Debug)]
 /// Dynamically resizing buffer.
@@ -16,13 +16,17 @@ pub struct GrowingBuffer<'label> {
 }
 
 impl<'label> GrowingBuffer<'label> {
-    pub const fn new(label: Option<Cow<'label, str>>, usages: BufferUsages, mapped_at_creation: bool) -> Self {
+    pub const fn new(
+        label: Option<Cow<'label, str>>,
+        usages: BufferUsages,
+        mapped_at_creation: bool,
+    ) -> Self {
         Self {
             label,
             usages,
             mapped_at_creation,
             buffer: None,
-            buffer_size: 0
+            buffer_size: 0,
         }
     }
 
@@ -31,10 +35,11 @@ impl<'label> GrowingBuffer<'label> {
     }
 
     /// Allocate and provide buffer given size.
+    /// Return reference to buffer and bool if the buffer is mapped
     /// The size of buffer can be larger than requested size.
     /// Reusing buffer if possible.
-    pub fn alloc(&mut self, device: &Device, size: BufferAddress) -> &Buffer {
-        if self.buffer.is_none() || self.buffer_size < size {
+    pub fn alloc(&mut self, device: &Device, size: BufferAddress) -> (&Buffer, bool) {
+        if self.buffer.is_none() || self.buffer_size < size || self.buffer_size > size * 2 {
             let buf = device.create_buffer(&BufferDescriptor {
                 label: self.label.as_deref(),
                 size,
@@ -43,8 +48,10 @@ impl<'label> GrowingBuffer<'label> {
             });
 
             self.buffer = Some(buf);
+
+            return (self.buffer.as_ref().unwrap(), self.mapped_at_creation);
         }
 
-        self.buffer.as_ref().unwrap()
+        (self.buffer.as_ref().unwrap(), false)
     }
 }
