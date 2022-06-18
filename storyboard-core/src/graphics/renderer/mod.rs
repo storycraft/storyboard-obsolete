@@ -5,6 +5,7 @@ pub mod surface;
 use std::{borrow::Cow, fmt::Debug, sync::Arc};
 
 use euclid::{Point2D, Rect, Size2D, Transform3D};
+use wgpu::{Device, Queue};
 
 use self::{
     context::{BackendContext, DrawContext},
@@ -12,7 +13,6 @@ use self::{
 };
 
 use super::{
-    backend::StoryboardBackend,
     buffer::stream::BufferStream,
     texture::{SizedTexture2D, SizedTextureView2D},
 };
@@ -33,8 +33,6 @@ use crate::{
 
 #[derive(Debug)]
 pub struct StoryboardRenderer {
-    backend: Arc<StoryboardBackend>,
-
     screen: Observable<(Size2D<u32, PhyiscalPixelUnit>, f32)>,
 
     screen_format: TextureFormat,
@@ -55,7 +53,6 @@ impl StoryboardRenderer {
     pub const DEPTH_TEXTURE_FORMAT: TextureFormat = TextureFormat::Depth32Float;
 
     pub fn new(
-        backend: Arc<StoryboardBackend>,
         screen_size: Size2D<u32, PhyiscalPixelUnit>,
         screen_scale: f32,
         screen_format: TextureFormat,
@@ -70,7 +67,6 @@ impl StoryboardRenderer {
         );
 
         Self {
-            backend,
             screen: (screen_size, screen_scale).into(),
 
             screen_format,
@@ -86,10 +82,6 @@ impl StoryboardRenderer {
             vertex_stream,
             index_stream,
         }
-    }
-
-    pub const fn backend(&self) -> &Arc<StoryboardBackend> {
-        &self.backend
     }
 
     pub fn screen_size(&self) -> Size2D<u32, PhyiscalPixelUnit> {
@@ -129,11 +121,11 @@ impl StoryboardRenderer {
         }
     }
 
-    fn prepare_depth_stencil(&mut self) {
+    fn prepare_depth_stencil(&mut self, device: &Device) {
         if Observable::invalidate(&mut self.depth_texture) || self.depth_texture.is_none() {
             self.depth_texture = Some(
                 SizedTexture2D::init(
-                    self.backend.device(),
+                    device,
                     Some("StoryboardRenderer depth texture"),
                     self.screen.0,
                     Self::DEPTH_TEXTURE_FORMAT,
@@ -145,9 +137,11 @@ impl StoryboardRenderer {
         }
     }
 
-    pub fn render(
+    pub fn render<'a>(
         &mut self,
-        drawables: &TraitStack<dyn Drawable>,
+        device: &Device,
+        queue: &Queue,
+        drawables: impl ExactSizeIterator<Item = &'a dyn Drawable>,
         mut color_attachment: RenderPassColorAttachment,
     ) -> Option<CommandEncoder> {
         if drawables.len() <= 0 {
@@ -156,18 +150,15 @@ impl StoryboardRenderer {
 
         self.prepare_screen_matrix();
 
-        self.prepare_depth_stencil();
+        self.prepare_depth_stencil(device);
 
-        let mut encoder = self
-            .backend
-            .device()
-            .create_command_encoder(&CommandEncoderDescriptor {
-                label: Some("StoryboardRenderer command encoder"),
-            });
+        let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
+            label: Some("StoryboardRenderer command encoder"),
+        });
 
         let backend_context = BackendContext {
-            device: self.backend.device(),
-            queue: self.backend.queue(),
+            device,
+            queue,
 
             screen_format: self.screen_format,
 
@@ -200,7 +191,7 @@ impl StoryboardRenderer {
             };
 
             let total = drawables.len() as f32;
-            for (i, drawable) in drawables.iter().enumerate() {
+            for (i, drawable) in drawables.enumerate() {
                 drawable.prepare(
                     &mut components_queue,
                     &mut draw_context,
@@ -280,7 +271,6 @@ impl StoryboardRenderer {
         Self {
             store: self.store.clone(),
             ..Self::new(
-                self.backend.clone(),
                 screen_size,
                 screen_scale,
                 self.screen_format,

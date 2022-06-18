@@ -112,7 +112,6 @@ impl Storyboard {
         };
 
         let surface_renderer = StoryboardSurfaceRenderer::new(
-            backend.clone(),
             self.surface,
             SurfaceConfiguration {
                 present_mode: self.present_mode,
@@ -122,7 +121,7 @@ impl Storyboard {
             self.screen_format,
         );
 
-        let mut render_task = Some(RenderTask::run(surface_renderer));
+        let mut render_task = Some(RenderTask::run(backend.clone(), surface_renderer));
 
         let mut system_prop = StoryboardSystemProp {
             backend,

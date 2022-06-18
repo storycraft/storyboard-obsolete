@@ -10,6 +10,7 @@ use crossbeam_channel::{bounded, Receiver, Sender};
 use parking_lot::Mutex;
 use storyboard_core::{
     graphics::{
+        backend::StoryboardBackend,
         component::Drawable,
         renderer::surface::{StoryboardSurfaceRenderer, SurfaceConfiguration},
     },
@@ -27,7 +28,7 @@ pub struct RenderTask {
 }
 
 impl RenderTask {
-    pub fn run(renderer: StoryboardSurfaceRenderer) -> Self {
+    pub fn run(backend: Arc<StoryboardBackend>, renderer: StoryboardSurfaceRenderer) -> Self {
         let (input, output) = TripleBuffer::default().split();
         let (signal_sender, signal_receiver) = bounded(1);
 
@@ -36,6 +37,7 @@ impl RenderTask {
         let renderer_config = Arc::new((Mutex::new(configuration), AtomicBool::new(false)));
 
         let data = RenderTaskData {
+            backend,
             configuration: renderer_config.clone(),
             signal_receiver,
             output,
@@ -52,11 +54,12 @@ impl RenderTask {
                 }
 
                 if data.output.update() {
-                    if let Some(res) = data.renderer.render(data.output.output_buffer()) {
-                        data.renderer
-                            .backend()
-                            .queue()
-                            .submit(iter::once(res.command_buffer));
+                    if let Some(res) = data.renderer.render(
+                        data.backend.device(),
+                        data.backend.queue(),
+                        data.output.output_buffer().iter(),
+                    ) {
+                        data.backend.queue().submit(iter::once(res.command_buffer));
                         res.surface_texture.present();
                     }
                 }
@@ -121,6 +124,7 @@ impl RenderTask {
 
 #[derive(Debug)]
 struct RenderTaskData {
+    backend: Arc<StoryboardBackend>,
     configuration: Arc<(Mutex<SurfaceConfiguration>, AtomicBool)>,
     signal_receiver: Receiver<()>,
     output: Output<TraitStack<dyn Drawable + 'static>>,

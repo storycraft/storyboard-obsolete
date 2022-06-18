@@ -1,16 +1,16 @@
-use std::{fmt::Debug, sync::Arc};
+use std::fmt::Debug;
 
 use crate::{
     euclid::Size2D,
-    graphics::{backend::StoryboardBackend, component::Drawable, renderer::StoryboardRenderer},
+    graphics::{component::Drawable, renderer::StoryboardRenderer},
     observable::Observable,
-    trait_stack::TraitStack,
     unit::PhyiscalPixelUnit,
 };
 
 use wgpu::{
-    self, Color, CommandBuffer, LoadOp, Operations, PresentMode, RenderPassColorAttachment,
-    Surface, SurfaceTexture, TextureFormat, TextureUsages, TextureViewDescriptor,
+    self, Color, CommandBuffer, Device, LoadOp, Operations, PresentMode, Queue,
+    RenderPassColorAttachment, Surface, SurfaceTexture, TextureFormat, TextureUsages,
+    TextureViewDescriptor,
 };
 
 #[derive(Debug)]
@@ -23,13 +23,11 @@ pub struct StoryboardSurfaceRenderer {
 
 impl StoryboardSurfaceRenderer {
     pub fn new(
-        backend: Arc<StoryboardBackend>,
         surface: Surface,
         configuration: SurfaceConfiguration,
         screen_format: TextureFormat,
     ) -> Self {
         let renderer = StoryboardRenderer::new(
-            backend,
             configuration.screen_size,
             configuration.screen_scale,
             screen_format,
@@ -42,10 +40,6 @@ impl StoryboardSurfaceRenderer {
         }
     }
 
-    pub const fn backend(&self) -> &Arc<StoryboardBackend> {
-        self.renderer.backend()
-    }
-
     pub fn configuration(&self) -> SurfaceConfiguration {
         *self.configuration
     }
@@ -56,14 +50,19 @@ impl StoryboardSurfaceRenderer {
         }
     }
 
-    pub fn render(&mut self, drawables: &TraitStack<dyn Drawable>) -> Option<SurfaceRenderResult> {
+    pub fn render<'a>(
+        &mut self,
+        device: &Device,
+        queue: &Queue,
+        drawables: impl ExactSizeIterator<Item = &'a dyn Drawable>,
+    ) -> Option<SurfaceRenderResult> {
         if self.renderer.screen_size().area() <= 0 {
             return None;
         }
 
         if Observable::invalidate(&mut self.configuration) {
             self.surface.configure(
-                self.renderer.backend().device(),
+                device,
                 &wgpu::SurfaceConfiguration {
                     usage: TextureUsages::RENDER_ATTACHMENT,
                     format: self.renderer.screen_format(),
@@ -81,6 +80,8 @@ impl StoryboardSurfaceRenderer {
 
         if let Ok(surface_texture) = self.surface.get_current_texture() {
             let renderer_encoder = self.renderer.render(
+                device,
+                queue,
                 drawables,
                 RenderPassColorAttachment {
                     view: &surface_texture
