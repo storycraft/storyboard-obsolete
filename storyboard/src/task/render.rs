@@ -1,9 +1,6 @@
-use std::{
-    iter,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
 };
 
 use crossbeam_channel::{bounded, Receiver, Sender};
@@ -16,13 +13,15 @@ use storyboard_core::{
     },
     tick_task::DedicatedTickTask,
     trait_stack::TraitStack,
+    wgpu::CommandBuffer,
 };
 use triple_buffer::{Input, Output, TripleBuffer};
 
 #[derive(Debug)]
 pub struct RenderTask {
     renderer_config: Arc<(Mutex<SurfaceConfiguration>, AtomicBool)>,
-    input: Input<TraitStack<dyn Drawable + 'static>>,
+    input: Input<(TraitStack<dyn Drawable + 'static>, Vec<CommandBuffer>)>,
+
     signal_sender: Sender<()>,
     task: DedicatedTickTask<RenderTaskData>,
 }
@@ -30,6 +29,7 @@ pub struct RenderTask {
 impl RenderTask {
     pub fn run(backend: Arc<StoryboardBackend>, renderer: StoryboardSurfaceRenderer) -> Self {
         let (input, output) = TripleBuffer::default().split();
+
         let (signal_sender, signal_receiver) = bounded(1);
 
         let configuration = renderer.configuration();
@@ -42,6 +42,7 @@ impl RenderTask {
             signal_receiver,
             output,
             renderer,
+            buffers: Vec::new(),
         };
 
         let task = DedicatedTickTask::run(data, |data| {
@@ -54,13 +55,27 @@ impl RenderTask {
                 }
 
                 if data.output.update() {
+                    if data.output.output_buffer().1.len() > 0 {
+                        data.buffers.append(&mut data.output.output_buffer().1);
+                    }
+
                     if let Some(res) = data.renderer.render(
                         data.backend.device(),
                         data.backend.queue(),
-                        data.output.output_buffer().iter(),
+                        data.output.output_buffer().0.iter(),
                     ) {
-                        data.backend.queue().submit(iter::once(res.command_buffer));
+                        data.buffers.push(res.command_buffer);
+
+                        if data.buffers.len() > 0 {
+                            data.backend.queue().submit(data.buffers.drain(..));
+                        }
+
                         res.surface_texture.present();
+                        return;
+                    }
+
+                    if data.buffers.len() > 0 {
+                        data.backend.queue().submit(data.buffers.drain(..));
                     }
                 }
             }
@@ -106,7 +121,11 @@ impl RenderTask {
     }
 
     pub fn push(&mut self, item: impl Drawable + 'static) {
-        self.input.input_buffer().push(item);
+        self.input.input_buffer().0.push(item);
+    }
+
+    pub fn push_command_buffer(&mut self, buffer: CommandBuffer) {
+        self.input.input_buffer().1.push(buffer);
     }
 
     pub fn submit(&mut self) {
@@ -114,7 +133,8 @@ impl RenderTask {
         self.signal_sender.try_send(()).ok();
 
         self.task.tick();
-        self.input.input_buffer().clear();
+        self.input.input_buffer().0.clear();
+        self.input.input_buffer().1.clear();
     }
 
     pub fn join(self) -> StoryboardSurfaceRenderer {
@@ -127,6 +147,8 @@ struct RenderTaskData {
     backend: Arc<StoryboardBackend>,
     configuration: Arc<(Mutex<SurfaceConfiguration>, AtomicBool)>,
     signal_receiver: Receiver<()>,
-    output: Output<TraitStack<dyn Drawable + 'static>>,
+    output: Output<(TraitStack<dyn Drawable + 'static>, Vec<CommandBuffer>)>,
     renderer: StoryboardSurfaceRenderer,
+
+    buffers: Vec<CommandBuffer>,
 }
