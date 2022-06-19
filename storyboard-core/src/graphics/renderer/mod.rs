@@ -144,7 +144,7 @@ impl StoryboardRenderer {
         drawables: impl ExactSizeIterator<Item = &'a dyn Drawable>,
         color_attachment: RenderPassColorAttachment,
     ) -> Option<CommandEncoder> {
-        if drawables.len() <= 0 {
+        if drawables.len() <= 0 || self.screen.0.area() <= 0 {
             return None;
         }
 

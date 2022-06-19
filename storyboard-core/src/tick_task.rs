@@ -12,10 +12,7 @@ use crossbeam_channel::bounded;
 use replace_with::replace_with_or_abort;
 
 #[derive(Debug)]
-pub enum DedicatedTickTask<T> {
-    Threaded(ThreadedTask<T>),
-    NonThreaded(NonThreadedTask<T>),
-}
+pub struct DedicatedTickTask<T>(TickTaskVariant<T>);
 
 impl<T: Send + 'static> DedicatedTickTask<T> {
     pub fn run(item: T, func: fn(&mut T)) -> Self {
@@ -53,10 +50,10 @@ impl<T: Send + 'static> DedicatedTickTask<T> {
         };
 
         match handle {
-            Ok(handle) => Self::Threaded(ThreadedTask {
+            Ok(handle) => Self(TickTaskVariant::Threaded(ThreadedTask {
                 interrupted,
                 handle: Some(handle),
-            }),
+            })),
 
             Err(_) => {
                 let (item, func) = receiver.try_recv().unwrap();
@@ -66,29 +63,29 @@ impl<T: Send + 'static> DedicatedTickTask<T> {
     }
 
     pub fn run_none_threaded(item: T, func: fn(&mut T)) -> Self {
-        Self::NonThreaded(NonThreadedTask {
+        Self(TickTaskVariant::NonThreaded(NonThreadedTask {
             interrupted: false,
             item,
             func,
-        })
+        }))
     }
 
     pub fn interrupted(&self) -> bool {
-        match self {
-            DedicatedTickTask::Threaded(task) => task.interrupted(),
-            DedicatedTickTask::NonThreaded(task) => task.interrupted(),
+        match &self.0 {
+            TickTaskVariant::Threaded(task) => task.interrupted(),
+            TickTaskVariant::NonThreaded(task) => task.interrupted(),
         }
     }
 
     pub fn interrupt(&mut self) {
-        match self {
-            DedicatedTickTask::Threaded(task) => task.interrupt(),
-            DedicatedTickTask::NonThreaded(task) => task.interrupt(),
+        match &mut self.0 {
+            TickTaskVariant::Threaded(task) => task.interrupt(),
+            TickTaskVariant::NonThreaded(task) => task.interrupt(),
         };
     }
     
     pub const fn threaded(&self) -> bool {
-        matches!(self, Self::Threaded(_))
+        matches!(self.0, TickTaskVariant::Threaded(_))
     }
 
     pub fn set_threaded(&mut self, threaded: bool) {
@@ -97,8 +94,8 @@ impl<T: Send + 'static> DedicatedTickTask<T> {
         }
 
         replace_with_or_abort(self, |this| {
-            match this {
-                DedicatedTickTask::Threaded(task) => {
+            match this.0 {
+                TickTaskVariant::Threaded(task) => {
                     let (item, func) = match task.handle.unwrap().join() {
                         Ok(items) => items,
                         Err(err) => panic::resume_unwind(err),
@@ -106,28 +103,34 @@ impl<T: Send + 'static> DedicatedTickTask<T> {
     
                     Self::run_none_threaded(item, func)
                 },
-                DedicatedTickTask::NonThreaded(task) => Self::run_threaded(task.item, task.func),
+                TickTaskVariant::NonThreaded(task) => Self::run_threaded(task.item, task.func),
             }
         });
     }
 
     pub fn tick(&mut self) {
-        match self {
-            DedicatedTickTask::Threaded(task) => task.tick(),
-            DedicatedTickTask::NonThreaded(task) => task.tick(),
+        match &mut self.0 {
+            TickTaskVariant::Threaded(task) => task.tick(),
+            TickTaskVariant::NonThreaded(task) => task.tick(),
         }
     }
 
     pub fn join(self) -> T {
-        match self {
-            Self::Threaded(task) => task.join(),
-            Self::NonThreaded(task) => task.item,
+        match self.0 {
+            TickTaskVariant::Threaded(task) => task.join(),
+            TickTaskVariant::NonThreaded(task) => task.join(),
         }
     }
 }
 
 #[derive(Debug)]
-pub struct ThreadedTask<T> {
+enum TickTaskVariant<T> {
+    Threaded(ThreadedTask<T>),
+    NonThreaded(NonThreadedTask<T>),
+}
+
+#[derive(Debug)]
+struct ThreadedTask<T> {
     interrupted: Arc<AtomicBool>,
     handle: Option<JoinHandle<(T, fn(&mut T))>>,
 }
@@ -155,7 +158,7 @@ impl<T> ThreadedTask<T> {
     }
 }
 
-pub struct NonThreadedTask<T> {
+struct NonThreadedTask<T> {
     interrupted: bool,
     item: T,
     func: fn(&mut T),
@@ -176,6 +179,7 @@ impl<T> NonThreadedTask<T> {
         }
     }
 
+    #[inline]
     pub fn join(self) -> T {
         self.item
     }
