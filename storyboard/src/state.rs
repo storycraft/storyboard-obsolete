@@ -93,9 +93,7 @@ impl StoryboardSystemProp {
         )
     }
 
-    pub fn get<'a, T: StoreResources<GlobalStoreContext<'a>>>(
-        &'a self,
-    ) -> &'a T {
+    pub fn get<'a, T: StoreResources<GlobalStoreContext<'a>>>(&'a self) -> &'a T {
         self.store.get(&GlobalStoreContext {
             backend: &self.backend,
             texture_data: &self.texture_data,
@@ -119,12 +117,11 @@ pub struct GlobalStoreContext<'a> {
 #[derive(Debug)]
 pub struct StoryboardSystemState<'a> {
     pub event: Event<'a, ()>,
-    
+
     pub render_task: &'a mut RenderTask,
 }
 
 impl<'a> StoryboardSystemState<'a> {
-
     #[inline]
     pub fn draw(&mut self, drawable: impl Drawable + 'static) {
         self.render_task.push(drawable);
