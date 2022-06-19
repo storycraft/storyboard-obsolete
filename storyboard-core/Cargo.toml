@@ -7,7 +7,7 @@ license = "MIT"
 
 [dependencies]
 # wgpu = "0.12.0"
-wgpu = { git = "https://github.com/gfx-rs/wgpu.git" }
+wgpu = { git = "https://github.com/gfx-rs/wgpu.git", rev = "aba7197fe84c3008ea48686b848916e0bdafabea" }
 rect_packer = "0.2.1"
 bytemuck = "1.9.1"
 palette = { version = "0.6.0", features = ["bytemuck"] }
@@ -18,3 +18,4 @@ parking_lot = "0.12.1"
 replace_with = "0.1.7"
 crossbeam-channel = "0.5"
 instant = "0.1.12"
+trait-stack = "0.1.1"

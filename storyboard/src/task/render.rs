@@ -15,9 +15,9 @@ use storyboard_core::{
         renderer::surface::{StoryboardSurfaceRenderer, SurfaceConfiguration},
     },
     tick_task::DedicatedTickTask,
-    trait_stack::TraitStack,
     wgpu::CommandBuffer,
 };
+use trait_stack::TraitStack;
 use triple_buffer::{Input, Output, TripleBuffer};
 
 #[derive(Debug)]
@@ -33,7 +33,7 @@ impl RenderTask {
     pub fn run(backend: Arc<StoryboardBackend>, renderer: StoryboardSurfaceRenderer) -> Self {
         let (input, output) = TripleBuffer::default().split();
 
-        let (signal_sender, signal_receiver) = bounded(1);
+        let (signal_sender, signal_receiver) = bounded(2);
 
         let configuration = renderer.configuration();
 

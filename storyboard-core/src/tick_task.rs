@@ -19,7 +19,13 @@ pub enum DedicatedTickTask<T> {
 
 impl<T: Send + 'static> DedicatedTickTask<T> {
     pub fn run(item: T, func: fn(&mut T)) -> Self {
-        Self::run_threaded(item, func)
+        #[cfg(debug_assertions)] {
+            Self::run_none_threaded(item, func)
+        }
+
+        #[cfg(not(debug_assertions))] {
+            Self::run_threaded(item, func)
+        }
     }
 
     /// Try running task on newly created thread. If thread cannot be made, fallback to [`DedicatedTickTask::run_none_threaded`]

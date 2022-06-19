@@ -5,6 +5,7 @@ pub mod surface;
 use std::{borrow::Cow, fmt::Debug, sync::Arc};
 
 use euclid::{Point2D, Rect, Size2D, Transform3D};
+use trait_stack::TraitStack;
 use wgpu::{Device, Queue};
 
 use self::{
@@ -21,7 +22,6 @@ use crate::{
     graphics::component::{Component, Drawable},
     observable::Observable,
     store::Store,
-    trait_stack::TraitStack,
     unit::{LogicalPixelUnit, PhyiscalPixelUnit, RenderUnit},
     wgpu::{
         BufferUsages, CommandEncoder, CommandEncoderDescriptor, CompareFunction, DepthBiasState,
@@ -142,7 +142,7 @@ impl StoryboardRenderer {
         device: &Device,
         queue: &Queue,
         drawables: impl ExactSizeIterator<Item = &'a dyn Drawable>,
-        mut color_attachment: RenderPassColorAttachment,
+        color_attachment: RenderPassColorAttachment,
     ) -> Option<CommandEncoder> {
         if drawables.len() <= 0 {
             return None;
@@ -206,7 +206,7 @@ impl StoryboardRenderer {
 
         let mut render_context = draw_context.into_render_context();
 
-        let mut depth_attachment = RenderPassDepthStencilAttachment {
+        let depth_attachment = RenderPassDepthStencilAttachment {
             view: self.depth_texture.as_ref().unwrap().inner(),
             depth_ops: Some(Operations {
                 load: LoadOp::Clear(1.0),
@@ -215,48 +215,32 @@ impl StoryboardRenderer {
             stencil_ops: None,
         };
 
-        if render_opaque {
-            {
-                let mut opaque_pass =
-                    StoryboardRenderPass::new(encoder.begin_render_pass(&RenderPassDescriptor {
-                        label: Some("StoryboardRenderer opaque render pass"),
-                        color_attachments: &[color_attachment.clone()],
-                        depth_stencil_attachment: Some(depth_attachment.clone()),
-                    }));
+        if render_opaque || render_transparent {
+            let mut pass =
+                StoryboardRenderPass::new(encoder.begin_render_pass(&RenderPassDescriptor {
+                    label: Some("StoryboardRenderer render pass"),
+                    color_attachments: &[color_attachment],
+                    depth_stencil_attachment: Some(depth_attachment),
+                }));
 
+            if render_opaque {
                 for component in self.opaque_component.iter().rev() {
-                    component.render_opaque(&mut render_context, &mut opaque_pass);
+                    component.render_opaque(&mut render_context, &mut pass);
                 }
             }
 
             if render_transparent {
-                if color_attachment.ops.load != LoadOp::Load {
-                    color_attachment.ops.load = LoadOp::Load;
-                }
-
-                depth_attachment.depth_ops = Some(Operations {
-                    load: LoadOp::Load,
-                    store: true,
-                });
-            }
-
-            self.opaque_component.clear();
-        }
-
-        if render_transparent {
-            {
-                let mut pass =
-                    StoryboardRenderPass::new(encoder.begin_render_pass(&RenderPassDescriptor {
-                        label: Some("StoryboardRenderer transparent render pass"),
-                        color_attachments: &[color_attachment],
-                        depth_stencil_attachment: Some(depth_attachment),
-                    }));
-
                 for component in self.transparent_component.iter() {
                     component.render_transparent(&mut render_context, &mut pass);
                 }
             }
+        }
 
+        if render_opaque {
+            self.opaque_component.clear();
+        }
+
+        if render_transparent {
             self.transparent_component.clear();
         }
 
@@ -270,11 +254,7 @@ impl StoryboardRenderer {
     ) -> Self {
         Self {
             store: self.store.clone(),
-            ..Self::new(
-                screen_size,
-                screen_scale,
-                self.screen_format,
-            )
+            ..Self::new(screen_size, screen_scale, self.screen_format)
         }
     }
 }

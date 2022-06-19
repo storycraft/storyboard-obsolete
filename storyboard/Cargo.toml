@@ -13,5 +13,6 @@ rustc-hash = "1.1.0"
 instant = "0.1.12"
 triple_buffer = "6.1.0"
 crossbeam-channel = "0.5.5"
+trait-stack = "0.1.1"
 
 parking_lot = "0.12.1"
