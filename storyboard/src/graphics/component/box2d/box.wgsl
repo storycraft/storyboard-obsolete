@@ -75,7 +75,7 @@ fn box2d(rect: vec4<f32>, border_radius: vec4<f32>, coord: vec2<f32>) -> vec3<f3
     let half_size = rect.zw / 2.0;
     let center = rect.xy + half_size;
 
-    let radius = border_radius[u32(center.y - coord.y <= 0.0) * u32(2) + u32(center.x - coord.x <= 0.0)];
+    let radius = border_radius[u32(center.y - coord.y <= 0.0) * 2u + u32(center.x - coord.x <= 0.0)];
 
     let dist = max(abs(center - coord) - half_size + radius, vec2<f32>(0.0, 0.0));
 
@@ -136,7 +136,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     }
 
     // Border
-    if (max(box.x, box.y) <= box.z + in.border_thickness && box_dist < in.border_thickness + 1.0 && box_dist > 0.0) {
+    if (max(box.x, box.y) <= box.z + in.border_thickness && box_dist < in.border_thickness + 1.0 && box_dist >= 0.0) {
         let t = 1.0 - max(box_dist - in.border_thickness, 0.0);
         color = blend(color, in.border_color, t);
     }

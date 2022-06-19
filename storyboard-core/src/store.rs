@@ -22,7 +22,7 @@ impl Store {
         }
     }
 
-    pub fn get<'a, T: StoreResources<Context> + Sized + 'static, Context>(
+    pub fn get<'a, T: StoreResources<Context>, Context>(
         &'a self,
         ctx: &Context,
     ) -> &'a T {
@@ -51,7 +51,7 @@ impl Drop for Store {
     }
 }
 
-pub trait StoreResources<Context>: Send + Sync {
+pub trait StoreResources<Context>: 'static + Send + Sync {
     fn initialize(store: &Store, ctx: &Context) -> Self;
 }
 
@@ -92,7 +92,7 @@ mod tests {
             assert_eq!(store.get::<ResA, _>(&()).number, 32);
         }
 
-        println!("Elapsed: {} ns", instant.elapsed().as_nanos());
+        println!("Elapsed: {} ms", instant.elapsed().as_nanos() as f32 / 1_000_000.0);
 
         assert_eq!(store.get::<ResB, _>(&()).string, "test");
     }

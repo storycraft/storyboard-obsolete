@@ -93,8 +93,8 @@ impl StoryboardSystemProp {
         )
     }
 
-    pub fn get<'a, T: StoreResources<GlobalStoreContext<'a>> + Sized + 'static>(
-        &'a mut self,
+    pub fn get<'a, T: StoreResources<GlobalStoreContext<'a>>>(
+        &'a self,
     ) -> &'a T {
         self.store.get(&GlobalStoreContext {
             backend: &self.backend,

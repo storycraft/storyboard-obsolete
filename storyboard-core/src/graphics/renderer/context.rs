@@ -49,7 +49,7 @@ impl<'a> DrawContext<'a> {
         }
     }
 
-    pub fn get<T: StoreResources<BackendContext<'a>> + Sized + 'static>(&self) -> &'a T {
+    pub fn get<T: StoreResources<BackendContext<'a>>>(&self) -> &'a T {
         self.resources.get(&self.backend)
     }
 }
@@ -66,7 +66,7 @@ pub struct RenderContext<'a> {
 }
 
 impl<'a> RenderContext<'a> {
-    pub fn get<T: StoreResources<BackendContext<'a>> + Sized + 'static>(&self) -> &'a T {
+    pub fn get<T: StoreResources<BackendContext<'a>>>(&self) -> &'a T {
         self.resources.get(&self.backend)
     }
 }
