@@ -136,13 +136,13 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     }
 
     // Border
-    if (max(box.x, box.y) <= box.z + in.border_thickness && box_dist < in.border_thickness + 1.0 && box_dist >= 0.0) {
+    if (box_dist <= box.z + in.border_thickness && box_dist < in.border_thickness + 1.0 && box_dist >= 0.0) {
         let t = 1.0 - max(box_dist - in.border_thickness, 0.0);
         color = blend(color, in.border_color, t);
     }
 
     // Fill Color
-    if (max(box.x, box.y) <= box.z && box_dist < 1.0) {
+    if (box_dist <= box.z && box_dist < 1.0) {
         color = blend(color, fill_color, (1.0 - box_dist));
     }
 
