@@ -15,7 +15,7 @@ use storyboard_core::{
         renderer::surface::{StoryboardSurfaceRenderer, SurfaceConfiguration},
     },
     tick_task::DedicatedTickTask,
-    wgpu::CommandBuffer,
+    wgpu::{CommandBuffer, Maintain},
 };
 use trait_stack::TraitStack;
 use triple_buffer::{Input, Output, TripleBuffer};
@@ -63,14 +63,11 @@ impl RenderTask {
                             data.backend.queue(),
                             data.output.output_buffer().0.iter(),
                         ) {
-                            if data.output.output_buffer().1.len() > 0 {
-                                data.backend.queue().submit(
-                                    iter::once(res.command_buffer)
-                                        .chain(data.output.output_buffer().1.drain(..)),
-                                );
-                            } else {
-                                data.backend.queue().submit(iter::once(res.command_buffer));
-                            }
+                            data.backend.device().poll(Maintain::Wait);
+                            data.backend.queue().submit(
+                                iter::once(res.command_buffer)
+                                    .chain(data.output.output_buffer().1.drain(..)),
+                            );
 
                             res.surface_texture.present();
                             return;
@@ -78,6 +75,7 @@ impl RenderTask {
                     }
 
                     if data.output.output_buffer().1.len() > 0 {
+                        data.backend.device().poll(Maintain::Wait);
                         data.backend
                             .queue()
                             .submit(data.output.output_buffer().1.drain(..));

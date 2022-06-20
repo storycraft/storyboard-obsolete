@@ -123,12 +123,8 @@ pub struct Box2DComponent {
 
 impl Box2DComponent {
     pub fn from_box2d(box2d: &Box2D, ctx: &mut DrawContext, depth: f32) -> Self {
-        let bounds_inflation = box2d.style.border_thickness + box2d.style.glow_radius;
-        let mut inflated_bounds = if bounds_inflation > 0.0 {
-            box2d.bounds.inflate(bounds_inflation, bounds_inflation)
-        } else {
-            box2d.bounds
-        };
+        let bounds_inflation = box2d.style.border_thickness + box2d.style.glow_radius + 1.0;
+        let mut inflated_bounds = box2d.bounds.inflate(bounds_inflation, bounds_inflation);
 
         let mut shadow_bounds = box2d.bounds.translate(box2d.style.shadow_offset);
         if box2d.style.shadow_radius > 0.0 {
