@@ -15,10 +15,11 @@ use crate::font::Font;
 use super::GlyphOutlineBuilder;
 
 pub struct GlyphCache {
-    pages: ConstGenericRingBuffer<GlyphAtlasMap, 8>,
+    pages: ConstGenericRingBuffer<GlyphAtlasMap, {Self::PAGES}>,
 }
 
 impl GlyphCache {
+    pub const PAGES: usize = 8;
     pub const PAGE_SIZE_LIMIT: u32 = 256;
 
     pub fn new() -> Self {
@@ -28,7 +29,7 @@ impl GlyphCache {
     }
 
     #[inline]
-    pub fn get_batch(
+    pub fn batch_glyphs(
         &mut self,
         device: &Device,
         queue: &Queue,
@@ -36,10 +37,10 @@ impl GlyphCache {
         indices: impl Iterator<Item = u16>,
         size_px: u32,
     ) -> SmallVec<[GlyphBatch; 2]> {
-        self.get_batch_inner(device, queue, font, indices.peekable(), size_px)
+        self.batch_glyphs_inner(device, queue, font, indices.peekable(), size_px)
     }
 
-    fn get_batch_inner(
+    fn batch_glyphs_inner(
         &mut self,
         device: &Device,
         queue: &Queue,
@@ -58,7 +59,7 @@ impl GlyphCache {
             let mut rects = Vec::new();
             while let Some(index) = indices.next() {
                 let key = GlyphKey {
-                    font_file_hash: Font::file_hash(&font),
+                    font_hash: Font::font_hash(&font),
                     index,
                     size_px,
                 };
@@ -85,7 +86,7 @@ impl GlyphCache {
                 GlyphAtlasMap::init(device, Size2D::new(1024, 1024), TextureFormat::R8Unorm);
             self.pages.push(atlas);
 
-            vec.append(&mut self.get_batch_inner(device, queue, font, indices, size_px));
+            vec.append(&mut self.batch_glyphs_inner(device, queue, font, indices, size_px));
         }
 
         vec
@@ -106,7 +107,7 @@ pub struct GlyphBatch {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct GlyphKey {
-    pub font_file_hash: u64,
+    pub font_hash: u64,
     pub index: u16,
     pub size_px: u32,
 }
@@ -114,7 +115,7 @@ pub struct GlyphKey {
 impl GlyphKey {
     pub const fn new(font_file_hash: u64, index: u16, size_px: u32) -> Self {
         Self {
-            font_file_hash,
+            font_hash: font_file_hash,
             index,
             size_px,
         }
@@ -163,7 +164,7 @@ impl GlyphAtlasMap {
         size_px: u32,
     ) -> Option<GlyphTextureRect> {
         let key = GlyphKey {
-            font_file_hash: Font::file_hash(font),
+            font_hash: Font::font_hash(font),
             index,
             size_px,
         };
@@ -225,6 +226,8 @@ pub struct GlyphTextureRect {
 
 #[cfg(test)]
 mod tests {
+    use std::borrow::Cow;
+
     use storyboard::core::wgpu::{Backends, Features, Instance};
 
     use storyboard::core::graphics::backend::{BackendOptions, StoryboardBackend};
@@ -247,13 +250,13 @@ mod tests {
 
         println!("backend: {:?}", backend);
 
-        let font = Font::from_slice(FONT, 0).unwrap();
+        let font = Font::new(Cow::Borrowed(FONT), 0).unwrap();
 
         let mut cache = GlyphCache::new();
 
         println!(
             "Batch: {:?}",
-            cache.get_batch(
+            cache.batch_glyphs(
                 backend.device(),
                 backend.queue(),
                 &font,

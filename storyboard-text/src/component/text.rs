@@ -26,28 +26,25 @@ use crate::{
 
 use super::TextRenderBatch;
 
-pub struct Text<'face> {
+pub struct Text {
     pub position: Point2D<f32, LogicalPixelUnit>,
     pub size_px: u32,
-    pub color: ShapeColor<4>,
 
     text: Observable<Cow<'static, str>>,
-    shaper: Observable<allsorts::Font<Font<'face>>>,
+    shaper: Observable<allsorts::Font<Font>>,
     batches: Arc<Vec<TextRenderBatch>>,
 }
 
-impl<'face> Text<'face> {
+impl Text {
     pub fn new(
         position: Point2D<f32, LogicalPixelUnit>,
         size_px: u32,
-        color: ShapeColor<4>,
-        font: Font<'face>,
+        font: Font,
         text: Cow<'static, str>,
     ) -> Self {
         Self {
             position,
             size_px,
-            color,
             shaper: allsorts::Font::new(font).unwrap().unwrap().into(),
             text: text.into(),
 
@@ -55,11 +52,11 @@ impl<'face> Text<'face> {
         }
     }
 
-    pub fn font(&self) -> &Font<'face> {
+    pub fn font(&self) -> &Font {
         &self.shaper.font_table_provider
     }
 
-    pub fn set_font(&mut self, font: Font<'face>) {
+    pub fn set_font(&mut self, font: Font) {
         self.shaper = allsorts::Font::new(font).unwrap().unwrap().into();
     }
 
@@ -75,11 +72,11 @@ impl<'face> Text<'face> {
         &mut self,
         device: &Device,
         queue: &Queue,
+        color: &ShapeColor<4>,
         scale_factor: f32,
         textures: &TextureData,
-        cache: &mut GlyphCache,
-        mut submit: impl FnMut(TextDrawable),
-    ) {
+        cache: &mut GlyphCache
+    ) -> TextDrawable {
         let font_invalidated = Observable::invalidate(&mut self.shaper);
         let text_invalidated = Observable::invalidate(&mut self.text);
 
@@ -89,7 +86,7 @@ impl<'face> Text<'face> {
                 .map_glyphs(&self.text, 0, MatchingPresentation::NotRequired);
 
             let scaled_size = (self.size_px as f32 * scale_factor).ceil() as u32;
-            let view_batches = cache.get_batch(
+            let view_batches = cache.batch_glyphs(
                 device,
                 queue,
                 &self.shaper.font_table_provider,
@@ -155,19 +152,18 @@ impl<'face> Text<'face> {
             self.batches = Arc::new(batches);
         }
 
-        submit(TextDrawable {
+        TextDrawable {
             batches: self.batches.clone(),
-            color: self.color.clone(),
-        });
+            color: color.clone(),
+        }
     }
 }
 
-impl Debug for Text<'_> {
+impl Debug for Text {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Text")
             .field("position", &self.position)
             .field("size_px", &self.size_px)
-            .field("color", &self.color)
             .field("text", &self.text)
             .field("glyphs", &self.batches)
             .finish_non_exhaustive()
