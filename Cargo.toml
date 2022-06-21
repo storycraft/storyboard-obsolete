@@ -6,5 +6,7 @@ members = [
     "storyboard-layout",
     "storyboard-text",
     "storyboard",
-    "storyboard-visual-test"
+
+    "examples/visual-test",
+    "examples/sample-player"
 ]

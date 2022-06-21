@@ -22,4 +22,4 @@ See examples folder for example projects
 5. [x] Primitive(Triangle, Rect) shape rendering
 6. [x] Box rendering (Rect with border, rounded border, shadow, glow effects)
 7. [ ] Path rendering module (in development)
-8. [x] Text rendering module
+8. [ ] Text rendering module (in development)
