@@ -110,6 +110,7 @@ impl<Data: StateData> StateSystem<Data> {
                 StateStatus::Wait => SystemStatus::Wait,
 
                 StateStatus::PushState(mut next_state) => {
+                    state.unload(system_prop);
                     next_state.load(system_prop);
                     self.stack.push(next_state);
 
@@ -126,6 +127,9 @@ impl<Data: StateData> StateSystem<Data> {
 
                 StateStatus::PopState => {
                     self.stack.pop().unwrap().unload(system_prop);
+                    if let Some(last_state) = self.stack.last_mut() {
+                        last_state.load(system_prop);   
+                    }
 
                     SystemStatus::Poll
                 }
