@@ -14,7 +14,7 @@ use storyboard_core::{
         component::Drawable,
         renderer::surface::{StoryboardSurfaceRenderer, SurfaceConfiguration},
     },
-    tick_task::DedicatedTickTask,
+    tick_task::IndependentTickTask,
     wgpu::{CommandBuffer, Maintain},
 };
 use trait_stack::TraitStack;
@@ -26,7 +26,7 @@ pub struct RenderTask {
     input: Input<(TraitStack<dyn Drawable + 'static>, Vec<CommandBuffer>)>,
 
     signal_sender: Sender<()>,
-    task: DedicatedTickTask<RenderTaskData>,
+    task: IndependentTickTask<RenderTaskData>,
 }
 
 impl RenderTask {
@@ -47,7 +47,7 @@ impl RenderTask {
             renderer,
         };
 
-        let task = DedicatedTickTask::run(data, |data| {
+        let task = IndependentTickTask::run(data, |data| {
             if let Ok(_) = data.signal_receiver.recv() {
                 if data.configuration.1.load(Ordering::Relaxed) {
                     data.configuration.1.store(false, Ordering::Relaxed);

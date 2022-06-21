@@ -12,9 +12,10 @@ use crossbeam_channel::bounded;
 use replace_with::replace_with_or_abort;
 
 #[derive(Debug)]
-pub struct DedicatedTickTask<T>(TickTaskVariant<T>);
+/// Run Repeated task on current / other thread independently
+pub struct IndependentTickTask<T>(TickTaskVariant<T>);
 
-impl<T: Send + 'static> DedicatedTickTask<T> {
+impl<T: Send + 'static> IndependentTickTask<T> {
     pub fn run(item: T, func: fn(&mut T)) -> Self {
         #[cfg(debug_assertions)] {
             Self::run_none_threaded(item, func)
@@ -89,6 +90,7 @@ impl<T: Send + 'static> DedicatedTickTask<T> {
     }
 
     pub fn set_threaded(&mut self, threaded: bool) {
+        // Ensure the task is not interrupted since switching mode will revive task.
         if self.interrupted() || self.threaded() == threaded {
             return;
         }
