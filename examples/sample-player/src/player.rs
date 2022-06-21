@@ -118,8 +118,8 @@ impl State<StoryboardStateData> for Player {
                     self.fft.process(&mut buf);
 
                     for i in 0..self.bars.len() {
-                        let start = i * i * 8;
-                        let end = (i + 1) * (i + 1) * 8;
+                        let start = (i + 1) * (i + 1) * 8;
+                        let end = (i + 2) * (i + 2) * 8;
 
                         let sum = buf[start..end]
                             .iter()

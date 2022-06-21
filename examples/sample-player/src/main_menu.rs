@@ -42,7 +42,7 @@ impl State<StoryboardStateData> for AppMain {
             Point2D::new(10.0, 10.0),
             32,
             Font::new(Cow::Borrowed(FONT), 0).unwrap(),
-            Cow::Borrowed("Drag drop music file to play"),
+            Cow::Borrowed("Drag drop audio file to play"),
         ));
         system_prop.request_redraw();
     }
