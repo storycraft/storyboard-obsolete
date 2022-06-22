@@ -3,11 +3,10 @@ use std::{borrow::Cow, fs::File, io::BufReader};
 use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
 use storyboard::{
     core::{
-        component::color::ShapeColor,
+        color::ShapeColor,
         euclid::Point2D,
-        state::{State, StateStatus},
     },
-    state::{StoryboardStateData, StoryboardSystemProp, StoryboardSystemState},
+    state::{StoryboardStateData, StoryboardSystemProp, StoryboardSystemState, StoryboardStateStatus, State},
     winit::event::{Event, WindowEvent},
 };
 use storyboard_text::{cache::GlyphCache, component::text::Text, font::Font};
@@ -55,7 +54,7 @@ impl State<StoryboardStateData> for AppMain {
         &mut self,
         system_prop: &StoryboardSystemProp,
         system_state: &mut StoryboardSystemState,
-    ) -> StateStatus<StoryboardStateData> {
+    ) -> StoryboardStateStatus {
         match &system_state.event {
             Event::RedrawRequested(_) => {
                 system_state.draw(self.text.as_mut().unwrap().draw(
@@ -74,7 +73,7 @@ impl State<StoryboardStateData> for AppMain {
             } => {
                 if let Ok(file) = File::open(path) {
                     if let Ok(decoder) = Decoder::new(BufReader::new(file)) {
-                        return StateStatus::PushState(Box::new(Player::new(
+                        return StoryboardStateStatus::PushState(Box::new(Player::new(
                             Sink::try_new(&self.handle).unwrap(),
                             decoder,
                         )));
@@ -90,12 +89,12 @@ impl State<StoryboardStateData> for AppMain {
                 window_id: _,
                 event: WindowEvent::CloseRequested,
             } => {
-                return StateStatus::PopState;
+                return StoryboardStateStatus::PopState;
             }
 
             _ => {}
         };
 
-        StateStatus::Wait
+        StoryboardStateStatus::Wait
     }
 }

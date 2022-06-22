@@ -1,32 +1,28 @@
 // Nightly features
 #![feature(generic_associated_types)]
 
-pub mod graphics;
-pub mod math;
 pub mod state;
-pub mod task;
 
 // Reexports
 pub use storyboard_core as core;
-use task::render::RenderTask;
+pub use storyboard_texture as texture;
+pub use storyboard_render as render;
 pub use winit;
 
-use graphics::texture::data::TextureData;
 use instant::Instant;
 
 use state::{StoryboardStateData, StoryboardSystemProp, StoryboardSystemState};
 use std::{sync::Arc, time::Duration};
-use storyboard_core::{
-    euclid::Size2D,
-    graphics::{
-        backend::{BackendInitError, BackendOptions, StoryboardBackend},
-        renderer::surface::{StoryboardSurfaceRenderer, SurfaceConfiguration},
-    },
-    state::{State, StateSystem, SystemStatus},
-    store::Store,
+use storyboard_core::{euclid::Size2D, store::Store};
+use storyboard_render::{
+    backend::{BackendInitError, BackendOptions, StoryboardBackend},
+    renderer::surface::{StoryboardSurfaceRenderer, SurfaceConfiguration},
+    task::RenderTask,
     wgpu::TextureFormat,
     wgpu::{Backends, Features, Instance, PresentMode, Surface},
 };
+use storyboard_state::{State, StateSystem, SystemStatus};
+use storyboard_texture::render::data::TextureData;
 use winit::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -185,7 +181,7 @@ impl Storyboard {
                 }
 
                 _ => {}
-            };
+            }
 
             let status = state_system.run(&system_prop, &mut system_state);
 
@@ -198,13 +194,19 @@ impl Storyboard {
                     SystemStatus::Poll => ControlFlow::Poll,
                     SystemStatus::Wait => ControlFlow::Wait,
                 }
-            };
-
-            if let Event::RedrawRequested(_) = &system_state.event {
-                system_state.render_task.submit();
             }
 
-            system_prop.elapsed = instant.elapsed();
+            match &system_state.event {
+                Event::RedrawRequested(_) => {
+                    system_state.render_task.submit();
+                }
+
+                Event::MainEventsCleared => {
+                    system_prop.elapsed = instant.elapsed();
+                }
+
+                _ => {}
+            }
         })
     }
 }

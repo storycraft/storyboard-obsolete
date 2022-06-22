@@ -3,8 +3,8 @@ pub mod player;
 
 use main_menu::AppMain;
 use storyboard::{
-    core::{
-        graphics::backend::BackendOptions,
+    render::{
+        backend::BackendOptions,
         wgpu::{PowerPreference, PresentMode},
     },
     winit::{

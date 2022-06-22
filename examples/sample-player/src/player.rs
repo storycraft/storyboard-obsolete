@@ -8,14 +8,13 @@ use rodio::{buffer::SamplesBuffer, Decoder, Sink, Source};
 use rustfft::{num_complex::Complex, Fft, FftPlanner};
 use storyboard::{
     core::{
-        component::color::ShapeColor,
+        color::ShapeColor,
         euclid::{Point2D, Rect, Size2D},
-        state::{State, StateStatus},
     },
-    graphics::component::box2d::{Box2D, Box2DStyle},
-    state::{StoryboardStateData, StoryboardSystemProp, StoryboardSystemState},
+    state::{StoryboardStateData, StoryboardSystemProp, StoryboardSystemState, StoryboardStateStatus, State},
     winit::event::{Event, WindowEvent},
 };
+use storyboard_box2d::{Box2D, Box2DStyle};
 
 pub const BAR_COUNT: usize = 36;
 pub struct Player {
@@ -72,7 +71,7 @@ impl State<StoryboardStateData> for Player {
         &mut self,
         system_prop: &StoryboardSystemProp,
         system_state: &mut StoryboardSystemState,
-    ) -> StateStatus<StoryboardStateData> {
+    ) -> StoryboardStateStatus {
         match &system_state.event {
             Event::RedrawRequested(_) => {
                 let (_, win_height): (u32, u32) = system_prop.window.inner_size().into();
@@ -129,7 +128,7 @@ impl State<StoryboardStateData> for Player {
                         self.bars[i] = sum / self.bars.len() as f32 / 2.0;
                     }
                 } else {
-                    return StateStatus::PopState;
+                    return StoryboardStateStatus::PopState;
                 }
 
                 system_prop.request_redraw();
@@ -139,12 +138,12 @@ impl State<StoryboardStateData> for Player {
                 window_id: _,
                 event: WindowEvent::CloseRequested,
             } => {
-                return StateStatus::PopState;
+                return StoryboardStateStatus::PopState;
             }
 
             _ => {}
         };
 
-        StateStatus::Poll
+        StoryboardStateStatus::Poll
     }
 }

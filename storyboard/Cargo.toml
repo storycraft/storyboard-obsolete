@@ -5,13 +5,15 @@ edition = "2021"
 license = "MIT"
 
 [dependencies]
-storyboard-core = { path = "../storyboard-core" }
+storyboard-core = { path = "../crates/core" }
+storyboard-texture = { path = "../crates/texture" }
+storyboard-render = { path = "../crates/render" }
+storyboard-state = { path = "../crates/state" }
 
 winit = "0.26.1"
 bytemuck = { version = "1.9.1", features = ["derive"] }
 rustc-hash = "1.1.0"
 instant = "0.1.12"
-triple_buffer = "6.1.0"
 crossbeam-channel = "0.5.5"
 trait-stack = "0.1.1"
 

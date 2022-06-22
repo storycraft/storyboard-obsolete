@@ -1,0 +1,20 @@
+[package]
+name = "storyboard-render"
+description = "storyboard core rendering infrastructure"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+storyboard-core = { path = "../core" }
+
+# wgpu = "0.12.0"
+wgpu = { git = "https://github.com/gfx-rs/wgpu.git", rev = "aba7197fe84c3008ea48686b848916e0bdafabea" }
+bytemuck = "1.9.1"
+rect_packer = "0.2.1"
+rustc-hash = "1.1.0"
+parking_lot = "0.12.1"
+triple_buffer = "6.1.0"
+replace_with = "0.1.7"
+crossbeam-channel = "0.5"
+trait-stack = "0.1.1"

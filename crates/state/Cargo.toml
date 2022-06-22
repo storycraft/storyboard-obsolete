@@ -1,0 +1,9 @@
+[package]
+name = "storyboard-state"
+description = "Storyboard state system"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+smallvec = "1.8.0"

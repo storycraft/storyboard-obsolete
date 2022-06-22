@@ -2,9 +2,16 @@
 resolver = "2"
 
 members = [
-    "storyboard-core",
-    "storyboard-layout",
-    "storyboard-text",
+    "crates/core",
+    "crates/texture",
+    "crates/state",
+    "crates/layout",
+    "crates/render",
+
+    "components/primitive",
+    "components/box2d",
+    "components/text",
+    
     "storyboard",
 
     "examples/visual-test",

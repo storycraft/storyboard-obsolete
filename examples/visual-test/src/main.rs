@@ -2,20 +2,18 @@ use std::{borrow::Cow, sync::Arc};
 
 use storyboard::{
     core::{
-        component::color::ShapeColor,
+        color::ShapeColor,
         euclid::{Point2D, Rect, Size2D, Vector2D},
-        graphics::backend::BackendOptions,
-        state::State,
         unit::LogicalPixelUnit,
+    },
+    render::{
+        backend::BackendOptions,
         wgpu::{PowerPreference, PresentMode, TextureFormat, TextureUsages},
     },
-    graphics::component::{
-        box2d::{Box2D, Box2DStyle},
-        texture::{ComponentTexture, TextureLayout, TextureLayoutStyle, TextureWrap},
-    },
     state::{
-        StoryboardStateData, StoryboardStateStatus, StoryboardSystemProp, StoryboardSystemState,
+        StoryboardStateData, StoryboardStateStatus, StoryboardSystemProp, StoryboardSystemState, State,
     },
+    texture::{ComponentTexture, TextureLayout, TextureLayoutStyle, TextureWrap},
     winit::{
         event::{Event, WindowEvent},
         event_loop::EventLoop,
@@ -23,6 +21,7 @@ use storyboard::{
     },
     Storyboard,
 };
+use storyboard_box2d::{Box2D, Box2DStyle};
 use storyboard_text::{cache::GlyphCache, component::text::Text, font::Font};
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -96,12 +95,7 @@ impl SampleApp {
             texture: None,
             cursor: Default::default(),
             cache: GlyphCache::new(),
-            text: Text::new(
-                Point2D::new(100.0, 100.0),
-                32,
-                font,
-                Cow::Borrowed(""),
-            ),
+            text: Text::new(Point2D::new(100.0, 100.0), 32, font, Cow::Borrowed("")),
         }
     }
 }
@@ -170,7 +164,7 @@ impl State<StoryboardStateData> for SampleApp {
                 &ShapeColor::WHITE,
                 system_prop.window.scale_factor() as _,
                 &system_prop.texture_data,
-                &mut self.cache
+                &mut self.cache,
             ));
         } else if let Event::WindowEvent {
             event: WindowEvent::CloseRequested,

@@ -1,0 +1,10 @@
+[package]
+name = "storyboard-texture"
+description = "storyboard component texture data"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+storyboard-core = { path = "../core" }
+storyboard-render = { path = "../render" }

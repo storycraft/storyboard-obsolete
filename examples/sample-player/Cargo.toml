@@ -5,7 +5,8 @@ edition = "2021"
 
 [dependencies]
 storyboard = { path = "../../storyboard" }
-storyboard-text = { path = "../../storyboard-text" }
+storyboard-text = { path = "../../components/text" }
+storyboard-box2d = { path = "../../components/box2d" }
 
 futures = "0.3.21"
 instant = "0.1.12"

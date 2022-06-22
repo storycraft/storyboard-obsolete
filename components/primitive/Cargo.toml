@@ -1,0 +1,13 @@
+[package]
+name = "storyboard-primitive"
+description = "Primitive 2d shape rendering component"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+storyboard-core = { path = "../../crates/core" }
+storyboard-render = { path = "../../crates/render" }
+storyboard-texture = { path = "../../crates/texture" }
+
+bytemuck = "1.9.1"
