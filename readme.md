@@ -1,8 +1,9 @@
 # Storyboard
-GPU accelerated 2D renderer using wgpu and simple flexible framework on it using winit
+GPU accelerated 2D framework using wgpu and winit
 
-* See `storyboard-core` crate for core renderer.
 * See `storyboard` crate for framework.
+* See `componenets` directory for provided draw components.
+* See `crates` directory for individual parts of framework.
 
 ## Features
 1. State based app. Easy to maintenance and extend.
@@ -12,7 +13,7 @@ GPU accelerated 2D renderer using wgpu and simple flexible framework on it using
 5. Nonthreaded / Threaded rendering switching support for low latency app.
 
 ## Examples
-See examples folder for example projects
+See `examples` directory for example projects
 
 ## TODO
 1. [ ] Layout system
