@@ -17,13 +17,11 @@ use storyboard_texture::render::{data::TextureData, RenderTexture2D};
 
 use crate::{
     cache::GlyphCache,
-    component::{GlyphRect, TextDrawable},
+    component::{GlyphRect, TextDrawable, TextRenderBatch},
     font::Font,
 };
 
-use super::TextRenderBatch;
-
-pub struct Text {
+pub struct TextLayout {
     pub position: Point2D<f32, LogicalPixelUnit>,
     pub size_px: u32,
 
@@ -32,7 +30,7 @@ pub struct Text {
     batches: Arc<Vec<TextRenderBatch>>,
 }
 
-impl Text {
+impl TextLayout {
     pub fn new(
         position: Point2D<f32, LogicalPixelUnit>,
         size_px: u32,
@@ -155,13 +153,13 @@ impl Text {
     }
 }
 
-impl Debug for Text {
+impl Debug for TextLayout {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Text")
             .field("position", &self.position)
             .field("size_px", &self.size_px)
             .field("text", &self.text)
-            .field("glyphs", &self.batches)
+            .field("batches", &self.batches)
             .finish_non_exhaustive()
     }
 }
