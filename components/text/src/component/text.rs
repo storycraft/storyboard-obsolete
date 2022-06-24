@@ -78,23 +78,15 @@ impl Text {
         let text_invalidated = Observable::invalidate(&mut self.text);
 
         if font_invalidated || text_invalidated {
-            let glyphs = self
+            let scaled_size = (self.size_px as f32 * scale_factor).ceil() as u32;
+
+            let indices = self
                 .shaper
                 .map_glyphs(&self.text, 0, MatchingPresentation::NotRequired);
 
-            let scaled_size = (self.size_px as f32 * scale_factor).ceil() as u32;
-            let view_batches = cache.batch_glyphs(
-                device,
-                queue,
-                &self.shaper.font_table_provider,
-                glyphs.iter().map(|glyph| glyph.glyph_index),
-                scaled_size,
-            );
-
             let mut batches = Vec::new();
-
             if let Ok(infos) = self.shaper.shape(
-                glyphs,
+                indices,
                 0,
                 None,
                 &Features::Mask(FeatureMask::default()),
@@ -103,11 +95,18 @@ impl Text {
                 let scale =
                     self.size_px as f32 / self.shaper.font_table_provider.units_per_em() as f32;
 
+                let view_batches = cache.batch_glyphs(
+                    device,
+                    queue,
+                    &self.shaper.font_table_provider,
+                    infos.iter().map(|info| info.glyph.glyph_index),
+                    scaled_size,
+                );
+
                 let mut layout =
                     GlyphLayout::new(&mut self.shaper, &infos, TextDirection::LeftToRight, false);
 
                 let positions = layout.glyph_positions().unwrap();
-
                 let mut positions_iter = positions.iter();
 
                 let mut offset = Vector2D::<f32, LogicalPixelUnit>::new(0.0, 0.0);

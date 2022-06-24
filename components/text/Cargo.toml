@@ -10,10 +10,10 @@ storyboard-core = { path = "../../crates/core" }
 storyboard-render = { path = "../../crates/render" }
 storyboard-texture = { path = "../../crates/texture" }
 
-bytemuck = "1.9.1"
+bytemuck = { version = "1.9.1", features = [ "derive" ] }
 smallvec = "1.8.0"
 
-allsorts = { version = "0.9.0", default-features = false, features = ["flate2_rust"] }
+allsorts = { version = "0.10.0", default-features = false, features = ["flate2_rust"] }
 ringbuffer = "0.8.4"
 ttf-parser = "0.15.1"
 ab_glyph_rasterizer = "0.1.5"

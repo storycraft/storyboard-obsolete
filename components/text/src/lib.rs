@@ -1,7 +1,6 @@
 pub mod cache;
 pub mod component;
 pub mod font;
-pub mod layout;
 
 use font::Font;
 

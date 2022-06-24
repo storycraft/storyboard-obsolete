@@ -209,13 +209,14 @@ impl GlyphAtlasMap {
                             .cast_unit(),
                     },
                 );
+
+                self.get_rect(&key)
             }
+
             None => {
-                return Some(GlyphTextureRect::default());
+                Some(GlyphTextureRect::default())
             }
         }
-
-        self.get_rect(&key)
     }
 }
 
