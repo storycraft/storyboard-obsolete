@@ -186,14 +186,18 @@ impl GlyphAtlasMap {
                     -1.0 * size_px as f32 * bounding_box.y_min as f32 / font.units_per_em() as f32,
                 );
 
-                let rect: Rect<u32, PhyiscalPixelUnit> = self.texture.pack(
-                    queue,
-                    Size2D::new(
-                        rasterizer.dimensions().0 as u32,
-                        rasterizer.dimensions().1 as u32,
-                    ),
-                    &data,
-                )?;
+                let rect: Rect<u32, PhyiscalPixelUnit> = if data.len() > 0 {
+                    self.texture.pack(
+                        queue,
+                        Size2D::new(
+                            rasterizer.dimensions().0 as u32,
+                            rasterizer.dimensions().1 as u32,
+                        ),
+                        &data,
+                    )?
+                } else {
+                    Rect::zero()
+                };
 
                 self.map.insert(
                     key,
