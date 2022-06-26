@@ -87,7 +87,7 @@ fn box_distance(box2d: vec3<f32>) -> f32 {
 }
 
 fn blend(source: vec4<f32>, dest: vec4<f32>, alpha: f32) -> vec4<f32> {
-    return vec4<f32>(source.xyz * (1.0 - alpha) + dest.xyz * alpha, alpha);
+    return vec4<f32>(source.xyz * (1.0 - alpha) + dest.xyz * alpha, dest.a * alpha);
 }
 
 fn wrap_texture_coord(coord: f32, wrap_mode: u32) -> f32 {
