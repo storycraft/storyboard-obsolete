@@ -16,7 +16,7 @@ use layout::TextLayout;
 use rustybuzz::UnicodeBuffer;
 use storyboard_core::{
     color::ShapeColor,
-    euclid::{Point2D, Rect, Vector2D},
+    euclid::{Point2D, Rect, Vector2D, Box2D},
     observable::Observable,
     unit::LogicalPixelUnit,
 };
@@ -36,6 +36,8 @@ pub struct Text {
     text: Observable<Cow<'static, str>>,
     font: Observable<Font>,
 
+    bounding_box: Box2D<f32, LogicalPixelUnit>,
+
     batches: Arc<Vec<TextRenderBatch>>,
 }
 
@@ -51,6 +53,8 @@ impl Text {
             size_px,
             font: font.into(),
             text: text.into(),
+
+            bounding_box: Box2D::zero(),
 
             batches: Arc::new(Vec::new()),
         }
@@ -72,6 +76,10 @@ impl Text {
         self.text = text.into();
     }
 
+    pub const fn bounding_box(&self) -> &Box2D<f32, LogicalPixelUnit> {
+        &self.bounding_box
+    }
+
     pub fn draw(
         &mut self,
         device: &Device,
@@ -85,6 +93,8 @@ impl Text {
         let text_invalidated = Observable::invalidate(&mut self.text);
 
         if font_invalidated || text_invalidated {
+            self.bounding_box = Box2D::new(self.position, self.position);
+
             let scaled_size = (self.size_px as f32 * scale_factor).ceil() as u32;
 
             let mut buffer = UnicodeBuffer::new();
@@ -127,6 +137,13 @@ impl Text {
                         rect: Rect::new(position, size),
                         texture_rect: texture.view().to_texture_rect(texture_rect.tex_rect),
                     });
+
+                    self.bounding_box = Box2D::from_points(&[
+                        self.bounding_box.min,
+                        self.bounding_box.max,
+                        position,
+                        position + size,
+                    ]);
                 }
 
                 batches.push(TextRenderBatch { texture, rects });

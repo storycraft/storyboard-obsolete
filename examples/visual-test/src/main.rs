@@ -166,6 +166,17 @@ impl State<StoryboardStateData> for SampleApp {
                 &system_prop.texture_data,
                 &mut self.cache,
             ));
+            
+            system_state.draw(Box2D {
+                bounds: self.text.bounding_box().to_rect(),
+                fill_color: ShapeColor::TRANSPARENT,
+                border_color: ShapeColor::WHITE,
+                texture: None,
+                style: Box2DStyle {
+                    border_thickness: 1.0,
+                    ..Default::default()
+                },
+            });
         } else if let Event::WindowEvent {
             event: WindowEvent::CloseRequested,
             ..
