@@ -32,7 +32,7 @@ impl<'a> GlyphRasterizer<'a> {
             .is_some()
             || builder.is_empty()
         {
-            Some(builder.rasterize(size_px, self.face.units_per_em()))
+            Some(builder.rasterize(size_px as f32 / self.face.units_per_em() as f32))
         } else {
             None
         }

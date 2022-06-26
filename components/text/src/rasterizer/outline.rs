@@ -35,9 +35,7 @@ impl GlyphOutlineBuilder {
         }
     }
 
-    pub fn rasterize(&self, size_px: f32, units_per_em: u16) -> GlyphData {
-        let scale = size_px / units_per_em as f32;
-
+    pub fn rasterize(&self, scale: f32) -> GlyphData {
         let mut rasterizer = Rasterizer::new(
             (self.bounding_box.width() * scale).ceil() as usize,
             (self.bounding_box.height() * scale).ceil() as usize,
