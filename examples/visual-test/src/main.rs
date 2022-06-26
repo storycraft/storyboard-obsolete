@@ -166,7 +166,7 @@ impl State<StoryboardStateData> for SampleApp {
                 &system_prop.texture_data,
                 &mut self.cache,
             ));
-            
+
             system_state.draw(Box2D {
                 bounds: self.text.bounding_box().to_rect(),
                 fill_color: ShapeColor::TRANSPARENT,

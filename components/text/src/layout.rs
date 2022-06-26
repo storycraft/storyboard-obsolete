@@ -80,6 +80,7 @@ impl<'a> Iterator for TextLayoutIter<'a> {
 
         let glyph_info = GlyphInfo {
             glyph_id: info.glyph_id as u16,
+            cluster: info.cluster,
             position: self.current_position
                 + Vector2D::new(
                     pos.x_offset as f32 * self.scale,
@@ -100,5 +101,6 @@ impl<'a> Iterator for TextLayoutIter<'a> {
 #[derive(Debug)]
 pub struct GlyphInfo {
     pub glyph_id: u16,
+    pub cluster: u32,
     pub position: Vector2D<f32, PhyiscalPixelUnit>,
 }
