@@ -9,14 +9,14 @@ use storyboard::{
     state::{StoryboardStateData, StoryboardSystemProp, StoryboardSystemState, StoryboardStateStatus, State},
     winit::event::{Event, WindowEvent},
 };
-use storyboard_text::{cache::GlyphCache, font::Font, layout::TextLayout};
+use storyboard_text::{cache::GlyphCache, font::Font, Text};
 
 use crate::player::Player;
 
 pub static FONT: &'static [u8] = include_bytes!("./NotoSansCJKkr-Regular.otf");
 
 pub struct AppMain {
-    text: Option<TextLayout>,
+    text: Option<Text>,
     cache: GlyphCache,
     _stream: OutputStream,
     handle: OutputStreamHandle,
@@ -37,7 +37,7 @@ impl AppMain {
 
 impl State<StoryboardStateData> for AppMain {
     fn load(&mut self, system_prop: &StoryboardSystemProp) {
-        self.text = Some(TextLayout::new(
+        self.text = Some(Text::new(
             Point2D::new(10.0, 10.0),
             32,
             Font::new(Cow::Borrowed(FONT), 0).unwrap(),

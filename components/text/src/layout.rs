@@ -1,165 +1,104 @@
-use std::{borrow::Cow, fmt::Debug, sync::Arc};
+use std::{iter::Zip, slice::Iter};
 
-use allsorts::{
-    font::MatchingPresentation,
-    glyph_position::{GlyphLayout, TextDirection},
-    gsub::{FeatureMask, Features},
-};
+use rustybuzz::{GlyphBuffer, GlyphPosition, UnicodeBuffer};
+use storyboard_core::{euclid::Vector2D, unit::PhyiscalPixelUnit};
+use ttf_parser::Face;
 
-use storyboard_core::{
-    color::ShapeColor,
-    euclid::{Point2D, Rect, Vector2D},
-    observable::Observable,
-    unit::LogicalPixelUnit,
-};
-use storyboard_render::wgpu::{Device, Queue};
-use storyboard_texture::render::{data::TextureData, RenderTexture2D};
-
-use crate::{
-    cache::GlyphCache,
-    component::{GlyphRect, TextDrawable, TextRenderBatch},
-    font::Font,
-};
-
+#[derive(Debug)]
 pub struct TextLayout {
-    pub position: Point2D<f32, LogicalPixelUnit>,
-    pub size_px: u32,
+    ascender: i16,
+    decender: i16,
+    units_per_em: u16,
 
-    text: Observable<Cow<'static, str>>,
-    shaper: Observable<allsorts::Font<Font>>,
-    batches: Arc<Vec<TextRenderBatch>>,
+    buffer: GlyphBuffer,
 }
 
 impl TextLayout {
-    pub fn new(
-        position: Point2D<f32, LogicalPixelUnit>,
-        size_px: u32,
-        font: Font,
-        text: Cow<'static, str>,
-    ) -> Self {
+    pub fn new_layout(face: &Face, buffer: UnicodeBuffer) -> Self {
+        let buffer = rustybuzz::shape(&rustybuzz::Face::from_face(face.clone()).unwrap(), &[], buffer);
+
+        let units_per_em = face.units_per_em();
+
         Self {
-            position,
-            size_px,
-            shaper: allsorts::Font::new(font).unwrap().unwrap().into(),
-            text: text.into(),
+            ascender: face.ascender(),
+            decender: face.descender(),
+            units_per_em,
 
-            batches: Arc::new(Vec::new()),
+            buffer,
         }
     }
 
-    pub fn font(&self) -> &Font {
-        &self.shaper.font_table_provider
+    pub fn indices<'a>(&'a self) -> impl Iterator<Item = u16> + 'a {
+        self.buffer.glyph_infos().iter().map(|info| info.glyph_id as u16)
     }
 
-    pub fn set_font(&mut self, font: Font) {
-        self.shaper = allsorts::Font::new(font).unwrap().unwrap().into();
-    }
+    pub fn iter(&self, size_px: f32) -> TextLayoutIter {
+        TextLayoutIter {
+            ascender: self.ascender,
+            decender: self.decender,
 
-    pub fn text(&self) -> &str {
-        &self.text
-    }
-
-    pub fn set_text(&mut self, text: Cow<'static, str>) {
-        self.text = text.into();
-    }
-
-    pub fn draw(
-        &mut self,
-        device: &Device,
-        queue: &Queue,
-        color: &ShapeColor<4>,
-        scale_factor: f32,
-        textures: &TextureData,
-        cache: &mut GlyphCache,
-    ) -> TextDrawable {
-        let font_invalidated = Observable::invalidate(&mut self.shaper);
-        let text_invalidated = Observable::invalidate(&mut self.text);
-
-        if font_invalidated || text_invalidated {
-            let scaled_size = (self.size_px as f32 * scale_factor).ceil() as u32;
-
-            let indices = self
-                .shaper
-                .map_glyphs(&self.text, 0, MatchingPresentation::NotRequired);
-
-            let mut batches = Vec::new();
-            if let Ok(infos) = self.shaper.shape(
-                indices,
-                0,
-                None,
-                &Features::Mask(FeatureMask::default()),
-                true,
-            ) {
-                let scale =
-                    self.size_px as f32 / self.shaper.font_table_provider.units_per_em() as f32;
-
-                let view_batches = cache.batch_glyphs(
-                    device,
-                    queue,
-                    &self.shaper.font_table_provider,
-                    infos.iter().map(|info| info.glyph.glyph_index),
-                    scaled_size,
-                );
-
-                let mut layout =
-                    GlyphLayout::new(&mut self.shaper, &infos, TextDirection::LeftToRight, false);
-
-                let positions = layout.glyph_positions().unwrap();
-                let mut positions_iter = positions.iter();
-
-                let mut offset = Vector2D::<f32, LogicalPixelUnit>::new(0.0, 0.0);
-                for view_batch in view_batches {
-                    let texture = Arc::new(RenderTexture2D::init(
-                        device,
-                        view_batch.view.into(),
-                        textures.bind_group_layout(),
-                        textures.default_sampler(),
-                    ));
-                    let mut rects = Vec::new();
-
-                    for (texture_rect, pos) in view_batch.rects.iter().zip(&mut positions_iter) {
-                        rects.push(GlyphRect {
-                            rect: Rect::new(
-                                self.position
-                                    + Vector2D::new(
-                                        0.0,
-                                        self.shaper.font_table_provider.ascender() as f32 * scale
-                                            - texture_rect.rasterized_size.height / scale_factor,
-                                    )
-                                    + offset
-                                    + (texture_rect.glyph_offset / scale_factor).cast_unit(),
-                                (texture_rect.rasterized_size / scale_factor).cast_unit(),
-                            ),
-                            texture_rect: texture_rect.tex_rect,
-                        });
-
-                        offset += Vector2D::<f32, LogicalPixelUnit>::new(
-                            pos.hori_advance as f32 * scale,
-                            pos.vert_advance as f32 * scale,
-                        );
-                    }
-
-                    batches.push(TextRenderBatch { texture, rects });
-                }
-            }
-
-            self.batches = Arc::new(batches);
+            scale: size_px / self.units_per_em as f32,
+            current_position: Vector2D::zero(),
+            iter: self
+                .buffer
+                .glyph_infos()
+                .iter()
+                .zip(self.buffer.glyph_positions().iter()),
         }
+    }
 
-        TextDrawable {
-            batches: self.batches.clone(),
-            color: color.clone(),
-        }
+    pub fn into_inner(self) -> UnicodeBuffer {
+        self.buffer.clear()
     }
 }
 
-impl Debug for TextLayout {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Text")
-            .field("position", &self.position)
-            .field("size_px", &self.size_px)
-            .field("text", &self.text)
-            .field("batches", &self.batches)
-            .finish_non_exhaustive()
+#[derive(Debug)]
+pub struct TextLayoutIter<'a> {
+    ascender: i16,
+    decender: i16,
+
+    scale: f32,
+    current_position: Vector2D<f32, PhyiscalPixelUnit>,
+    iter: Zip<Iter<'a, rustybuzz::GlyphInfo>, Iter<'a, GlyphPosition>>,
+}
+
+impl<'a> TextLayoutIter<'a> {
+    pub fn ascender(&self) -> f32 {
+        self.ascender as f32 * self.scale
     }
+
+    pub fn decender(&self) -> f32 {
+        self.decender as f32 * self.scale
+    }
+}
+
+impl<'a> Iterator for TextLayoutIter<'a> {
+    type Item = GlyphInfo;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let (info, pos) = self.iter.next()?;
+
+        let glyph_info = GlyphInfo {
+            glyph_id: info.glyph_id as u16,
+            position: self.current_position
+                + Vector2D::new(
+                    pos.x_offset as f32 * self.scale,
+                    pos.y_offset as f32 * self.scale,
+                ),
+        };
+
+        let advance = Vector2D::new(
+            pos.x_advance as f32 * self.scale,
+            pos.y_advance as f32 * self.scale,
+        );
+        self.current_position += advance;
+
+        return Some(glyph_info);
+    }
+}
+
+#[derive(Debug)]
+pub struct GlyphInfo {
+    pub glyph_id: u16,
+    pub position: Vector2D<f32, PhyiscalPixelUnit>,
 }

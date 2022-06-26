@@ -9,8 +9,7 @@ use std::{
     sync::Arc,
 };
 
-use allsorts::tables::FontTableProvider;
-use ttf_parser::{Face, FaceParsingError, Tag};
+use ttf_parser::{Face, FaceParsingError};
 
 #[derive(Clone)]
 pub struct Font {
@@ -57,22 +56,5 @@ impl Debug for Font {
             .field("face", &self.face.1)
             .field("file_hash", &self.font_hash)
             .finish_non_exhaustive()
-    }
-}
-
-impl FontTableProvider for Font {
-    fn table_data<'a>(
-        &'a self,
-        tag: u32,
-    ) -> Result<Option<Cow<'a, [u8]>>, allsorts::error::ParseError> {
-        Ok(self
-            .face
-            .1
-            .table_data(Tag(tag))
-            .map(|data| Cow::Borrowed(data)))
-    }
-
-    fn has_table<'a>(&'a self, tag: u32) -> bool {
-        self.face.1.table_data(Tag(tag)).is_some()
     }
 }

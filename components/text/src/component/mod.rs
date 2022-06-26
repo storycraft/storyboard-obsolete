@@ -2,11 +2,12 @@ use std::{borrow::Cow, sync::Arc};
 
 use bytemuck::{Pod, Zeroable};
 use storyboard_core::{
+    color::ShapeColor,
     euclid::{Point2D, Point3D, Rect},
     math::RectExt,
     palette::LinSrgba,
     store::{Store, StoreResources},
-    unit::{LogicalPixelUnit, RenderUnit, TextureUnit}, color::ShapeColor,
+    unit::{LogicalPixelUnit, RenderUnit, TextureUnit},
 };
 use storyboard_render::{
     buffer::stream::StreamRange,
@@ -99,7 +100,13 @@ pub struct GlyphComponent {
 impl GlyphComponent {
     pub fn from_batch(batch: &TextRenderBatch, ctx: &mut DrawContext, depth: f32) -> Self {
         let mut writer = ctx.vertex_stream.next_writer();
+
+        let mut vertices = 0;
         for rect in &batch.rects {
+            if rect.texture_rect.area() <= 0.0 {
+                continue;
+            }
+
             let coords = rect.rect.into_coords();
             let tex_coords = rect.texture_rect.into_coords();
 
@@ -151,10 +158,11 @@ impl GlyphComponent {
                 left_bottom,
                 right_bottom,
             ]));
+
+            vertices += 6;
         }
 
         let vertices_slice = writer.finish();
-        let vertices = 6 * batch.rects.len() as u32;
 
         Self {
             texture: batch.texture.clone(),

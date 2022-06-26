@@ -22,7 +22,7 @@ use storyboard::{
     Storyboard,
 };
 use storyboard_box2d::{Box2D, Box2DStyle};
-use storyboard_text::{cache::GlyphCache, font::Font, layout::TextLayout};
+use storyboard_text::{cache::GlyphCache, font::Font, Text};
 
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {
@@ -86,7 +86,7 @@ pub struct SampleApp {
     texture: Option<ComponentTexture>,
     cursor: Point2D<f32, LogicalPixelUnit>,
     cache: GlyphCache,
-    text: TextLayout,
+    text: Text,
 }
 
 impl SampleApp {
@@ -95,7 +95,7 @@ impl SampleApp {
             texture: None,
             cursor: Default::default(),
             cache: GlyphCache::new(),
-            text: TextLayout::new(Point2D::new(100.0, 100.0), 32, font, Cow::Borrowed("")),
+            text: Text::new(Point2D::new(100.0, 100.0), 32, font, Cow::Borrowed("")),
         }
     }
 }

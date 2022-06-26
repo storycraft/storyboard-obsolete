@@ -1,39 +1,22 @@
-use std::borrow::Cow;
+use std::error::Error;
 
-use storyboard_render::wgpu::{Backends, Features, Instance};
+use rustybuzz::{Face, UnicodeBuffer};
+use storyboard_text::layout::TextLayout;
 
-use storyboard_render::backend::{BackendOptions, StoryboardBackend};
-use storyboard_text::cache::GlyphCache;
-use storyboard_text::font::Font;
-
-pub static FONT: &'static [u8] = include_bytes!("./NotoSansCJKkr-Regular.otf");
+pub static FONT: &'static [u8] = include_bytes!("./NotoSansCjkKr-Regular.otf");
 
 #[test]
-fn test_cache() {
-    let backend = pollster::block_on(StoryboardBackend::init(
-        &Instance::new(Backends::all()),
-        None,
-        Features::empty(),
-        &BackendOptions::default(),
-    ))
-    .unwrap();
+fn layout_test() -> Result<(), Box<dyn Error>> {
+    let face = Face::from_slice(FONT, 0).unwrap();
 
-    println!("backend: {:?}", backend);
+    let mut buffer = UnicodeBuffer::new();
+    buffer.push_str("hello world");
 
-    let font = Font::new(Cow::Borrowed(FONT), 0).unwrap();
+    let layout = TextLayout::new_layout(&face, buffer);
 
-    let mut cache = GlyphCache::new();
+    for info in layout.iter(16.0) {
+        println!("{info:?}");
+    }
 
-    println!(
-        "Batch: {:?}",
-        cache.batch_glyphs(
-            backend.device(),
-            backend.queue(),
-            &font,
-            "test string"
-                .chars()
-                .map(|ch| font.glyph_index(ch).unwrap_or_default().0),
-            40
-        )
-    );
+    Ok(())
 }

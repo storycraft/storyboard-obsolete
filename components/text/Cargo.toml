@@ -12,10 +12,13 @@ storyboard-texture = { path = "../../crates/texture" }
 
 bytemuck = { version = "1.9.1", features = [ "derive" ] }
 smallvec = "1.8.0"
+resvg = "0.23.0"
+usvg = "0.23.0"
+tiny-skia = "0.6.6"
 
-allsorts = { version = "0.10.0", default-features = false, features = ["flate2_rust"] }
-ringbuffer = "0.8.4"
+rustybuzz = "0.5.1"
 ttf-parser = "0.15.1"
+ringbuffer = "0.8.4"
 ab_glyph_rasterizer = "0.1.5"
 
 [dev-dependencies]
