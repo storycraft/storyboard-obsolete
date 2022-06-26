@@ -189,7 +189,7 @@ impl TextureView2D {
     }
 
     /// Slice view into partial
-    pub fn to_texture_rect(self, rect: Rect<u32, PhyiscalPixelUnit>) -> Rect<f32, TextureUnit> {
+    pub fn to_texture_rect(&self, rect: Rect<u32, PhyiscalPixelUnit>) -> Rect<f32, TextureUnit> {
         match self {
             TextureView2D::All(view) => view.to_texture_rect(rect),
 
