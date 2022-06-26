@@ -2,7 +2,10 @@ pub mod packed;
 
 use std::num::NonZeroU32;
 
-use storyboard_core::{euclid::{Size2D, Rect, Point2D}, unit::{PhyiscalPixelUnit, TextureUnit}};
+use storyboard_core::{
+    euclid::{Point2D, Rect, Size2D},
+    unit::{PhyiscalPixelUnit, TextureUnit},
+};
 use wgpu::{
     Device, Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, Texture, TextureAspect,
     TextureDescriptor, TextureDimension, TextureFormat, TextureUsages, TextureView,
@@ -151,6 +154,12 @@ impl SizedTextureView2D {
         TextureView2D::Partial(PartialTextureView2D::new(self, rect))
     }
 
+    pub fn to_texture_rect(&self, rect: Rect<u32, PhyiscalPixelUnit>) -> Rect<f32, TextureUnit> {
+        rect.cast()
+            .cast_unit()
+            .scale(1.0 / self.size.width as f32, 1.0 / self.size.height as f32)
+    }
+
     pub fn into_inner(self) -> TextureView {
         self.view
     }
@@ -176,6 +185,15 @@ impl TextureView2D {
             TextureView2D::All(view) => view.slice(rect),
 
             TextureView2D::Partial(partial) => TextureView2D::Partial(partial.slice(rect)),
+        }
+    }
+
+    /// Slice view into partial
+    pub fn to_texture_rect(self, rect: Rect<u32, PhyiscalPixelUnit>) -> Rect<f32, TextureUnit> {
+        match self {
+            TextureView2D::All(view) => view.to_texture_rect(rect),
+
+            TextureView2D::Partial(partial) => partial.to_texture_rect(rect),
         }
     }
 
@@ -260,6 +278,16 @@ impl PartialTextureView2D {
                 self.rect.size.height as f32 / self.view.size.height as f32,
             ),
         )
+    }
+
+    pub fn to_texture_rect(&self, rect: Rect<u32, PhyiscalPixelUnit>) -> Rect<f32, TextureUnit> {
+        rect.translate(self.rect.origin.to_vector())
+            .cast()
+            .cast_unit()
+            .scale(
+                1.0 / self.view.size.width as f32,
+                1.0 / self.view.size.height as f32,
+            )
     }
 }
 
