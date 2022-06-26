@@ -9,9 +9,8 @@ use storyboard_render::{
     texture::{packed::PackedTexture, SizedTexture2D, SizedTextureView2D, TextureView2D},
     wgpu::{Device, Queue, TextureFormat, TextureUsages},
 };
-use ttf_parser::Face;
 
-use crate::rasterizer::{GlyphData, GlyphRasterizer};
+use crate::{rasterizer::{GlyphData, GlyphRasterizer}, font::Font};
 
 #[derive(Debug)]
 pub struct GlyphCache {
@@ -34,19 +33,19 @@ impl GlyphCache {
         &mut self,
         device: &Device,
         queue: &Queue,
-        face: &Face,
+        font: &Font,
         indices: &mut Peekable<impl Iterator<Item = u16>>,
         size_px: u32,
     ) -> Option<GlyphBatch> {
-        self.batch_glyph(device, queue, face, indices, size_px)
-            .or_else(|| self.batch_image(device, queue, face, indices, size_px))
+        self.batch_glyph(device, queue, font, indices, size_px)
+            .or_else(|| self.batch_image(device, queue, font, indices, size_px))
     }
 
     pub fn batch_image(
         &mut self,
         device: &Device,
         queue: &Queue,
-        face: &Face,
+        font: &Font,
         indices: &mut Peekable<impl Iterator<Item = u16>>,
         size_px: u32,
     ) -> Option<GlyphBatch> {
@@ -56,8 +55,7 @@ impl GlyphCache {
         while let Some(page) = page_iter.next() {
             while let Some(index) = indices.peek() {
                 let key = GlyphKey {
-                    // TODO
-                    font_hash: 0,
+                    font_hash: Font::font_hash(font),
                     index: *index,
                     size_px,
                 };
@@ -65,7 +63,7 @@ impl GlyphCache {
                 if let Some(item) = page.get_rect(&key) {
                     rects.push(item);
                 } else {
-                    let mut rasterizer = GlyphRasterizer::new(face);
+                    let mut rasterizer = GlyphRasterizer::new(font);
 
                     if let Some(glyph) = rasterizer.rasterize_image(*index, size_px as f32) {
                         if let Some(rect) = page.pack(queue, key, &glyph) {
@@ -99,7 +97,7 @@ impl GlyphCache {
                 GlyphAtlasMap::init(device, Size2D::new(1024, 1024), TextureFormat::Rgba8Unorm);
             self.colored_pages.push(atlas);
 
-            return self.batch_image(device, queue, face, indices, size_px);
+            return self.batch_image(device, queue, font, indices, size_px);
         }
 
         None
@@ -109,7 +107,7 @@ impl GlyphCache {
         &mut self,
         device: &Device,
         queue: &Queue,
-        face: &Face,
+        font: &Font,
         indices: &mut Peekable<impl Iterator<Item = u16>>,
         size_px: u32,
     ) -> Option<GlyphBatch> {
@@ -119,8 +117,7 @@ impl GlyphCache {
         while let Some(page) = page_iter.next() {
             while let Some(index) = indices.peek() {
                 let key = GlyphKey {
-                    // TODO
-                    font_hash: 0,
+                    font_hash: Font::font_hash(font),
                     index: *index,
                     size_px,
                 };
@@ -128,7 +125,7 @@ impl GlyphCache {
                 if let Some(item) = page.get_rect(&key) {
                     rects.push(item);
                 } else {
-                    let rasterizer = GlyphRasterizer::new(face);
+                    let rasterizer = GlyphRasterizer::new(font);
 
                     if let Some(glyph) = rasterizer.rasterize_glyph(*index, size_px as f32) {
                         if let Some(rect) = page.pack(queue, key, &glyph) {
@@ -162,7 +159,7 @@ impl GlyphCache {
                 GlyphAtlasMap::init(device, Size2D::new(1024, 1024), TextureFormat::R8Unorm);
             self.pages.push(atlas);
 
-            return self.batch_glyph(device, queue, face, indices, size_px);
+            return self.batch_glyph(device, queue, font, indices, size_px);
         }
 
         None
@@ -183,9 +180,9 @@ pub struct GlyphKey {
 }
 
 impl GlyphKey {
-    pub const fn new(font_file_hash: u64, index: u16, size_px: u32) -> Self {
+    pub const fn new(font_hash: u64, index: u16, size_px: u32) -> Self {
         Self {
-            font_hash: font_file_hash,
+            font_hash,
             index,
             size_px,
         }
