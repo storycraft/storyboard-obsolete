@@ -1,27 +1,205 @@
-use std::{iter::Zip, slice::Iter};
+use std::{
+    fmt::Debug,
+    iter::{Enumerate, Peekable, Zip},
+    slice::Iter,
+    str::Chars,
+};
 
 use rustybuzz::{GlyphBuffer, GlyphPosition, UnicodeBuffer};
 use storyboard_core::{euclid::Vector2D, unit::PhyiscalPixelUnit};
 use ttf_parser::Face;
 
 #[derive(Debug)]
-pub struct TextLayout {
+pub struct TextLayout<'a> {
+    face: &'a Face<'a>,
+
     ascender: i16,
-    decender: i16,
+    descender: i16,
+
+    space_size: u16,
+
+    units_per_em: u16,
+
+    text: &'a str,
+}
+
+impl<'a> TextLayout<'a> {
+    pub fn new(face: &'a Face, text: &'a str) -> Self {
+        let units_per_em = face.units_per_em();
+
+        let ascender = face.ascender();
+        let descender = face.descender();
+
+        let space_size = face
+            .glyph_index(' ')
+            .map(|id| face.glyph_hor_advance(id))
+            .flatten()
+            .unwrap_or_default();
+
+        Self {
+            face,
+
+            ascender,
+            descender,
+
+            space_size,
+
+            units_per_em,
+
+            text,
+        }
+    }
+
+    pub fn iter(&self, tab_size: u32, size_px: f32) -> TextLayoutIter<'a> {
+        TextLayoutIter {
+            face: rustybuzz::Face::from_face(self.face.clone()).unwrap(),
+
+            next_position: Vector2D::zero(),
+
+            text: self.text.chars().enumerate().peekable(),
+
+            ascender: self.ascender,
+            descender: self.descender,
+
+            tab_width: self.space_size as u32 * tab_size,
+
+            scale: size_px / self.units_per_em as f32,
+
+            buf: String::new(),
+            current: None,
+        }
+    }
+}
+
+pub struct TextLayoutIter<'a> {
+    face: rustybuzz::Face<'a>,
+
+    next_position: Vector2D<f32, PhyiscalPixelUnit>,
+
+    text: Peekable<Enumerate<Chars<'a>>>,
+
+    ascender: i16,
+    descender: i16,
+
+    tab_width: u32,
+
+    scale: f32,
+
+    buf: String,
+    current: Option<GlyphBuffer>,
+}
+
+impl<'a> TextLayoutIter<'a> {
+    pub fn ascender(&self) -> f32 {
+        self.ascender as f32 * self.scale
+    }
+
+    pub fn descender(&self) -> f32 {
+        self.descender as f32 * self.scale
+    }
+
+    pub fn tab_width(&self) -> f32 {
+        self.tab_width as f32 * self.scale
+    }
+
+    pub fn next<'iter>(
+        &'iter mut self,
+    ) -> Option<(impl Iterator<Item = u16> + 'iter, LineLayoutIter<'iter>)> {
+        let cluster_offset = self.text.peek()?.0 as u32;
+        let current_position = self.next_position;
+
+        for (_, ch) in &mut self.text {
+            match ch {
+                '\n' => {
+                    self.next_position.x = 0.0;
+                    self.next_position.y +=
+                        (self.ascender as f32 - self.descender as f32) * self.scale;
+                    break;
+                }
+
+                '\r' => {
+                    self.next_position.y +=
+                        (self.ascender as f32 - self.descender as f32) * self.scale;
+                    break;
+                }
+
+                '\t' => {
+                    self.next_position.x += self.tab_width as f32 * self.scale;
+                    break;
+                }
+
+                _ => {
+                    self.buf.push(ch);
+                }
+            }
+        }
+
+        let mut shape_buffer = self
+            .current
+            .take()
+            .map(|buffer| buffer.clear())
+            .unwrap_or_default();
+
+        shape_buffer.push_str(&self.buf);
+        self.buf.clear();
+
+        let buffer = rustybuzz::shape(&self.face, &[], shape_buffer);
+        self.current = Some(buffer);
+
+        let current = self.current.as_ref().unwrap();
+
+        let indices_iter = current
+            .glyph_infos()
+            .iter()
+            .map(|info| info.glyph_id as u16);
+
+        let line_iter = LineLayoutIter {
+            scale: self.scale,
+            cluster_offset,
+            current_position,
+            iter: current
+                .glyph_infos()
+                .iter()
+                .zip(current.glyph_positions().iter()),
+        };
+
+        Some((indices_iter, line_iter))
+    }
+}
+
+impl Debug for TextLayoutIter<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TextLayoutIter")
+            .field("next_position", &self.next_position)
+            .field("text", &self.text)
+            .field("ascender", &self.ascender)
+            .field("descender", &self.descender)
+            .field("tab_width", &self.tab_width)
+            .field("scale", &self.scale)
+            .field("buf", &self.buf)
+            .field("current", &self.current)
+            .finish_non_exhaustive()
+    }
+}
+
+#[derive(Debug)]
+pub struct LineLayout {
     units_per_em: u16,
 
     buffer: GlyphBuffer,
 }
 
-impl TextLayout {
+impl LineLayout {
     pub fn new_layout(face: &Face, buffer: UnicodeBuffer) -> Self {
-        let buffer = rustybuzz::shape(&rustybuzz::Face::from_face(face.clone()).unwrap(), &[], buffer);
+        let buffer = rustybuzz::shape(
+            &rustybuzz::Face::from_face(face.clone()).unwrap(),
+            &[],
+            buffer,
+        );
 
         let units_per_em = face.units_per_em();
 
         Self {
-            ascender: face.ascender(),
-            decender: face.descender(),
             units_per_em,
 
             buffer,
@@ -29,15 +207,16 @@ impl TextLayout {
     }
 
     pub fn indices<'a>(&'a self) -> impl Iterator<Item = u16> + 'a {
-        self.buffer.glyph_infos().iter().map(|info| info.glyph_id as u16)
+        self.buffer
+            .glyph_infos()
+            .iter()
+            .map(|info| info.glyph_id as u16)
     }
 
-    pub fn iter(&self, size_px: f32) -> TextLayoutIter {
-        TextLayoutIter {
-            ascender: self.ascender,
-            decender: self.decender,
-
+    pub fn iter(&self, size_px: f32) -> LineLayoutIter {
+        LineLayoutIter {
             scale: size_px / self.units_per_em as f32,
+            cluster_offset: 0,
             current_position: Vector2D::zero(),
             iter: self
                 .buffer
@@ -53,26 +232,14 @@ impl TextLayout {
 }
 
 #[derive(Debug)]
-pub struct TextLayoutIter<'a> {
-    ascender: i16,
-    decender: i16,
-
+pub struct LineLayoutIter<'a> {
     scale: f32,
+    cluster_offset: u32,
     current_position: Vector2D<f32, PhyiscalPixelUnit>,
     iter: Zip<Iter<'a, rustybuzz::GlyphInfo>, Iter<'a, GlyphPosition>>,
 }
 
-impl<'a> TextLayoutIter<'a> {
-    pub fn ascender(&self) -> f32 {
-        self.ascender as f32 * self.scale
-    }
-
-    pub fn decender(&self) -> f32 {
-        self.decender as f32 * self.scale
-    }
-}
-
-impl<'a> Iterator for TextLayoutIter<'a> {
+impl<'a> Iterator for LineLayoutIter<'a> {
     type Item = GlyphInfo;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -80,7 +247,7 @@ impl<'a> Iterator for TextLayoutIter<'a> {
 
         let glyph_info = GlyphInfo {
             glyph_id: info.glyph_id as u16,
-            cluster: info.cluster,
+            cluster: self.cluster_offset + info.cluster,
             position: self.current_position
                 + Vector2D::new(
                     pos.x_offset as f32 * self.scale,

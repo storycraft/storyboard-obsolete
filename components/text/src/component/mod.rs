@@ -85,7 +85,9 @@ impl Drawable for TextDrawable {
         depth: f32,
     ) {
         for batch in self.batches.iter() {
-            component_queue.push_transparent(GlyphComponent::from_batch(batch, ctx, depth));
+            if let Some(component) = GlyphComponent::from_batch(batch, ctx, depth) {
+                component_queue.push_transparent(component);
+            }
         }
     }
 }
@@ -98,7 +100,7 @@ pub struct GlyphComponent {
 }
 
 impl GlyphComponent {
-    pub fn from_batch(batch: &TextRenderBatch, ctx: &mut DrawContext, depth: f32) -> Self {
+    pub fn from_batch(batch: &TextRenderBatch, ctx: &mut DrawContext, depth: f32) -> Option<Self> {
         let mut writer = ctx.vertex_stream.next_writer();
 
         let mut vertices = 0;
@@ -162,13 +164,17 @@ impl GlyphComponent {
             vertices += 6;
         }
 
+        if vertices <= 0 {
+            return None;
+        }
+
         let vertices_slice = writer.finish();
 
-        Self {
+        Some(Self {
             texture: batch.texture.clone(),
             vertices,
             vertices_slice,
-        }
+        })
     }
 }
 

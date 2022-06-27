@@ -13,10 +13,9 @@ pub struct FontUnit;
 use std::{borrow::Cow, fmt::Debug, sync::Arc};
 
 use layout::TextLayout;
-use rustybuzz::UnicodeBuffer;
 use storyboard_core::{
     color::ShapeColor,
-    euclid::{Point2D, Rect, Vector2D, Box2D},
+    euclid::{Box2D, Point2D, Rect, Vector2D},
     observable::Observable,
     unit::LogicalPixelUnit,
 };
@@ -97,56 +96,53 @@ impl Text {
 
             let scaled_size = (self.size_px as f32 * scale_factor).ceil() as u32;
 
-            let mut buffer = UnicodeBuffer::new();
-            buffer.push_str(&self.text);
-            let layout = TextLayout::new_layout(&self.font, buffer);
-            let mut layout_iter = layout.iter(self.size_px as f32);
+            let layout = TextLayout::new(&self.font, &self.text);
+            let mut layout_iter = layout.iter(8, self.size_px as f32);
 
             let mut batches = Vec::new();
 
             let ascender = layout_iter.ascender();
 
-            let mut indices_iter = layout.indices().peekable();
-            while let Some(view_batch) = cache.batch(
-                device,
-                queue,
-                &mut self.font,
-                &mut indices_iter,
-                scaled_size,
-            ) {
-                let texture = Arc::new(RenderTexture2D::init(
-                    device,
-                    view_batch.view.into(),
-                    textures.bind_group_layout(),
-                    textures.default_sampler(),
-                ));
-                let mut rects = Vec::new();
+            while let Some((indices_iter, mut line_iter)) = layout_iter.next() {
+                let mut indices_iter = indices_iter.peekable();
 
-                for (texture_rect, info) in view_batch.rects.iter().zip(&mut layout_iter) {
-                    let position = self.position
-                        + info.position.cast_unit()
-                        + Vector2D::new(
-                            0.0,
-                            ascender - texture_rect.tex_rect.size.height as f32 / scale_factor,
-                        )
-                        + (texture_rect.glyph_offset / scale_factor).cast_unit();
+                while let Some(view_batch) =
+                    cache.batch(device, queue, &self.font, &mut indices_iter, scaled_size)
+                {
+                    let texture = Arc::new(RenderTexture2D::init(
+                        device,
+                        view_batch.view.into(),
+                        textures.bind_group_layout(),
+                        textures.default_sampler(),
+                    ));
+                    let mut rects = Vec::new();
 
-                    let size = (texture_rect.tex_rect.size.cast() / scale_factor).cast_unit();
+                    for (texture_rect, info) in view_batch.rects.iter().zip(&mut line_iter) {
+                        let position = self.position
+                            + info.position.cast_unit()
+                            + Vector2D::new(
+                                0.0,
+                                ascender - texture_rect.tex_rect.size.height as f32 / scale_factor,
+                            )
+                            + (texture_rect.glyph_offset / scale_factor).cast_unit();
 
-                    rects.push(GlyphRect {
-                        rect: Rect::new(position, size),
-                        texture_rect: texture.view().to_texture_rect(texture_rect.tex_rect),
-                    });
+                        let size = (texture_rect.tex_rect.size.cast() / scale_factor).cast_unit();
 
-                    self.bounding_box = Box2D::from_points(&[
-                        self.bounding_box.min,
-                        self.bounding_box.max,
-                        position,
-                        position + size,
-                    ]);
+                        rects.push(GlyphRect {
+                            rect: Rect::new(position, size),
+                            texture_rect: texture.view().to_texture_rect(texture_rect.tex_rect),
+                        });
+
+                        self.bounding_box = Box2D::from_points(&[
+                            self.bounding_box.min,
+                            self.bounding_box.max,
+                            position,
+                            position + size,
+                        ]);
+                    }
+
+                    batches.push(TextRenderBatch { texture, rects });
                 }
-
-                batches.push(TextRenderBatch { texture, rects });
             }
 
             self.batches = Arc::new(batches);
