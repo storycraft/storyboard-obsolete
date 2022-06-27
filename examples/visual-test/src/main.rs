@@ -194,7 +194,7 @@ impl State<StoryboardStateData> for SampleApp {
             self.text.position = self.cursor;
 
             self.text.set_text(Cow::Owned(format!(
-                "{:?} 렌더링 테스트",
+                "렌더링 테스트\n{:?}",
                 self.cursor * system_prop.window.scale_factor() as f32
             )));
             system_prop.request_redraw();

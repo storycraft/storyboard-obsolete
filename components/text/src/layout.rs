@@ -141,6 +141,7 @@ impl<'a> TextLayoutIter<'a> {
             .unwrap_or_default();
 
         shape_buffer.push_str(&self.buf);
+        shape_buffer.guess_segment_properties();
         self.buf.clear();
 
         let buffer = rustybuzz::shape(&self.face, &[], shape_buffer);
