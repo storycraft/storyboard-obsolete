@@ -196,7 +196,8 @@ impl<'a> TextLayoutIter<'a> {
 impl Debug for TextLayoutIter<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("TextLayoutIter")
-            .field("next_position", &self.next_placement)
+            .field("current_position", &self.current_position)
+            .field("next_placement", &self.next_placement)
             .field("text", &self.text)
             .field("ascender", &self.ascender)
             .field("descender", &self.descender)
