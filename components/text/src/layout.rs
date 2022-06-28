@@ -167,14 +167,6 @@ impl<'a> TextLayoutIter<'a> {
         let current = self.current.as_ref().unwrap();
 
         let current_position = self.current_position;
-
-        for pos in current.glyph_positions() {
-            self.current_position += Vector2D::new(
-                pos.x_advance as f32 * self.scale,
-                pos.y_advance as f32 * self.scale,
-            );
-        }
-
         let indices_iter = current
             .glyph_infos()
             .iter()
@@ -189,6 +181,13 @@ impl<'a> TextLayoutIter<'a> {
                 .iter()
                 .zip(current.glyph_positions().iter()),
         };
+
+        for pos in current.glyph_positions() {
+            self.current_position += Vector2D::new(
+                pos.x_advance as f32 * self.scale,
+                pos.y_advance as f32 * self.scale,
+            );
+        }
 
         Some((indices_iter, line_iter))
     }
