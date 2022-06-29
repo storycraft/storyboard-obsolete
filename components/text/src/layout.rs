@@ -1,8 +1,9 @@
 use std::{
     fmt::Debug,
     iter::{Enumerate, Peekable, Zip},
+    ops::Range,
     slice::Iter,
-    str::Chars,
+    str::CharIndices,
 };
 
 use rustybuzz::{GlyphBuffer, GlyphPosition, UnicodeBuffer};
@@ -55,9 +56,9 @@ impl<'a> TextLayout<'a> {
             face: rustybuzz::Face::from_face(self.face.clone()).unwrap(),
 
             current_position: Vector2D::zero(),
-            next_placement: ParagraphPlacement::default(),
 
-            text: self.text.chars().enumerate().peekable(),
+            text: self.text,
+            text_iter: self.text.char_indices().enumerate().peekable(),
 
             ascender: self.ascender,
             descender: self.descender,
@@ -66,7 +67,6 @@ impl<'a> TextLayout<'a> {
 
             scale: size_px / self.units_per_em as f32,
 
-            buf: String::new(),
             current: None,
         }
     }
@@ -76,9 +76,9 @@ pub struct TextLayoutIter<'a> {
     face: rustybuzz::Face<'a>,
 
     current_position: Vector2D<f32, PhyiscalPixelUnit>,
-    next_placement: ParagraphPlacement,
 
-    text: Peekable<Enumerate<Chars<'a>>>,
+    text: &'a str,
+    text_iter: Peekable<Enumerate<CharIndices<'a>>>,
 
     ascender: i16,
     descender: i16,
@@ -87,7 +87,6 @@ pub struct TextLayoutIter<'a> {
 
     scale: f32,
 
-    buf: String,
     current: Option<GlyphBuffer>,
 }
 
@@ -104,69 +103,94 @@ impl<'a> TextLayoutIter<'a> {
         self.tab_width as f32 * self.scale
     }
 
-    pub fn next<'iter>(
-        &'iter mut self,
-    ) -> Option<(impl Iterator<Item = u16> + 'iter, LineLayoutIter<'iter>)> {
-        let cluster_offset = self.text.peek()?.0 as u32;
-        self.current_position = self
-            .next_placement
-            .get_next_placement(self.current_position);
+    fn get_placement_for(&self, ch: char) -> Option<TextPlacement> {
+        match ch {
+            '\n' => Some(TextPlacement::Set(Vector2D::new(
+                0.0,
+                self.current_position.y
+                    + (self.ascender as f32 - self.descender as f32) * self.scale,
+            ))),
 
-        self.next_placement = ParagraphPlacement::default();
-        for (_, ch) in &mut self.text {
-            match ch {
-                '\n' => {
-                    self.next_placement = ParagraphPlacement::Set(Vector2D::new(
-                        0.0,
-                        self.current_position.y
-                            + (self.ascender as f32 - self.descender as f32) * self.scale,
-                    ));
-                    break;
-                }
+            '\r' => Some(TextPlacement::Set(Vector2D::new(
+                0.0,
+                self.current_position.y,
+            ))),
 
-                '\r' => {
-                    self.next_placement =
-                        ParagraphPlacement::Set(Vector2D::new(0.0, self.current_position.y));
-                    break;
-                }
+            '\t' => Some(TextPlacement::Offset(Vector2D::new(
+                self.tab_width as f32 * self.scale,
+                0.0,
+            ))),
 
-                '\t' => {
-                    self.next_placement = ParagraphPlacement::Offset(Vector2D::new(
-                        self.tab_width as f32 * self.scale,
-                        0.0,
-                    ));
-                    break;
-                }
+            '\x0C' => Some(TextPlacement::Offset(Vector2D::new(
+                0.0,
+                (self.ascender as f32 - self.descender as f32) * self.scale,
+            ))),
 
-                '\x0C' => {
-                    self.next_placement = ParagraphPlacement::Offset(Vector2D::new(
-                        0.0,
-                        (self.ascender as f32 - self.descender as f32) * self.scale,
-                    ));
-                    break;
-                }
+            _ => None,
+        }
+    }
 
-                _ => {
-                    self.buf.push(ch);
-                }
+    fn update_next_text_slice(&mut self) -> Option<TextSlice> {
+        let (cluster_offset, (start_offset, start_ch)) = *self.text_iter.peek()?;
+
+        let mut next_placement = TextPlacement::default();
+
+        let mut end_offset = start_offset + start_ch.len_utf8();
+
+        while let Some((_, (start_pos, ch))) = self.text_iter.next() {
+            end_offset = start_pos + ch.len_utf8();
+
+            if let Some(placement) = self.get_placement_for(ch) {
+                next_placement = placement;
+                break;
             }
         }
 
+        Some(TextSlice {
+            range: start_offset..end_offset,
+            cluster_offset,
+            next_placement,
+        })
+    }
+
+    fn get_next_position(
+        &self,
+        buffer: &GlyphBuffer,
+        next_placement: TextPlacement,
+    ) -> Vector2D<f32, PhyiscalPixelUnit> {
+        let mut next_position = self.current_position;
+        for pos in buffer.glyph_positions() {
+            next_position += Vector2D::new(
+                pos.x_advance as f32 * self.scale,
+                pos.y_advance as f32 * self.scale,
+            );
+        }
+
+        next_placement.get_next_placement(next_position)
+    }
+
+    fn shape_text(&mut self, text: &str) -> GlyphBuffer {
         let mut shape_buffer = self
             .current
             .take()
             .map(|buffer| buffer.clear())
             .unwrap_or_default();
 
-        shape_buffer.push_str(&self.buf);
+        shape_buffer.push_str(text);
         shape_buffer.guess_segment_properties();
-        self.buf.clear();
 
-        let buffer = rustybuzz::shape(&self.face, &[], shape_buffer);
-        self.current = Some(buffer);
+        rustybuzz::shape(&self.face, &[], shape_buffer)
+    }
+
+    pub fn next<'iter>(
+        &'iter mut self,
+    ) -> Option<(impl Iterator<Item = u16> + 'iter, LineLayoutIter<'iter>)> {
+        let slice = self.update_next_text_slice()?;
+
+        let shape_buffer = self.shape_text(&self.text[slice.range]);
+        self.current = Some(shape_buffer);
         let current = self.current.as_ref().unwrap();
 
-        let current_position = self.current_position;
         let indices_iter = current
             .glyph_infos()
             .iter()
@@ -174,20 +198,15 @@ impl<'a> TextLayoutIter<'a> {
 
         let line_iter = LineLayoutIter {
             scale: self.scale,
-            cluster_offset,
-            current_position,
+            cluster_offset: slice.cluster_offset as u32,
+            current_position: self.current_position,
             iter: current
                 .glyph_infos()
                 .iter()
                 .zip(current.glyph_positions().iter()),
         };
 
-        for pos in current.glyph_positions() {
-            self.current_position += Vector2D::new(
-                pos.x_advance as f32 * self.scale,
-                pos.y_advance as f32 * self.scale,
-            );
-        }
+        self.current_position = self.get_next_position(current, slice.next_placement);
 
         Some((indices_iter, line_iter))
     }
@@ -197,31 +216,29 @@ impl Debug for TextLayoutIter<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("TextLayoutIter")
             .field("current_position", &self.current_position)
-            .field("next_placement", &self.next_placement)
             .field("text", &self.text)
             .field("ascender", &self.ascender)
             .field("descender", &self.descender)
             .field("tab_width", &self.tab_width)
             .field("scale", &self.scale)
-            .field("buf", &self.buf)
             .field("current", &self.current)
             .finish_non_exhaustive()
     }
 }
 
 #[derive(Debug, Clone, Copy)]
-enum ParagraphPlacement {
+pub enum TextPlacement {
     Set(Vector2D<f32, PhyiscalPixelUnit>),
     Offset(Vector2D<f32, PhyiscalPixelUnit>),
 }
 
-impl Default for ParagraphPlacement {
+impl Default for TextPlacement {
     fn default() -> Self {
         Self::Offset(Vector2D::zero())
     }
 }
 
-impl ParagraphPlacement {
+impl TextPlacement {
     pub fn get_next_placement(
         &self,
         current: Vector2D<f32, PhyiscalPixelUnit>,
@@ -231,6 +248,13 @@ impl ParagraphPlacement {
             Self::Offset(offset) => current + offset,
         }
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct TextSlice {
+    pub range: Range<usize>,
+    pub cluster_offset: usize,
+    pub next_placement: TextPlacement,
 }
 
 #[derive(Debug)]
