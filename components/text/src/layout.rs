@@ -232,7 +232,7 @@ pub struct TextSlice {
 #[derive(Debug)]
 pub struct LineLayout {
     scale: f32,
-    current_position: Vector2D<f32, PhyiscalPixelUnit>,
+    pub current_position: Vector2D<f32, PhyiscalPixelUnit>,
     buffer: GlyphBuffer,
 }
 
