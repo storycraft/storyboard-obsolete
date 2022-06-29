@@ -12,9 +12,9 @@ fn layout_test() -> Result<(), Box<dyn Error>> {
     let mut buffer = UnicodeBuffer::new();
     buffer.push_str("hello world");
 
-    let layout = LineLayout::new_layout(&face, buffer);
+    let layout = LineLayout::shape_from_buffer(&face, 16.0, buffer);
 
-    for info in layout.iter(16.0) {
+    for info in layout.iter() {
         println!("{info:?}");
     }
 

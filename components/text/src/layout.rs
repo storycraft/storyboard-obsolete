@@ -1,7 +1,7 @@
 use std::{
     fmt::Debug,
     iter::{Enumerate, Peekable, Zip},
-    ops::Range,
+    ops::{Deref, Range},
     slice::Iter,
     str::CharIndices,
 };
@@ -67,7 +67,7 @@ impl<'a> TextLayout<'a> {
 
             scale: size_px / self.units_per_em as f32,
 
-            current: None,
+            shape_buffer: None,
         }
     }
 }
@@ -87,7 +87,7 @@ pub struct TextLayoutIter<'a> {
 
     scale: f32,
 
-    current: Option<GlyphBuffer>,
+    shape_buffer: Option<UnicodeBuffer>,
 }
 
 impl<'a> TextLayoutIter<'a> {
@@ -153,28 +153,8 @@ impl<'a> TextLayoutIter<'a> {
         })
     }
 
-    fn get_next_position(
-        &self,
-        buffer: &GlyphBuffer,
-        next_placement: TextPlacement,
-    ) -> Vector2D<f32, PhyiscalPixelUnit> {
-        let mut next_position = self.current_position;
-        for pos in buffer.glyph_positions() {
-            next_position += Vector2D::new(
-                pos.x_advance as f32 * self.scale,
-                pos.y_advance as f32 * self.scale,
-            );
-        }
-
-        next_placement.get_next_placement(next_position)
-    }
-
     fn shape_text(&mut self, text: &str) -> GlyphBuffer {
-        let mut shape_buffer = self
-            .current
-            .take()
-            .map(|buffer| buffer.clear())
-            .unwrap_or_default();
+        let mut shape_buffer = self.shape_buffer.take().unwrap_or_default();
 
         shape_buffer.push_str(text);
         shape_buffer.guess_segment_properties();
@@ -182,33 +162,25 @@ impl<'a> TextLayoutIter<'a> {
         rustybuzz::shape(&self.face, &[], shape_buffer)
     }
 
-    pub fn next<'iter>(
-        &'iter mut self,
-    ) -> Option<(impl Iterator<Item = u16> + 'iter, LineLayoutIter<'iter>)> {
+    pub fn next<'iter>(&'iter mut self) -> Option<LineLayoutRef<'iter, 'a>> {
         let slice = self.update_next_text_slice()?;
 
         let shape_buffer = self.shape_text(&self.text[slice.range]);
-        self.current = Some(shape_buffer);
-        let current = self.current.as_ref().unwrap();
 
-        let indices_iter = current
-            .glyph_infos()
-            .iter()
-            .map(|info| info.glyph_id as u16);
-
-        let line_iter = LineLayoutIter {
+        let line_layout = LineLayout {
             scale: self.scale,
-            cluster_offset: slice.cluster_offset as u32,
             current_position: self.current_position,
-            iter: current
-                .glyph_infos()
-                .iter()
-                .zip(current.glyph_positions().iter()),
+            buffer: shape_buffer,
         };
 
-        self.current_position = self.get_next_position(current, slice.next_placement);
+        self.current_position = slice
+            .next_placement
+            .get_next_placement(self.current_position + line_layout.get_total_advance());
 
-        Some((indices_iter, line_iter))
+        Some(LineLayoutRef {
+            iter: self,
+            layout: Some(line_layout),
+        })
     }
 }
 
@@ -221,7 +193,7 @@ impl Debug for TextLayoutIter<'_> {
             .field("descender", &self.descender)
             .field("tab_width", &self.tab_width)
             .field("scale", &self.scale)
-            .field("current", &self.current)
+            .field("shape_buffer", &self.shape_buffer)
             .finish_non_exhaustive()
     }
 }
@@ -259,40 +231,74 @@ pub struct TextSlice {
 
 #[derive(Debug)]
 pub struct LineLayout {
-    units_per_em: u16,
-
+    scale: f32,
+    current_position: Vector2D<f32, PhyiscalPixelUnit>,
     buffer: GlyphBuffer,
 }
 
 impl LineLayout {
-    pub fn new_layout(face: &Face, buffer: UnicodeBuffer) -> Self {
+    pub fn shape_str(face: &Face, size_px: f32, text: &str) -> Self {
+        let mut shape_buffer = UnicodeBuffer::new();
+        shape_buffer.push_str(text);
+
+        let buffer = rustybuzz::shape(
+            &rustybuzz::Face::from_face(face.clone()).unwrap(),
+            &[],
+            shape_buffer,
+        );
+
+        let scale = size_px / face.units_per_em() as f32;
+
+        Self {
+            scale,
+            current_position: Vector2D::zero(),
+
+            buffer,
+        }
+    }
+
+    pub fn shape_from_buffer(face: &Face, size_px: f32, buffer: UnicodeBuffer) -> Self {
         let buffer = rustybuzz::shape(
             &rustybuzz::Face::from_face(face.clone()).unwrap(),
             &[],
             buffer,
         );
 
-        let units_per_em = face.units_per_em();
+        let scale = size_px / face.units_per_em() as f32;
 
         Self {
-            units_per_em,
+            scale,
+            current_position: Vector2D::zero(),
 
             buffer,
         }
     }
 
-    pub fn indices<'a>(&'a self) -> impl Iterator<Item = u16> + 'a {
+    pub fn glyph_id_iter<'a>(&'a self) -> impl Iterator<Item = u16> + 'a {
         self.buffer
             .glyph_infos()
             .iter()
             .map(|info| info.glyph_id as u16)
     }
 
-    pub fn iter(&self, size_px: f32) -> LineLayoutIter {
+    pub fn get_total_advance(&self) -> Vector2D<f32, PhyiscalPixelUnit> {
+        let mut total = Vector2D::zero();
+
+        for pos in self.buffer.glyph_positions() {
+            total += Vector2D::new(
+                pos.x_advance as f32 * self.scale,
+                pos.y_advance as f32 * self.scale,
+            );
+        }
+
+        total
+    }
+
+    pub fn iter(&self) -> LineLayoutIter {
         LineLayoutIter {
-            scale: size_px / self.units_per_em as f32,
+            scale: self.scale,
             cluster_offset: 0,
-            current_position: Vector2D::zero(),
+            current_position: self.current_position,
             iter: self
                 .buffer
                 .glyph_infos()
@@ -303,6 +309,26 @@ impl LineLayout {
 
     pub fn into_inner(self) -> UnicodeBuffer {
         self.buffer.clear()
+    }
+}
+
+#[derive(Debug)]
+pub struct LineLayoutRef<'a, 'text> {
+    iter: &'a mut TextLayoutIter<'text>,
+    layout: Option<LineLayout>,
+}
+
+impl Deref for LineLayoutRef<'_, '_> {
+    type Target = LineLayout;
+
+    fn deref(&self) -> &Self::Target {
+        self.layout.as_ref().unwrap()
+    }
+}
+
+impl Drop for LineLayoutRef<'_, '_> {
+    fn drop(&mut self) {
+        self.iter.shape_buffer = Some(self.layout.take().unwrap().buffer.clear())
     }
 }
 
@@ -324,7 +350,7 @@ impl<'a> Iterator for LineLayoutIter<'a> {
             glyph_id: info.glyph_id as u16,
             cluster: self.cluster_offset + info.cluster,
             position: self.current_position
-                - Vector2D::new(
+                + Vector2D::new(
                     pos.x_offset as f32 * self.scale,
                     pos.y_offset as f32 * self.scale,
                 ),

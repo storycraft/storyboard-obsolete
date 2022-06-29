@@ -103,11 +103,12 @@ impl Text {
 
             let ascender = layout_iter.ascender();
 
-            while let Some((indices_iter, mut line_iter)) = layout_iter.next() {
-                let mut indices_iter = indices_iter.peekable();
+            while let Some(line_layout) = layout_iter.next() {
+                let mut line_iter = line_layout.iter();
+                let mut glyph_id_iter = line_layout.glyph_id_iter().peekable();
 
                 while let Some(view_batch) =
-                    cache.batch(device, queue, &self.font, &mut indices_iter, scaled_size)
+                    cache.batch(device, queue, &self.font, &mut glyph_id_iter, scaled_size)
                 {
                     let texture = Arc::new(RenderTexture2D::init(
                         device,
