@@ -130,7 +130,7 @@ impl<'a> TextLayoutIter<'a> {
         }
     }
 
-    fn update_next_text_slice(&mut self) -> Option<TextSlice> {
+    fn next_text_slice(&mut self) -> Option<TextSlice> {
         let (cluster_offset, (start_offset, start_ch)) = *self.text_iter.peek()?;
 
         let mut next_placement = TextPlacement::default();
@@ -163,7 +163,7 @@ impl<'a> TextLayoutIter<'a> {
     }
 
     pub fn next<'iter>(&'iter mut self) -> Option<LineLayoutRef<'iter, 'a>> {
-        let slice = self.update_next_text_slice()?;
+        let slice = self.next_text_slice()?;
 
         let shape_buffer = self.shape_text(&self.text[slice.range]);
 

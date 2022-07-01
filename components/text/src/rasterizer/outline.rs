@@ -1,4 +1,5 @@
 use ab_glyph_rasterizer::{Point, Rasterizer};
+use smallvec::SmallVec;
 use storyboard_core::euclid::{Box2D, Size2D, Vector2D};
 use ttf_parser::OutlineBuilder;
 
@@ -7,7 +8,7 @@ use crate::{rasterizer::GlyphData, FontUnit};
 #[derive(Debug)]
 pub struct GlyphOutlineBuilder {
     bounding_box: Box2D<f32, FontUnit>,
-    commands: Vec<RasterizerCommand>,
+    commands: SmallVec<[RasterizerCommand; 8]>,
     point: Vector2D<f32, FontUnit>,
     last_move_point: Option<Vector2D<f32, FontUnit>>,
 }
@@ -16,7 +17,7 @@ impl GlyphOutlineBuilder {
     pub fn new() -> Self {
         Self {
             bounding_box: Box2D::zero(),
-            commands: Vec::new(),
+            commands: SmallVec::new(),
             point: Vector2D::zero(),
             last_move_point: None,
         }

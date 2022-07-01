@@ -57,13 +57,16 @@ impl State<StoryboardStateData> for AppMain {
     ) -> StoryboardStateStatus {
         match &system_state.event {
             Event::RedrawRequested(_) => {
-                system_state.draw(self.text.as_mut().unwrap().draw(
+                self.text.as_mut().unwrap().update(
                     system_prop.backend.device(),
                     system_prop.backend.queue(),
-                    &ShapeColor::WHITE,
                     system_prop.window.scale_factor() as _,
                     &system_prop.texture_data,
                     &mut self.cache,
+                );
+
+                system_state.draw(self.text.as_mut().unwrap().draw(
+                    &ShapeColor::WHITE,
                 ));
             }
 

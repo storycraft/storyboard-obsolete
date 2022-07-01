@@ -11,7 +11,8 @@ use storyboard::{
         wgpu::{PowerPreference, PresentMode, TextureFormat, TextureUsages},
     },
     state::{
-        StoryboardStateData, StoryboardStateStatus, StoryboardSystemProp, StoryboardSystemState, State,
+        State, StoryboardStateData, StoryboardStateStatus, StoryboardSystemProp,
+        StoryboardSystemState,
     },
     texture::{ComponentTexture, TextureLayout, TextureLayoutStyle, TextureWrap},
     winit::{
@@ -158,14 +159,15 @@ impl State<StoryboardStateData> for SampleApp {
                 });
             }
 
-            system_state.draw(self.text.draw(
+            self.text.update(
                 system_prop.backend.device(),
                 system_prop.backend.queue(),
-                &ShapeColor::WHITE,
                 system_prop.window.scale_factor() as _,
                 &system_prop.texture_data,
                 &mut self.cache,
-            ));
+            );
+
+            system_state.draw(self.text.draw(&ShapeColor::WHITE));
 
             system_state.draw(Box2D {
                 bounds: self.text.bounding_box().to_rect(),

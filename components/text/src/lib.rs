@@ -75,19 +75,18 @@ impl Text {
         self.text = text.into();
     }
 
-    pub const fn bounding_box(&self) -> &Box2D<f32, LogicalPixelUnit> {
-        &self.bounding_box
+    pub const fn bounding_box(&self) -> Box2D<f32, LogicalPixelUnit> {
+        self.bounding_box
     }
 
-    pub fn draw(
+    pub fn update(
         &mut self,
         device: &Device,
         queue: &Queue,
-        color: &ShapeColor<4>,
         scale_factor: f32,
         textures: &TextureData,
         cache: &mut GlyphCache,
-    ) -> TextDrawable {
+    ) {
         let font_invalidated = Observable::invalidate(&mut self.font);
         let text_invalidated = Observable::invalidate(&mut self.text);
 
@@ -148,7 +147,12 @@ impl Text {
 
             self.batches = Arc::new(batches);
         }
+    }
 
+    pub fn draw(
+        &mut self,
+        color: &ShapeColor<4>,
+    ) -> TextDrawable {
         TextDrawable {
             batches: self.batches.clone(),
             color: color.clone(),
