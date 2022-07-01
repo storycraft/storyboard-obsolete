@@ -138,11 +138,12 @@ impl<'a> TextLayoutIter<'a> {
         let mut end_offset = start_offset + start_ch.len_utf8();
 
         while let Some((_, (start_pos, ch))) = self.text_iter.next() {
-            end_offset = start_pos + ch.len_utf8();
-
             if let Some(placement) = self.get_placement_for(ch) {
+                end_offset = start_pos;
                 next_placement = placement;
                 break;
+            } else {
+                end_offset = start_pos + ch.len_utf8();
             }
         }
 
