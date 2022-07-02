@@ -8,7 +8,7 @@ use storyboard::{
     },
     render::{
         backend::BackendOptions,
-        wgpu::{PowerPreference, PresentMode, TextureFormat, TextureUsages},
+        wgpu::{PowerPreference, PresentMode, TextureFormat, TextureUsages, Limits},
     },
     state::{
         State, StoryboardStateData, StoryboardStateStatus, StoryboardSystemProp,
@@ -67,6 +67,7 @@ async fn main_async(event_loop: EventLoop<()>, window: Window) {
         window,
         &BackendOptions {
             power_preference: PowerPreference::HighPerformance,
+            limits: Limits::downlevel_webgl2_defaults(),
             ..Default::default()
         },
         PresentMode::AutoNoVsync,

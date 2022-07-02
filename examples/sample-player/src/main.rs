@@ -5,7 +5,7 @@ use main_menu::AppMain;
 use storyboard::{
     render::{
         backend::BackendOptions,
-        wgpu::{PowerPreference, PresentMode},
+        wgpu::{PowerPreference, PresentMode, Limits},
     },
     winit::{
         event_loop::EventLoop,
@@ -56,6 +56,7 @@ async fn main_async(event_loop: EventLoop<()>, window: Window) {
         window,
         &BackendOptions {
             power_preference: PowerPreference::HighPerformance,
+            limits: Limits::downlevel_webgl2_defaults(),
             ..Default::default()
         },
         PresentMode::AutoNoVsync,
