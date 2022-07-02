@@ -83,11 +83,11 @@ fn box2d(rect: vec4<f32>, border_radius: vec4<f32>, coord: vec2<f32>) -> vec3<f3
 }
 
 fn box_distance(box2d: vec3<f32>) -> f32 {
-    return max(sqrt(dot(box2d.xy, box2d.xy)) - box2d.z, 0.0);
+    return sqrt(dot(box2d.xy, box2d.xy)) - box2d.z;
 }
 
-fn blend(source: vec4<f32>, dest: vec4<f32>, alpha: f32) -> vec4<f32> {
-    return vec4<f32>(source.xyz * (1.0 - alpha) + dest.xyz * alpha, dest.a * alpha);
+fn blend(source: vec4<f32>, dest: vec4<f32>) -> vec4<f32> {
+    return source.rgba * (1.0 - dest.a) + dest.rgba * dest.a;
 }
 
 fn wrap_texture_coord(coord: f32, wrap_mode: u32) -> f32 {
@@ -126,24 +126,24 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // Shadow
     if (shadow_box_dist <= in.shadow_radius) {
         let t = select(0.0, shadow_box_dist / in.shadow_radius, in.shadow_radius != 0.0);
-        color = blend(color, in.shadow_color, 1.0 - t * t);
+        color = blend(color, in.shadow_color * (1.0 - t * t));
+    }
+
+    // Fill Color
+    if (box_dist <= 0.0) {
+        color = blend(color, fill_color);
+    }
+
+    // Border
+    if (box_dist < in.border_thickness + 1.0 && box_dist > -1.0) {
+        let t = max(abs(box_dist - in.border_thickness / 2.0) - in.border_thickness / 2.0, 0.0);
+        color = blend(color, in.border_color * (1.0 - t * t));
     }
 
     // Glow
     if (box_dist <= in.border_thickness + in.glow_radius && box_dist > in.border_thickness) {
         let t = select(0.0, (box_dist - in.border_thickness) / in.glow_radius, in.glow_radius != 0.0);
-        color = blend(color, in.glow_color, 1.0 - t * t);
-    }
-
-    // Border
-    if (box_dist < in.border_thickness + 1.0 && box_dist > 0.0) {
-        let t = max(box_dist - in.border_thickness, 0.0);
-        color = blend(color, in.border_color, 1.0 - t * t);
-    }
-
-    // Fill Color
-    if (box_dist < 1.0) {
-        color = blend(color, fill_color, 1.0 - box_dist * box_dist);
+        color = blend(color, in.glow_color * (1.0 - t * t));
     }
 
     return color;
