@@ -99,7 +99,7 @@ impl Drawable for Box2D {
     }
 }
 
-#[derive(Debug, Clone, Default, Copy, Pod, Zeroable)]
+#[derive(Debug, Clone, Copy, Pod, Zeroable)]
 #[repr(C)]
 pub struct Box2DStyle {
     pub border_radius: [f32; 4],
@@ -111,6 +111,20 @@ pub struct Box2DStyle {
     pub shadow_offset: Vector2D<f32, LogicalPixelUnit>,
     pub shadow_radius: f32,
     pub shadow_color: LinSrgba,
+}
+
+impl Default for Box2DStyle {
+    fn default() -> Self {
+        Self {
+            border_radius: Default::default(),
+            border_thickness: Default::default(),
+            glow_radius: Default::default(),
+            glow_color: LinSrgba::new(0.0, 0.0, 0.0, 0.0),
+            shadow_offset: Default::default(),
+            shadow_radius: Default::default(),
+            shadow_color: LinSrgba::new(0.0, 0.0, 0.0, 0.0),
+        }
+    }
 }
 
 #[derive(Debug)]

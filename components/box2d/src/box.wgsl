@@ -128,6 +128,12 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         let t = select(0.0, shadow_box_dist / in.shadow_radius, in.shadow_radius != 0.0);
         color = blend(color, in.shadow_color * (1.0 - t * t));
     }
+    
+    // Glow
+    if (box_dist <= in.border_thickness + in.glow_radius) {
+        let t = select(0.0, (box_dist - in.border_thickness) / in.glow_radius, in.glow_radius != 0.0);
+        color = blend(color, in.glow_color * (1.0 - t * t));
+    }
 
     // Fill Color
     if (box_dist <= 0.0) {
@@ -135,15 +141,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     }
 
     // Border
-    if (box_dist < in.border_thickness + 1.0 && box_dist > -1.0) {
+    if (box_dist < in.border_thickness + 1.0 && box_dist > max(-box.z, -1.0)) {
         let t = max(abs(box_dist - in.border_thickness / 2.0) - in.border_thickness / 2.0, 0.0);
         color = blend(color, in.border_color * (1.0 - t * t));
-    }
-
-    // Glow
-    if (box_dist <= in.border_thickness + in.glow_radius && box_dist > in.border_thickness) {
-        let t = select(0.0, (box_dist - in.border_thickness) / in.glow_radius, in.glow_radius != 0.0);
-        color = blend(color, in.glow_color * (1.0 - t * t));
     }
 
     return color;
