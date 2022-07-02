@@ -1,16 +1,20 @@
-use std::{collections::HashMap, iter::Peekable};
+use std::{collections::HashMap, fmt::Debug, iter::Peekable};
 
+use rect_packer::DensePacker;
 use ringbuffer::{ConstGenericRingBuffer, RingBufferExt, RingBufferWrite};
 use storyboard_core::{
-    euclid::{Rect, Size2D, Vector2D},
+    euclid::{Point2D, Rect, Size2D, Vector2D},
     unit::PhyiscalPixelUnit,
 };
 use storyboard_render::{
-    texture::{packed::PackedTexture, SizedTexture2D, SizedTextureView2D, TextureView2D},
+    texture::{SizedTexture2D, SizedTextureView2D, TextureView2D},
     wgpu::{Device, Queue, TextureFormat, TextureUsages},
 };
 
-use crate::{rasterizer::{GlyphData, GlyphRasterizer}, font::Font};
+use crate::{
+    font::Font,
+    rasterizer::{GlyphData, GlyphRasterizer},
+};
 
 #[derive(Debug)]
 pub struct GlyphCache {
@@ -108,14 +112,14 @@ impl GlyphCache {
         device: &Device,
         queue: &Queue,
         font: &Font,
-        indices: &mut Peekable<impl Iterator<Item = u16>>,
+        glyph_indices: &mut Peekable<impl Iterator<Item = u16>>,
         size_px: u32,
     ) -> Option<GlyphBatch> {
         let mut rects = Vec::new();
 
         let mut page_iter = self.pages.iter_mut();
         while let Some(page) = page_iter.next() {
-            while let Some(index) = indices.peek() {
+            while let Some(index) = glyph_indices.peek() {
                 let key = GlyphKey {
                     font_hash: Font::font_hash(font),
                     index: *index,
@@ -143,7 +147,7 @@ impl GlyphCache {
                     }
                 }
 
-                indices.next();
+                glyph_indices.next();
             }
 
             if rects.len() > 0 {
@@ -154,12 +158,12 @@ impl GlyphCache {
             }
         }
 
-        if indices.peek().is_some() {
+        if glyph_indices.peek().is_some() {
             let atlas =
                 GlyphAtlasMap::init(device, Size2D::new(1024, 1024), TextureFormat::R8Unorm);
             self.pages.push(atlas);
 
-            return self.batch_glyph(device, queue, font, indices, size_px);
+            return self.batch_glyph(device, queue, font, glyph_indices, size_px);
         }
 
         None
@@ -189,9 +193,9 @@ impl GlyphKey {
     }
 }
 
-#[derive(Debug)]
 pub struct GlyphAtlasMap {
-    texture: PackedTexture,
+    texture: SizedTexture2D,
+    packer: DensePacker,
     map: HashMap<GlyphKey, GlyphTextureRect>,
 }
 
@@ -201,22 +205,23 @@ impl GlyphAtlasMap {
         size: Size2D<u32, PhyiscalPixelUnit>,
         format: TextureFormat,
     ) -> Self {
-        let texture = PackedTexture::new(SizedTexture2D::init(
+        let texture = SizedTexture2D::init(
             device,
             Some("GlyphAtlasTexture texture"),
             size,
             format,
             TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
-        ));
+        );
 
         Self {
             texture,
+            packer: DensePacker::new(size.width as i32, size.height as i32),
             map: HashMap::new(),
         }
     }
 
     pub fn create_view(&self) -> SizedTextureView2D {
-        self.texture.inner().create_view_default(None)
+        self.texture.create_view_default(None)
     }
 
     pub fn get_rect(&self, key: &GlyphKey) -> Option<GlyphTextureRect> {
@@ -230,20 +235,37 @@ impl GlyphAtlasMap {
         glyph: &GlyphData,
     ) -> Option<GlyphTextureRect> {
         let tex_rect = if glyph.data.len() > 0 {
-            self.texture.pack(queue, glyph.size, &glyph.data)?
+            self.packer
+                .pack(glyph.size.width as i32, glyph.size.height as i32, false)
+                .map(|rect| {
+                    Rect::new(
+                        Point2D::new(rect.x as u32, rect.y as u32),
+                        Size2D::new(rect.width as u32, rect.height as u32),
+                    )
+                })?
         } else {
             Rect::zero()
         };
-
+        
+        self.texture.write(queue, Some(tex_rect), &glyph.data);
         self.map.insert(
             key,
             GlyphTextureRect {
-                glyph_offset: glyph.offset,
+                glyph_offset: glyph.origin,
                 tex_rect,
             },
         );
 
         self.get_rect(&key)
+    }
+}
+
+impl Debug for GlyphAtlasMap {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GlyphAtlasMap")
+            .field("texture", &self.texture)
+            .field("map", &self.map)
+            .finish_non_exhaustive()
     }
 }
 
