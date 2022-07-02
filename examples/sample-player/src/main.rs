@@ -58,7 +58,7 @@ async fn main_async(event_loop: EventLoop<()>, window: Window) {
             power_preference: PowerPreference::HighPerformance,
             ..Default::default()
         },
-        PresentMode::Mailbox,
+        PresentMode::AutoNoVsync,
     )
     .await
     .unwrap();

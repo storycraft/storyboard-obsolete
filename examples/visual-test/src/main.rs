@@ -69,7 +69,7 @@ async fn main_async(event_loop: EventLoop<()>, window: Window) {
             power_preference: PowerPreference::HighPerformance,
             ..Default::default()
         },
-        PresentMode::Immediate,
+        PresentMode::AutoNoVsync,
     )
     .await
     .unwrap();
@@ -152,7 +152,7 @@ impl State<StoryboardStateData> for SampleApp {
                     style: Box2DStyle {
                         border_thickness: 5.0,
                         shadow_offset: Vector2D::new(100.0, 100.0),
-                        shadow_radius: 0.0,
+                        shadow_radius: 2.0,
                         shadow_color: ShapeColor::BLUE.into(),
                         ..Default::default()
                     },
@@ -194,13 +194,14 @@ impl State<StoryboardStateData> for SampleApp {
                 / system_prop.window.scale_factor() as f32;
 
             self.text.position = self.cursor;
-
-            self.text.set_text(Cow::Owned(format!(
-                "렌더링 테스트\n{:?}",
-                self.cursor * system_prop.window.scale_factor() as f32
-            )));
-            system_prop.request_redraw();
         }
+
+        self.text.set_text(Cow::Owned(format!(
+            "렌더링 테스트\n{:?}\nElapsed: {} ms",
+            self.cursor * system_prop.window.scale_factor() as f32,
+            system_prop.elapsed.as_nanos() as f64 / 1_000_000.0
+        )));
+        system_prop.request_redraw();
 
         StoryboardStateStatus::Poll
     }
