@@ -51,11 +51,11 @@ impl StoreResources<BackendContext<'_>> for Box2DResources {
             ctx.device,
             &pipeline_layout,
             &shader,
-            &[ColorTargetState {
+            &[Some(ColorTargetState {
                 format: ctx.screen_format,
                 blend: Some(BlendState::ALPHA_BLENDING),
                 write_mask: ColorWrites::ALL,
-            }],
+            })],
             Some(DepthStencilState {
                 depth_write_enabled: false,
                 ..ctx.depth_stencil.clone()
@@ -139,14 +139,17 @@ pub struct Box2DComponent {
 
 impl Box2DComponent {
     pub fn from_box2d(box2d: &Box2D, ctx: &mut DrawContext, depth: f32) -> Self {
-        let bounds_inflation = box2d.style.border_thickness + box2d.style.glow_radius + 1.0;
+        let border_bounds_inflation = box2d.style.border_thickness + 1.0;
+        let bounds_inflation = border_bounds_inflation + box2d.style.glow_radius;
         let mut inflated_bounds = box2d.bounds.inflate(bounds_inflation, bounds_inflation);
 
-        let mut shadow_bounds = box2d.bounds.translate(box2d.style.shadow_offset);
-        if box2d.style.shadow_radius > 0.0 {
-            shadow_bounds =
-                shadow_bounds.inflate(box2d.style.shadow_radius, box2d.style.shadow_radius);
-        }
+        let shadow_bounds = box2d
+            .bounds
+            .inflate(
+                border_bounds_inflation + box2d.style.shadow_radius,
+                border_bounds_inflation + box2d.style.shadow_radius,
+            )
+            .translate(box2d.style.shadow_offset);
 
         let draw_shadow_box = !inflated_bounds.intersects(&shadow_bounds);
 
@@ -353,7 +356,7 @@ pub struct BoxInstance {
 }
 
 pub fn init_box_shader(device: &Device) -> ShaderModule {
-    device.create_shader_module(&ShaderModuleDescriptor {
+    device.create_shader_module(ShaderModuleDescriptor {
         label: Some("Box2D shader"),
         source: ShaderSource::Wgsl(Cow::Borrowed(include_str!("box.wgsl"))),
     })
@@ -374,7 +377,7 @@ pub fn init_box_pipeline(
     device: &Device,
     pipeline_layout: &PipelineLayout,
     shader: &ShaderModule,
-    fragment_targets: &[ColorTargetState],
+    fragment_targets: &[Option<ColorTargetState>],
     depth_stencil: Option<DepthStencilState>,
 ) -> RenderPipeline {
     let pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {

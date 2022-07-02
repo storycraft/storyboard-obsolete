@@ -79,7 +79,7 @@ impl StoryboardSurfaceRenderer {
                 device,
                 queue,
                 drawables,
-                RenderPassColorAttachment {
+                Some(RenderPassColorAttachment {
                     view: &surface_texture
                         .texture
                         .create_view(&TextureViewDescriptor::default()),
@@ -88,7 +88,7 @@ impl StoryboardSurfaceRenderer {
                         load: LoadOp::Clear(Color::BLACK),
                         store: true,
                     },
-                },
+                }),
             )?;
 
             return Some(SurfaceRenderResult {

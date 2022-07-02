@@ -124,14 +124,14 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let fill_color = in.fill_color * mapped_texture_color(texture, texture_sampler, in.texture_wrap_mode, in.texture_rect, in.texture_coord);
 
     // Shadow
-    if (shadow_box_dist <= in.shadow_radius) {
-        let t = select(0.0, shadow_box_dist / in.shadow_radius, in.shadow_radius != 0.0);
+    if (shadow_box_dist <= in.border_thickness + in.shadow_radius) {
+        let t = select(0.0, max(shadow_box_dist - in.border_thickness, 0.0) / in.shadow_radius, in.shadow_radius != 0.0);
         color = blend(color, in.shadow_color * (1.0 - t * t));
     }
     
     // Glow
     if (box_dist <= in.border_thickness + in.glow_radius) {
-        let t = select(0.0, (box_dist - in.border_thickness) / in.glow_radius, in.glow_radius != 0.0);
+        let t = select(0.0, max(box_dist - in.border_thickness, 0.0) / in.glow_radius, in.glow_radius != 0.0);
         color = blend(color, in.glow_color * (1.0 - t * t));
     }
 

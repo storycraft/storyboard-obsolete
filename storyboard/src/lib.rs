@@ -5,8 +5,8 @@ pub mod state;
 
 // Reexports
 pub use storyboard_core as core;
-pub use storyboard_texture as texture;
 pub use storyboard_render as render;
+pub use storyboard_texture as texture;
 pub use winit;
 
 use instant::Instant;
@@ -58,7 +58,10 @@ impl Storyboard {
         let backend =
             StoryboardBackend::init(&instance, Some(&surface), Features::empty(), options).await?;
 
-        let screen_format = surface.get_preferred_format(backend.adapter()).unwrap();
+        let screen_format = *surface
+            .get_supported_formats(backend.adapter())
+            .get(0)
+            .ok_or_else(|| BackendInitError::NoSuitableAdapter)?;
         let texture_data = TextureData::init(backend.device());
 
         Ok(Self {

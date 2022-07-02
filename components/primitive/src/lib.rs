@@ -52,11 +52,11 @@ impl StoreResources<BackendContext<'_>> for PrimitiveResources {
             ctx.device,
             &pipeline_layout,
             &shader,
-            &[ColorTargetState {
+            &[Some(ColorTargetState {
                 format: ctx.screen_format,
                 blend: None,
                 write_mask: ColorWrites::COLOR,
-            }],
+            })],
             Some(ctx.depth_stencil.clone()),
         );
 
@@ -64,11 +64,11 @@ impl StoreResources<BackendContext<'_>> for PrimitiveResources {
             ctx.device,
             &pipeline_layout,
             &shader,
-            &[ColorTargetState {
+            &[Some(ColorTargetState {
                 format: ctx.screen_format,
                 blend: Some(BlendState::ALPHA_BLENDING),
                 write_mask: ColorWrites::ALL,
-            }],
+            })],
             Some(DepthStencilState {
                 depth_write_enabled: false,
                 ..ctx.depth_stencil.clone()
@@ -378,7 +378,7 @@ pub struct PrimitiveInstance {
 }
 
 pub fn init_primitive_shader(device: &Device) -> ShaderModule {
-    device.create_shader_module(&ShaderModuleDescriptor {
+    device.create_shader_module(ShaderModuleDescriptor {
         label: Some("Primitive shader"),
         source: ShaderSource::Wgsl(Cow::Borrowed(include_str!("primitive.wgsl"))),
     })
@@ -399,7 +399,7 @@ pub fn init_primitive_pipeline(
     device: &Device,
     pipeline_layout: &PipelineLayout,
     shader: &ShaderModule,
-    fragment_targets: &[ColorTargetState],
+    fragment_targets: &[Option<ColorTargetState>],
     depth_stencil: Option<DepthStencilState>,
 ) -> RenderPipeline {
     device.create_render_pipeline(&RenderPipelineDescriptor {

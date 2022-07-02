@@ -43,11 +43,11 @@ impl StoreResources<BackendContext<'_>> for TextResources {
             ctx.device,
             &pipeline_layout,
             &shader,
-            &[ColorTargetState {
+            &[Some(ColorTargetState {
                 format: ctx.screen_format,
                 blend: Some(BlendState::ALPHA_BLENDING),
                 write_mask: ColorWrites::ALL,
-            }],
+            })],
             Some(DepthStencilState {
                 depth_write_enabled: false,
                 ..ctx.depth_stencil.clone()
@@ -210,7 +210,7 @@ pub struct GlyphVertex {
 }
 
 pub fn init_glyph_shader(device: &Device) -> ShaderModule {
-    device.create_shader_module(&ShaderModuleDescriptor {
+    device.create_shader_module(ShaderModuleDescriptor {
         label: Some("Glyph shader"),
         source: ShaderSource::Wgsl(Cow::Borrowed(include_str!("text.wgsl"))),
     })
@@ -231,7 +231,7 @@ pub fn init_glyph_pipeline(
     device: &Device,
     pipeline_layout: &PipelineLayout,
     shader: &ShaderModule,
-    fragment_targets: &[ColorTargetState],
+    fragment_targets: &[Option<ColorTargetState>],
     depth_stencil: Option<DepthStencilState>,
 ) -> RenderPipeline {
     device.create_render_pipeline(&RenderPipelineDescriptor {

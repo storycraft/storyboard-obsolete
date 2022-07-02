@@ -98,6 +98,7 @@ impl Default for BackendOptions {
 #[derive(Debug)]
 pub enum BackendInitError {
     NoSuitableAdapter,
+    IncompatibleSurface,
     IncompatibleFeatures(Features),
     Device(RequestDeviceError),
 }
@@ -115,6 +116,8 @@ impl Display for BackendInitError {
             Self::IncompatibleFeatures(features) => {
                 writeln!(f, "Incompatible features: {:?}", features)
             }
+
+            Self::IncompatibleSurface => writeln!(f, "Incompatible surface"),
 
             Self::Device(err) => err.fmt(f),
         }

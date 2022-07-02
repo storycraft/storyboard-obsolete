@@ -11,8 +11,7 @@ webgl = ["wgpu/webgl"]
 [dependencies]
 storyboard-core = { path = "../core" }
 
-# wgpu = "0.12.0"
-wgpu = { git = "https://github.com/gfx-rs/wgpu.git", rev = "aba7197fe84c3008ea48686b848916e0bdafabea" }
+wgpu = "0.13.0"
 bytemuck = "1.9.1"
 rect_packer = "0.2.1"
 rustc-hash = "1.1.0"
