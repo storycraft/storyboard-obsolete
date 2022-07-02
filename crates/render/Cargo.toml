@@ -13,7 +13,6 @@ storyboard-core = { path = "../core" }
 
 wgpu = "0.13.0"
 bytemuck = "1.9.1"
-rect_packer = "0.2.1"
 rustc-hash = "1.1.0"
 parking_lot = "0.12.1"
 triple_buffer = "6.1.0"

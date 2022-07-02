@@ -1,5 +1,3 @@
-pub mod packed;
-
 use std::num::NonZeroU32;
 
 use storyboard_core::{
@@ -79,9 +77,9 @@ impl SizedTexture2D {
         })
     }
 
-    pub fn write(&self, queue: &Queue, rect: Option<&Rect<u32, PhyiscalPixelUnit>>, data: &[u8]) {
+    pub fn write(&self, queue: &Queue, rect: Option<Rect<u32, PhyiscalPixelUnit>>, data: &[u8]) {
         let (origin, extent) = match rect {
-            Some(rect) => rect_to_origin_extent(&rect),
+            Some(rect) => rect_to_origin_extent(rect),
 
             None => (
                 Origin3d::ZERO,
@@ -291,7 +289,7 @@ impl PartialTextureView2D {
     }
 }
 
-fn rect_to_origin_extent(rect: &Rect<u32, PhyiscalPixelUnit>) -> (Origin3d, Extent3d) {
+fn rect_to_origin_extent(rect: Rect<u32, PhyiscalPixelUnit>) -> (Origin3d, Extent3d) {
     (
         Origin3d {
             x: rect.origin.x,
