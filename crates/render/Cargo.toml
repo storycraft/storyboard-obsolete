@@ -11,7 +11,7 @@ webgl = ["wgpu/webgl"]
 [dependencies]
 storyboard-core = { path = "../core" }
 
-wgpu = "0.13.0"
+wgpu = "0.13.1"
 bytemuck = "1.9.1"
 rustc-hash = "1.1.0"
 parking_lot = "0.12.1"
