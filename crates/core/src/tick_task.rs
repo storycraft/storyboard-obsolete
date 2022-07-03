@@ -8,7 +8,7 @@ use std::{
     thread::{self, JoinHandle},
 };
 
-use crossbeam_channel::bounded;
+use parking_lot::Mutex;
 use replace_with::replace_with_or_abort;
 
 #[derive(Debug)]
@@ -30,17 +30,15 @@ impl<T: Send + 'static> IndependentTickTask<T> {
     pub fn run_threaded(item: T, func: fn(&mut T)) -> Self {
         let interrupted = Arc::new(AtomicBool::new(false));
 
-        // Using channel to fallback if thread fail to spawn.
-        let (sender, receiver) = bounded(1);
-
-        sender.send((item, func)).unwrap();
+        // Using option to fallback if thread fail to spawn.
+        let resources = Arc::new(Mutex::new(Some((item, func))));
 
         let handle = {
-            let receiver = receiver.clone();
+            let resources = resources.clone();
             let interrupted = interrupted.clone();
 
             thread::Builder::new().spawn(move || {
-                let (mut item, func) = receiver.try_recv().unwrap();
+                let (mut item, func) = resources.lock().take().unwrap();
 
                 while !interrupted.load(Ordering::Relaxed) {
                     func(&mut item);
@@ -57,7 +55,7 @@ impl<T: Send + 'static> IndependentTickTask<T> {
             })),
 
             Err(_) => {
-                let (item, func) = receiver.try_recv().unwrap();
+                let (item, func) = resources.lock().take().unwrap();
                 Self::run_none_threaded(item, func)
             }
         }
