@@ -6,11 +6,13 @@ GPU accelerated 2D framework using wgpu and winit
 * See `crates` directory for individual parts of framework.
 
 ## Features
-1. State based app. Easy to maintenance and extend.
-2. Highly extendable render resource and component modularity system.
-3. No runtime required.
-4. Cross platform rendering including web (via WebGL, WebGPU).
-5. Nonthreaded / Threaded rendering switching support for low latency app.
+1. Highly extendable render resource and component modularity system.
+2. No runtime required.
+3. Cross platform rendering including web (via WebGL, WebGPU).
+4. Nonthreaded / Threaded rendering switching support for low latency app.
+
+## Documentation
+This project is not currently well documented. See examples for usages.
 
 ## Examples
 See `examples` directory for example projects
