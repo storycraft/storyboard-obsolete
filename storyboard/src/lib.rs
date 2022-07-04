@@ -12,7 +12,7 @@ pub use winit;
 use instant::Instant;
 
 use app::{StoryboardApp, StoryboardAppProp, StoryboardAppState};
-use std::{sync::Arc, time::Duration, path::Path};
+use std::{path::Path, sync::Arc, time::Duration};
 use storyboard_core::euclid::Size2D;
 use storyboard_render::{
     backend::{BackendInitError, BackendOptions, StoryboardBackend},
@@ -48,15 +48,21 @@ impl Storyboard {
         window: Window,
         options: &BackendOptions,
         present_mode: PresentMode,
-        trace_path: Option<&Path>
+        trace_path: Option<&Path>,
     ) -> Result<Self, BackendInitError> {
         let instance = Instance::new(Backends::all());
 
         // Safety: window is valid object to create a surface
         let surface = unsafe { instance.create_surface(&window) };
 
-        let backend =
-            StoryboardBackend::init(&instance, Some(&surface), Features::empty(), options, trace_path).await?;
+        let backend = StoryboardBackend::init(
+            &instance,
+            Some(&surface),
+            Features::empty(),
+            options,
+            trace_path,
+        )
+        .await?;
 
         let screen_format = *surface
             .get_supported_formats(backend.adapter())
@@ -182,15 +188,14 @@ impl Storyboard {
 
             app.update(&app_prop, &mut app_state);
 
-            if let ControlFlow::Exit = app_state.control_flow {
-                app.unload(&app_prop);
-                app_state.render_task.interrupt();
-                return;
-            }
-
             match &app_state.event {
                 Event::MainEventsCleared => {
                     app_prop.elapsed = instant.elapsed();
+                }
+
+                Event::LoopDestroyed => {
+                    app.unload(&app_prop);
+                    app_state.render_task.interrupt();
                 }
 
                 _ => {}
