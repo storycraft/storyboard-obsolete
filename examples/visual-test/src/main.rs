@@ -3,7 +3,7 @@ use std::{borrow::Cow, sync::Arc};
 use storyboard::{
     core::{
         color::ShapeColor,
-        euclid::{Point2D, Rect, Size2D, Vector2D},
+        euclid::{Point2D, Rect, Size2D, Vector2D, Transform3D},
         unit::LogicalPixelUnit,
     },
     render::{
@@ -98,7 +98,7 @@ impl SampleApp {
             texture: None,
             cursor: Default::default(),
             cache: GlyphCache::new(),
-            text: Text::new(Point2D::new(100.0, 100.0), 32, font, Cow::Borrowed("")),
+            text: Text::new(Point2D::new(100.0, 100.0), 32, Transform3D::identity(), font, Cow::Borrowed("")),
         }
     }
 }
@@ -156,6 +156,7 @@ impl StoryboardApp for SampleApp {
                         shadow_color: ShapeColor::BLUE.into(),
                         ..Default::default()
                     },
+                    transform: Transform3D::identity(),
                 });
             }
 
@@ -178,6 +179,7 @@ impl StoryboardApp for SampleApp {
                     border_thickness: 1.0,
                     ..Default::default()
                 },
+                transform: Transform3D::identity(),
             });
 
             state.render();

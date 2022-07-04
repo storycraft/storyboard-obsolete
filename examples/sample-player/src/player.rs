@@ -9,7 +9,7 @@ use rustfft::{num_complex::Complex, Fft, FftPlanner};
 use storyboard::{
     core::{
         color::ShapeColor,
-        euclid::{Point2D, Rect, Size2D},
+        euclid::{Point2D, Rect, Size2D, Transform3D},
     },
     app::{StoryboardAppProp, StoryboardAppState},
     winit::event::{Event, WindowEvent},
@@ -99,6 +99,7 @@ impl State<StoryboardStateData> for Player {
 
                             ..Default::default()
                         },
+                        transform: Transform3D::identity(),
                     });
                 }
 

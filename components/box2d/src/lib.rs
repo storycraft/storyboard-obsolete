@@ -3,7 +3,7 @@ use std::{borrow::Cow, sync::Arc};
 use bytemuck::{Pod, Zeroable};
 use storyboard_core::{
     color::ShapeColor,
-    euclid::{Point2D, Point3D, Rect, Vector2D},
+    euclid::{Point2D, Point3D, Rect, Transform3D, Vector2D},
     math::RectExt,
     palette::LinSrgba,
     store::{Store, StoreResources},
@@ -85,6 +85,8 @@ pub struct Box2D {
     pub border_color: ShapeColor<4>,
 
     pub style: Box2DStyle,
+
+    pub transform: Transform3D<f32, LogicalPixelUnit, LogicalPixelUnit>,
 }
 
 impl Drawable for Box2D {
@@ -173,7 +175,11 @@ impl Box2DComponent {
         let vertices_slice = {
             let mut writer = ctx.vertex_stream.next_writer();
 
-            let box_coords = inflated_bounds.into_coords();
+            let box_coords = box2d
+                .transform
+                .outer_transformed_rect(&inflated_bounds)
+                .unwrap_or(inflated_bounds)
+                .into_coords();
 
             writer.write(bytemuck::bytes_of(&[
                 BoxVertex {
@@ -223,7 +229,11 @@ impl Box2DComponent {
             ]));
 
             if draw_shadow_box {
-                let shadow_coords = shadow_bounds.into_coords();
+                let shadow_coords = box2d
+                    .transform
+                    .outer_transformed_rect(&shadow_bounds)
+                    .unwrap_or(shadow_bounds)
+                    .into_coords();
 
                 writer.write(bytemuck::bytes_of(&[
                     BoxVertex {

@@ -3,7 +3,7 @@ use std::{borrow::Cow, sync::Arc};
 use bytemuck::{Pod, Zeroable};
 use storyboard_core::{
     color::ShapeColor,
-    euclid::{Point2D, Point3D, Rect},
+    euclid::{Point2D, Point3D, Rect, Transform3D},
     math::RectExt,
     palette::LinSrgba,
     store::{Store, StoreResources},
@@ -73,6 +73,7 @@ pub struct GlyphRect {
 #[derive(Debug)]
 pub struct TextDrawable {
     pub batches: Arc<Vec<TextRenderBatch>>,
+    pub transform: Transform3D<f32, LogicalPixelUnit, LogicalPixelUnit>,
     pub color: ShapeColor<4>,
 }
 
@@ -85,7 +86,7 @@ impl Drawable for TextDrawable {
         depth: f32,
     ) {
         for batch in self.batches.iter() {
-            if let Some(component) = GlyphComponent::from_batch(batch, ctx, depth) {
+            if let Some(component) = GlyphComponent::from_batch(batch, &self.transform, ctx, depth) {
                 component_queue.push_transparent(component);
             }
         }
@@ -100,7 +101,12 @@ pub struct GlyphComponent {
 }
 
 impl GlyphComponent {
-    pub fn from_batch(batch: &TextRenderBatch, ctx: &mut DrawContext, depth: f32) -> Option<Self> {
+    pub fn from_batch(
+        batch: &TextRenderBatch,
+        transform: &Transform3D<f32, LogicalPixelUnit, LogicalPixelUnit>,
+        ctx: &mut DrawContext,
+        depth: f32,
+    ) -> Option<Self> {
         let mut writer = ctx.vertex_stream.next_writer();
 
         let mut vertices = 0;
@@ -109,7 +115,7 @@ impl GlyphComponent {
                 continue;
             }
 
-            let coords = rect.rect.into_coords();
+            let coords = transform.outer_transformed_rect(&rect.rect).unwrap_or(rect.rect).into_coords();
             let tex_coords = rect.texture_rect.into_coords();
 
             let left_top = GlyphVertex {

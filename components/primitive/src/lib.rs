@@ -3,7 +3,7 @@ use std::{borrow::Cow, sync::Arc};
 use bytemuck::{Pod, Zeroable};
 use storyboard_core::{
     color::ShapeColor,
-    euclid::{Point2D, Point3D, Rect},
+    euclid::{Point2D, Point3D, Rect, Transform3D},
     math::RectExt,
     palette::LinSrgba,
     store::{Store, StoreResources},
@@ -94,6 +94,7 @@ pub struct Triangle {
     pub bounds: Rect<f32, LogicalPixelUnit>,
     pub color: ShapeColor<3>,
     pub texture: Option<ComponentTexture>,
+    pub transform: Transform3D<f32, LogicalPixelUnit, LogicalPixelUnit>,
 }
 
 impl Drawable for Triangle {
@@ -117,6 +118,7 @@ pub struct Rectangle {
     pub bounds: Rect<f32, LogicalPixelUnit>,
     pub color: ShapeColor<4>,
     pub texture: Option<ComponentTexture>,
+    pub transform: Transform3D<f32, LogicalPixelUnit, LogicalPixelUnit>,
 }
 
 impl Drawable for Rectangle {
@@ -151,7 +153,11 @@ pub enum PrimitiveType {
 
 impl PrimitiveComponent {
     pub fn from_triangle(triangle: &Triangle, ctx: &mut DrawContext, depth: f32) -> Self {
-        let coords = triangle.bounds.into_coords();
+        let coords = triangle
+            .transform
+            .outer_transformed_rect(&triangle.bounds)
+            .unwrap_or(triangle.bounds)
+            .into_coords();
 
         let texture_bounds = ComponentTexture::option_get_texture_bounds(
             triangle.texture.as_ref(),
@@ -217,7 +223,11 @@ impl PrimitiveComponent {
     }
 
     pub fn from_rectangle(rect: &Rectangle, ctx: &mut DrawContext, depth: f32) -> Self {
-        let coords = rect.bounds.into_coords();
+        let coords = rect
+            .transform
+            .outer_transformed_rect(&rect.bounds)
+            .unwrap_or(rect.bounds)
+            .into_coords();
 
         let texture_bounds = ComponentTexture::option_get_texture_bounds(
             rect.texture.as_ref(),

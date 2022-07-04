@@ -2,14 +2,11 @@ use std::{borrow::Cow, fs::File, io::BufReader};
 
 use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
 use storyboard::{
-    core::{
-        color::ShapeColor,
-        euclid::Point2D,
-    },
     app::{StoryboardAppProp, StoryboardAppState},
+    core::{color::ShapeColor, euclid::{Point2D, Transform3D}},
     winit::event::{Event, WindowEvent},
 };
-use storyboard_state::{StateStatus, State};
+use storyboard_state::{State, StateStatus};
 use storyboard_text::{cache::GlyphCache, font::Font, Text};
 
 use crate::{player::Player, StoryboardStateData};
@@ -41,6 +38,7 @@ impl State<StoryboardStateData> for MainMenu {
         self.text = Some(Text::new(
             Point2D::new(10.0, 10.0),
             32,
+            Transform3D::identity(),
             Font::new(Cow::Borrowed(FONT), 0).unwrap(),
             Cow::Borrowed("Drag drop audio file to play"),
         ));
@@ -66,9 +64,7 @@ impl State<StoryboardStateData> for MainMenu {
                     &mut self.cache,
                 );
 
-                system_state.draw(self.text.as_mut().unwrap().draw(
-                    &ShapeColor::WHITE,
-                ));
+                system_state.draw(self.text.as_mut().unwrap().draw(&ShapeColor::WHITE));
 
                 system_state.render();
             }

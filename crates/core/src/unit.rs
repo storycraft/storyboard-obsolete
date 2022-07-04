@@ -11,5 +11,5 @@ pub struct PhyiscalPixelUnit;
 pub struct RenderUnit;
 
 #[derive(Debug, Clone, Copy)]
-/// Unit on wgpu texture. top-left origin UV unit. [0.0, 1.0]
+/// Unit of texture. top-left origin UV unit. [0.0, 1.0]
 pub struct TextureUnit;

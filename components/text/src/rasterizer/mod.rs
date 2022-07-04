@@ -1,7 +1,7 @@
 pub mod outline;
 
 use storyboard_core::{
-    euclid::{Size2D, Vector2D},
+    euclid::{Point2D, Rect, Size2D, Vector2D},
     unit::PhyiscalPixelUnit,
 };
 use ttf_parser::{Face, GlyphId};
@@ -24,18 +24,24 @@ impl<'a> GlyphRasterizer<'a> {
     }
 
     pub fn rasterize_glyph(&self, index: u16, size_px: f32) -> Option<GlyphData> {
-        let mut builder = GlyphOutlineBuilder::new();
+        let bounding_box = {
+            let bounding_box = self.face.glyph_bounding_box(GlyphId(index))?;
 
-        if self
-            .face
-            .outline_glyph(GlyphId(index), &mut builder)
-            .is_some()
-            || builder.is_empty()
-        {
-            Some(builder.rasterize(size_px as f32 / self.face.units_per_em() as f32))
-        } else {
-            None
-        }
+            Rect::new(
+                Point2D::new(bounding_box.x_min, bounding_box.y_min),
+                Size2D::new(bounding_box.width(), bounding_box.height()),
+            )
+            .cast()
+        };
+
+        let mut builder = GlyphOutlineBuilder::new(
+            bounding_box,
+            size_px as f32 / self.face.units_per_em() as f32,
+        );
+
+        self.face.outline_glyph(GlyphId(index), &mut builder)?;
+
+        Some(builder.get_glyph_data())
     }
 
     pub fn rasterize(&mut self, index: u16, size_px: f32) -> Option<RasterizedGlyph> {
@@ -56,7 +62,7 @@ pub enum RasterizedGlyph {
 
 #[derive(Debug, Clone, Default)]
 pub struct GlyphData {
-    pub offset: Vector2D<f32, PhyiscalPixelUnit>,
+    pub origin: Vector2D<f32, PhyiscalPixelUnit>,
     pub size: Size2D<u32, PhyiscalPixelUnit>,
     pub data: Vec<u8>,
 }

@@ -154,21 +154,20 @@ impl<'a> TextLayoutIter<'a> {
         })
     }
 
-    fn shape_text(&mut self, text: &str) -> GlyphBuffer {
-        let mut shape_buffer = self.shape_buffer.take().unwrap_or_default();
-
+    fn shape_text(&mut self, mut shape_buffer: UnicodeBuffer, text: &str) -> GlyphBuffer {
         shape_buffer.push_str(text);
         shape_buffer.guess_segment_properties();
 
         rustybuzz::shape(&self.face, &[], shape_buffer)
     }
 
-    pub fn next<'iter>(&'iter mut self) -> Option<LineLayoutRef<'iter, 'a>> {
+    pub fn next<'iter>(&'iter mut self) -> Option<SpanLayoutRef<'iter, 'a>> {
         let slice = self.next_text_slice()?;
 
-        let shape_buffer = self.shape_text(&self.text[slice.range]);
+        let shape_buffer = self.shape_buffer.take().unwrap_or_default();
+        let shape_buffer = self.shape_text(shape_buffer, &self.text[slice.range]);
 
-        let line_layout = LineLayout {
+        let line_layout = SpanLayout {
             scale: self.scale,
             current_position: self.current_position,
             buffer: shape_buffer,
@@ -178,7 +177,7 @@ impl<'a> TextLayoutIter<'a> {
             .next_placement
             .get_next_placement(self.current_position + line_layout.get_total_advance());
 
-        Some(LineLayoutRef {
+        Some(SpanLayoutRef {
             iter: self,
             layout: Some(line_layout),
         })
@@ -196,6 +195,26 @@ impl Debug for TextLayoutIter<'_> {
             .field("scale", &self.scale)
             .field("shape_buffer", &self.shape_buffer)
             .finish_non_exhaustive()
+    }
+}
+
+#[derive(Debug)]
+pub struct SpanLayoutRef<'a, 'text> {
+    iter: &'a mut TextLayoutIter<'text>,
+    layout: Option<SpanLayout>,
+}
+
+impl Deref for SpanLayoutRef<'_, '_> {
+    type Target = SpanLayout;
+
+    fn deref(&self) -> &Self::Target {
+        self.layout.as_ref().unwrap()
+    }
+}
+
+impl Drop for SpanLayoutRef<'_, '_> {
+    fn drop(&mut self) {
+        self.iter.shape_buffer = Some(self.layout.take().unwrap().buffer.clear())
     }
 }
 
@@ -231,13 +250,13 @@ pub struct TextSlice {
 }
 
 #[derive(Debug)]
-pub struct LineLayout {
+pub struct SpanLayout {
     scale: f32,
     pub current_position: Vector2D<f32, PhyiscalPixelUnit>,
     buffer: GlyphBuffer,
 }
 
-impl LineLayout {
+impl SpanLayout {
     pub fn shape_str(face: &Face, size_px: f32, text: &str) -> Self {
         let mut shape_buffer = UnicodeBuffer::new();
         shape_buffer.push_str(text);
@@ -295,8 +314,8 @@ impl LineLayout {
         total
     }
 
-    pub fn iter(&self) -> LineLayoutIter {
-        LineLayoutIter {
+    pub fn iter(&self) -> SpanLayoutIter {
+        SpanLayoutIter {
             scale: self.scale,
             cluster_offset: 0,
             current_position: self.current_position,
@@ -314,34 +333,14 @@ impl LineLayout {
 }
 
 #[derive(Debug)]
-pub struct LineLayoutRef<'a, 'text> {
-    iter: &'a mut TextLayoutIter<'text>,
-    layout: Option<LineLayout>,
-}
-
-impl Deref for LineLayoutRef<'_, '_> {
-    type Target = LineLayout;
-
-    fn deref(&self) -> &Self::Target {
-        self.layout.as_ref().unwrap()
-    }
-}
-
-impl Drop for LineLayoutRef<'_, '_> {
-    fn drop(&mut self) {
-        self.iter.shape_buffer = Some(self.layout.take().unwrap().buffer.clear())
-    }
-}
-
-#[derive(Debug)]
-pub struct LineLayoutIter<'a> {
+pub struct SpanLayoutIter<'a> {
     scale: f32,
     cluster_offset: u32,
     current_position: Vector2D<f32, PhyiscalPixelUnit>,
     iter: Zip<Iter<'a, rustybuzz::GlyphInfo>, Iter<'a, GlyphPosition>>,
 }
 
-impl<'a> Iterator for LineLayoutIter<'a> {
+impl<'a> Iterator for SpanLayoutIter<'a> {
     type Item = GlyphInfo;
 
     fn next(&mut self) -> Option<Self::Item> {
