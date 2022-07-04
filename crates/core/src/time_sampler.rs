@@ -38,7 +38,7 @@ impl<const SAMPLES: usize> TimeSampler<SAMPLES> {
     }
 
     /// Run task and sample elapsed time if the duration of last run is equal or greater than interval
-    pub fn run<T: FnOnce() -> ()>(&mut self, func: T) {
+    pub fn run<T: FnOnce()>(&mut self, func: T) {
         let now = Instant::now();
         if now.duration_since(self.last_sample()) >= self.interval {
             func();

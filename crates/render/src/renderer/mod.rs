@@ -147,7 +147,7 @@ impl StoryboardRenderer {
         color_attachment: Option<RenderPassColorAttachment>,
         encoder: &mut CommandEncoder,
     ) {
-        if drawables.len() <= 0 || self.screen.0.area() <= 0 {
+        if drawables.len() == 0 || self.screen.0.area() == 0 {
             return;
         }
 
@@ -200,10 +200,10 @@ impl StoryboardRenderer {
             }
         }
 
-        let render_opaque = self.opaque_component.len() > 0;
-        let render_transparent = self.transparent_component.len() > 0;
+        let render_opaque = !self.opaque_component.is_empty();
+        let render_transparent = !self.transparent_component.is_empty();
 
-        let mut render_context = draw_context.into_render_context();
+        let render_context = draw_context.into_render_context();
 
         let depth_attachment = RenderPassDepthStencilAttachment {
             view: self.depth_texture.as_ref().unwrap().inner(),
@@ -224,13 +224,13 @@ impl StoryboardRenderer {
 
             if render_opaque {
                 for component in self.opaque_component.iter().rev() {
-                    component.render_opaque(&mut render_context, &mut pass);
+                    component.render_opaque(&render_context, &mut pass);
                 }
             }
 
             if render_transparent {
                 for component in self.transparent_component.iter() {
-                    component.render_transparent(&mut render_context, &mut pass);
+                    component.render_transparent(&render_context, &mut pass);
                 }
             }
         }

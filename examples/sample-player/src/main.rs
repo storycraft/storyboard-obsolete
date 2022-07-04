@@ -3,7 +3,7 @@
 pub mod main_menu;
 pub mod player;
 
-use std::path::Path;
+
 
 use main_menu::MainMenu;
 use storyboard::{
@@ -81,7 +81,7 @@ impl StateData for StoryboardStateData {
     type State<'s> = StoryboardAppState<'s>;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct App {
     system: Option<StateSystem<StoryboardStateData>>,
 }

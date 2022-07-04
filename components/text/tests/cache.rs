@@ -4,7 +4,7 @@ use rustybuzz::{Face, UnicodeBuffer};
 use storyboard_render::{backend::{BackendOptions, StoryboardBackend}, wgpu::{Backends, Instance}};
 use storyboard_text::{cache::GlyphCache, font::Font};
 
-pub static FONT: &'static [u8] = include_bytes!("./NotoSansCJKkr-Regular.otf");
+pub static FONT: &[u8] = include_bytes!("./NotoSansCJKkr-Regular.otf");
 
 #[test]
 fn layout_test() -> Result<(), Box<dyn Error>> {
@@ -13,6 +13,7 @@ fn layout_test() -> Result<(), Box<dyn Error>> {
         None,
         storyboard_render::wgpu::Features::empty(),
         &BackendOptions::default(),
+        None
     ))
     .unwrap();
     

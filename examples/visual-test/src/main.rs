@@ -79,7 +79,7 @@ async fn main_async(event_loop: EventLoop<()>, window: Window) {
     );
 }
 
-pub static FONT: &'static [u8] = include_bytes!("./NotoSansCJKkr-Regular.otf");
+pub static FONT: &[u8] = include_bytes!("./NotoSansCJKkr-Regular.otf");
 
 #[derive(Debug)]
 pub struct SampleApp {
@@ -124,8 +124,7 @@ impl StoryboardApp for SampleApp {
                 system_prop.create_render_texture(
                     texture
                         .create_view_default(None)
-                        .slice(Rect::new(Point2D::new(1, 0), Size2D::new(1, 2)))
-                        .into(),
+                        .slice(Rect::new(Point2D::new(1, 0), Size2D::new(1, 2))),
                     None,
                 ),
             ),

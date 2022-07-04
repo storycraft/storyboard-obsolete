@@ -23,7 +23,7 @@ impl Font {
 
         // data is pinned and the reference of data never move
         let face = Face::from_slice(
-            unsafe { &slice::from_raw_parts(data.as_ptr(), data.len()) },
+            unsafe { slice::from_raw_parts(data.as_ptr(), data.len()) },
             index,
         )?;
 

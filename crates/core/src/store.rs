@@ -3,7 +3,7 @@ use std::{any::TypeId, fmt::Debug};
 use parking_lot::RwLock;
 use rustc_hash::FxHashMap;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 /// Resource store for storing type erased local resource data
 pub struct Store {
     map: RwLock<FxHashMap<TypeId, *mut ()>>,
@@ -22,10 +22,7 @@ impl Store {
         }
     }
 
-    pub fn get<'a, T: StoreResources<Context>, Context>(
-        &'a self,
-        ctx: &Context,
-    ) -> &'a T {
+    pub fn get<'a, T: StoreResources<Context>, Context>(&'a self, ctx: &Context) -> &'a T {
         if let Some(item) = self.map.read().get(&TypeId::of::<T>()) {
             // SAFETY: Value was created with valid type and was type erased.
             return unsafe { &*(*item as *mut T) };
@@ -92,7 +89,10 @@ mod tests {
             assert_eq!(store.get::<ResA, _>(&()).number, 32);
         }
 
-        println!("Elapsed: {} ms", instant.elapsed().as_nanos() as f32 / 1_000_000.0);
+        println!(
+            "Elapsed: {} ms",
+            instant.elapsed().as_nanos() as f32 / 1_000_000.0
+        );
 
         assert_eq!(store.get::<ResB, _>(&()).string, "test");
     }

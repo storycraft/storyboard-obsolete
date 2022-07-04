@@ -3,7 +3,7 @@ use std::error::Error;
 use rustybuzz::{Face, UnicodeBuffer};
 use storyboard_text::layout::SpanLayout;
 
-pub static FONT: &'static [u8] = include_bytes!("./NotoSansCjkKr-Regular.otf");
+pub static FONT: &[u8] = include_bytes!("./NotoSansCjkKr-Regular.otf");
 
 #[test]
 fn layout_test() -> Result<(), Box<dyn Error>> {

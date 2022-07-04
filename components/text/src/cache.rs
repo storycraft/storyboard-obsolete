@@ -16,7 +16,7 @@ use crate::{
     rasterizer::{GlyphData, GlyphRasterizer},
 };
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct GlyphCache {
     pages: ConstGenericRingBuffer<GlyphAtlasMap, { Self::PAGES }>,
     colored_pages: ConstGenericRingBuffer<GlyphAtlasMap, { Self::PAGES }>,
@@ -75,7 +75,7 @@ impl GlyphCache {
                         } else {
                             break;
                         }
-                    } else if rects.len() > 0 {
+                    } else if !rects.is_empty() {
                         return Some(GlyphBatch {
                             view: page.create_view().into(),
                             rects,
@@ -88,7 +88,7 @@ impl GlyphCache {
                 indices.next();
             }
 
-            if rects.len() > 0 {
+            if !rects.is_empty() {
                 return Some(GlyphBatch {
                     view: page.create_view().into(),
                     rects,
@@ -137,7 +137,7 @@ impl GlyphCache {
                         } else {
                             break;
                         }
-                    } else if rects.len() > 0 {
+                    } else if !rects.is_empty() {
                         return Some(GlyphBatch {
                             view: page.create_view().into(),
                             rects,
@@ -150,7 +150,7 @@ impl GlyphCache {
                 glyph_indices.next();
             }
 
-            if rects.len() > 0 {
+            if !rects.is_empty() {
                 return Some(GlyphBatch {
                     view: page.create_view().into(),
                     rects,
@@ -234,7 +234,7 @@ impl GlyphAtlasMap {
         key: GlyphKey,
         glyph: &GlyphData,
     ) -> Option<GlyphTextureRect> {
-        let tex_rect = if glyph.data.len() > 0 {
+        let tex_rect = if !glyph.data.is_empty() {
             self.packer
                 .pack(glyph.size.width as i32, glyph.size.height as i32, false)
                 .map(|rect| {

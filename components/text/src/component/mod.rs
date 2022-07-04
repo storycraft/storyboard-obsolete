@@ -170,7 +170,7 @@ impl GlyphComponent {
             vertices += 6;
         }
 
-        if vertices <= 0 {
+        if vertices == 0 {
             return None;
         }
 
@@ -245,7 +245,7 @@ pub fn init_glyph_pipeline(
         layout: Some(pipeline_layout),
         vertex: VertexState {
             module: shader,
-            entry_point: &"vs_main",
+            entry_point: "vs_main",
             buffers: &[VertexBufferLayout {
                 array_stride: std::mem::size_of::<GlyphVertex>() as u64,
                 step_mode: VertexStepMode::Vertex,
@@ -260,7 +260,7 @@ pub fn init_glyph_pipeline(
         multisample: MultisampleState::default(),
         fragment: Some(FragmentState {
             module: shader,
-            entry_point: &"fs_main",
+            entry_point: "fs_main",
             targets: fragment_targets,
         }),
         multiview: None,

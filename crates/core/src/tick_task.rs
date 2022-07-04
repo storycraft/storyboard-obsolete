@@ -27,45 +27,50 @@ impl<T: Send + 'static> IndependentTickTask<T> {
     }
 
     /// Try running task on newly created thread. If thread cannot be made, fallback to [`DedicatedTickTask::run_none_threaded`]
-    pub fn run_threaded(item: T, func: fn(&mut T)) -> Self {
+    pub fn run_threaded(item: T, handler: fn(&mut T)) -> Self {
         let interrupted = Arc::new(AtomicBool::new(false));
 
         // Using option to fallback if thread fail to spawn.
-        let resources = Arc::new(Mutex::new(Some((item, func))));
+        let task_handle = Arc::new(Mutex::new(Some(TaskHandle {
+            item,
+            handler,
+        })));
 
-        let handle = {
-            let resources = resources.clone();
+        let thread_handle = {
+            let task_handle = task_handle.clone();
             let interrupted = interrupted.clone();
 
             thread::Builder::new().spawn(move || {
-                let (mut item, func) = resources.lock().take().unwrap();
+                let mut task_handle = task_handle.lock().take().unwrap();
 
                 while !interrupted.load(Ordering::Relaxed) {
-                    func(&mut item);
+                    (task_handle.handler)(&mut task_handle.item);
                 }
 
-                (item, func)
+                task_handle
             })
         };
 
-        match handle {
+        match thread_handle {
             Ok(handle) => Self(TickTaskVariant::Threaded(ThreadedTask {
                 interrupted,
                 handle: Some(handle),
             })),
 
             Err(_) => {
-                let (item, func) = resources.lock().take().unwrap();
-                Self::run_none_threaded(item, func)
+                let task_handle = task_handle.lock().take().unwrap();
+                Self::run_none_threaded(task_handle.item, task_handle.handler)
             }
         }
     }
 
-    pub fn run_none_threaded(item: T, func: fn(&mut T)) -> Self {
+    pub fn run_none_threaded(item: T, handler: fn(&mut T)) -> Self {
         Self(TickTaskVariant::NonThreaded(NonThreadedTask {
             interrupted: false,
-            item,
-            func,
+            handle: TaskHandle {
+                item,
+                handler
+            }
         }))
     }
 
@@ -96,14 +101,14 @@ impl<T: Send + 'static> IndependentTickTask<T> {
         replace_with_or_abort(self, |this| {
             match this.0 {
                 TickTaskVariant::Threaded(task) => {
-                    let (item, func) = match task.handle.unwrap().join() {
-                        Ok(items) => items,
+                    let task_handle = match task.handle.unwrap().join() {
+                        Ok(task_handle) => task_handle,
                         Err(err) => panic::resume_unwind(err),
                     };
     
-                    Self::run_none_threaded(item, func)
+                    Self::run_none_threaded(task_handle.item, task_handle.handler)
                 },
-                TickTaskVariant::NonThreaded(task) => Self::run_threaded(task.item, task.func),
+                TickTaskVariant::NonThreaded(task) => Self::run_threaded(task.handle.item, task.handle.handler),
             }
         });
     }
@@ -132,7 +137,7 @@ enum TickTaskVariant<T> {
 #[derive(Debug)]
 struct ThreadedTask<T> {
     interrupted: Arc<AtomicBool>,
-    handle: Option<JoinHandle<(T, fn(&mut T))>>,
+    handle: Option<JoinHandle<TaskHandle<T>>>,
 }
 
 impl<T> ThreadedTask<T> {
@@ -152,7 +157,7 @@ impl<T> ThreadedTask<T> {
 
     pub fn join(self) -> T {
         match self.handle.unwrap().join() {
-            Ok((item, _)) => item,
+            Ok(task_handle) => task_handle.item,
             Err(err) => panic::resume_unwind(err),
         }
     }
@@ -160,8 +165,7 @@ impl<T> ThreadedTask<T> {
 
 struct NonThreadedTask<T> {
     interrupted: bool,
-    item: T,
-    func: fn(&mut T),
+    handle: TaskHandle<T>
 }
 
 impl<T> NonThreadedTask<T> {
@@ -175,13 +179,13 @@ impl<T> NonThreadedTask<T> {
 
     pub fn tick(&mut self) {
         if !self.interrupted {
-            (self.func)(&mut self.item);
+            (self.handle.handler)(&mut self.handle.item);
         }
     }
 
     #[inline]
     pub fn join(self) -> T {
-        self.item
+        self.handle.item
     }
 }
 
@@ -191,4 +195,9 @@ impl<T> Debug for NonThreadedTask<T> {
             .field("interrupted", &self.interrupted)
             .finish_non_exhaustive()
     }
+}
+
+struct TaskHandle<T> {
+    item: T,
+    handler: fn(&mut T),
 }

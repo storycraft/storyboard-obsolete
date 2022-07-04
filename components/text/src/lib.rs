@@ -110,13 +110,13 @@ impl Text {
                 let mut span_iter = line_layout.iter();
                 let mut glyph_id_iter = line_layout.glyph_id_iter().peekable();
 
-                while let Some(_) = glyph_id_iter.peek() {
+                while glyph_id_iter.peek().is_some() {
                     if let Some(view_batch) =
                         cache.batch(device, queue, &self.font, &mut glyph_id_iter, scaled_size)
                     {
                         let texture = Arc::new(RenderTexture2D::init(
                             device,
-                            view_batch.view.into(),
+                            view_batch.view,
                             textures.bind_group_layout(),
                             textures.default_sampler(),
                         ));

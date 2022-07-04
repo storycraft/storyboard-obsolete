@@ -36,7 +36,7 @@ impl<'a> StoryboardRenderPass<'a> {
             }
         }
 
-        self.current_pipeline = Some(pipeline.clone());
+        self.current_pipeline = Some(pipeline);
 
         self.reset_pipeline_desc();
 

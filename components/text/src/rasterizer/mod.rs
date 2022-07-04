@@ -17,7 +17,7 @@ impl<'a> GlyphRasterizer<'a> {
         Self { face }
     }
 
-    pub fn rasterize_image(&mut self, index: u16, size_px: f32) -> Option<GlyphData> {
+    pub fn rasterize_image(&mut self, _index: u16, _size_px: f32) -> Option<GlyphData> {
         // TODO::
 
         None

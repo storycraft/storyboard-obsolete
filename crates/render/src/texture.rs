@@ -172,7 +172,7 @@ pub enum TextureView2D {
 impl TextureView2D {
     pub fn inner(&self) -> &SizedTextureView2D {
         match self {
-            TextureView2D::All(view) => &view,
+            TextureView2D::All(view) => view,
             TextureView2D::Partial(partial) => partial.view(),
         }
     }

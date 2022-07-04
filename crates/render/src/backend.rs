@@ -78,22 +78,12 @@ impl StoryboardBackend {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct BackendOptions {
     pub power_preference: PowerPreference,
     pub force_fallback_adapter: bool,
 
     pub limits: Limits,
-}
-
-impl Default for BackendOptions {
-    fn default() -> Self {
-        Self {
-            power_preference: Default::default(),
-            force_fallback_adapter: false,
-            limits: Default::default(),
-        }
-    }
 }
 
 #[derive(Debug)]

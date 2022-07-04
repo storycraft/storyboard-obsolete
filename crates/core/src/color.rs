@@ -95,12 +95,6 @@ impl<const VERTICES: usize> From<[Color; VERTICES]> for ShapeColor<VERTICES> {
     }
 }
 
-impl Into<Color> for ShapeColor<1> {
-    fn into(self) -> Color {
-        self[0]
-    }
-}
-
 impl<const VERTICES: usize> Index<usize> for ShapeColor<VERTICES> {
     type Output = Color;
 
@@ -115,6 +109,15 @@ impl<const VERTICES: usize> Index<usize> for ShapeColor<VERTICES> {
             }
 
             ShapeColor::Gradient(gradient) => &gradient[index],
+        }
+    }
+}
+
+impl From<ShapeColor<1>> for Color {
+    fn from(color: ShapeColor<1>) -> Self {
+        match color {
+            ShapeColor::Single(color) => color,
+            ShapeColor::Gradient(colors) => colors[0],
         }
     }
 }

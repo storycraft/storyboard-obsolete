@@ -102,7 +102,7 @@ impl StoryboardSurfaceRenderer {
             });
         }
 
-        return None;
+        None
     }
 
     pub fn into_inner(self) -> Surface {

@@ -94,7 +94,7 @@ impl<Data: StateData> StateSystem<Data> {
         mut initial_state: Box<dyn State<Data> + 'static>,
         system_prop: &Data::Prop<'p>,
     ) -> Self {
-        initial_state.load(&system_prop);
+        initial_state.load(system_prop);
 
         let stack = smallvec![initial_state];
         Self { stack }

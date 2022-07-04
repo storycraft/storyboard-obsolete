@@ -3,7 +3,10 @@ use std::{borrow::Cow, fs::File, io::BufReader};
 use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
 use storyboard::{
     app::{StoryboardAppProp, StoryboardAppState},
-    core::{color::ShapeColor, euclid::{Point2D, Transform3D}},
+    core::{
+        color::ShapeColor,
+        euclid::{Point2D, Transform3D},
+    },
     winit::event::{Event, WindowEvent},
 };
 use storyboard_state::{State, StateStatus};
@@ -11,7 +14,7 @@ use storyboard_text::{cache::GlyphCache, font::Font, Text};
 
 use crate::{player::Player, StoryboardStateData};
 
-pub static FONT: &'static [u8] = include_bytes!("./NotoSansCJKkr-Regular.otf");
+pub static FONT: &[u8] = include_bytes!("./NotoSansCJKkr-Regular.otf");
 
 pub struct MainMenu {
     text: Option<Text>,
@@ -30,6 +33,12 @@ impl MainMenu {
             _stream: stream,
             handle,
         }
+    }
+}
+
+impl Default for MainMenu {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

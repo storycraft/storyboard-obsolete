@@ -3,7 +3,7 @@ use std::error::Error;
 use storyboard_text::rasterizer::GlyphRasterizer;
 use ttf_parser::Face;
 
-pub static FONT: &'static [u8] = include_bytes!("./NotoSansCJKkr-Regular.otf");
+pub static FONT: &[u8] = include_bytes!("./NotoSansCJKkr-Regular.otf");
 
 #[test]
 fn rasterizer_test() -> Result<(), Box<dyn Error>> {

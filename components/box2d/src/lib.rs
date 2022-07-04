@@ -390,12 +390,14 @@ pub fn init_box_pipeline(
     fragment_targets: &[Option<ColorTargetState>],
     depth_stencil: Option<DepthStencilState>,
 ) -> RenderPipeline {
-    let pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
+    
+
+    device.create_render_pipeline(&RenderPipelineDescriptor {
         label: Some("Box2D pipeline"),
         layout: Some(pipeline_layout),
         vertex: VertexState {
             module: shader,
-            entry_point: &"vs_main",
+            entry_point: "vs_main",
             buffers: &[
                 VertexBufferLayout {
                     array_stride: std::mem::size_of::<BoxVertex>() as BufferAddress,
@@ -428,7 +430,7 @@ pub fn init_box_pipeline(
         },
         fragment: Some(FragmentState {
             module: shader,
-            entry_point: &"fs_main",
+            entry_point: "fs_main",
             targets: fragment_targets,
         }),
         depth_stencil,
@@ -438,7 +440,5 @@ pub fn init_box_pipeline(
         },
         multisample: MultisampleState::default(),
         multiview: None,
-    });
-
-    pipeline
+    })
 }

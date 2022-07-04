@@ -417,7 +417,7 @@ pub fn init_primitive_pipeline(
         layout: Some(pipeline_layout),
         vertex: VertexState {
             module: shader,
-            entry_point: &"vs_main",
+            entry_point: "vs_main",
             buffers: &[
                 VertexBufferLayout {
                     array_stride: std::mem::size_of::<PrimitiveVertex>() as u64,
@@ -439,7 +439,7 @@ pub fn init_primitive_pipeline(
         multisample: MultisampleState::default(),
         fragment: Some(FragmentState {
             module: shader,
-            entry_point: &"fs_main",
+            entry_point: "fs_main",
             targets: fragment_targets,
         }),
         multiview: None,

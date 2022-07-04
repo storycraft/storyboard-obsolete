@@ -67,7 +67,7 @@ impl Storyboard {
         let screen_format = *surface
             .get_supported_formats(backend.adapter())
             .get(0)
-            .ok_or_else(|| BackendInitError::NoSuitableAdapter)?;
+            .ok_or(BackendInitError::NoSuitableAdapter)?;
         let texture_data = TextureData::init(backend.device());
 
         Ok(Self {

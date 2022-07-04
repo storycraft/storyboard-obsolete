@@ -33,8 +33,7 @@ impl<'a> TextLayout<'a> {
 
         let space_size = face
             .glyph_index(' ')
-            .map(|id| face.glyph_hor_advance(id))
-            .flatten()
+            .and_then(|id| face.glyph_hor_advance(id))
             .unwrap_or_default();
 
         Self {
@@ -294,7 +293,7 @@ impl SpanLayout {
         }
     }
 
-    pub fn glyph_id_iter<'a>(&'a self) -> impl Iterator<Item = u16> + 'a {
+    pub fn glyph_id_iter(&self) -> impl Iterator<Item = u16> + '_ {
         self.buffer
             .glyph_infos()
             .iter()
@@ -362,7 +361,7 @@ impl<'a> Iterator for SpanLayoutIter<'a> {
         );
         self.current_position += advance;
 
-        return Some(glyph_info);
+        Some(glyph_info)
     }
 }
 

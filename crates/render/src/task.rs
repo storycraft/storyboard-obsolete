@@ -46,7 +46,7 @@ impl RenderTask {
         };
 
         let task = IndependentTickTask::run(data, |data| {
-            if let Ok(_) = data.signal_receiver.recv() {
+            if data.signal_receiver.recv().is_ok() {
                 if data.configuration.1.load(Ordering::Relaxed) {
                     data.configuration.1.store(false, Ordering::Relaxed);
 
@@ -55,7 +55,7 @@ impl RenderTask {
                 }
 
                 if data.output.update() {
-                    if data.output.output_buffer().0.len() > 0 {
+                    if !data.output.output_buffer().0.is_empty() {
                         if let Some(res) = data.renderer.render(
                             data.backend.device(),
                             data.backend.queue(),
@@ -72,7 +72,7 @@ impl RenderTask {
                         }
                     }
 
-                    if data.output.output_buffer().1.len() > 0 {
+                    if !data.output.output_buffer().1.is_empty() {
                         data.backend.device().poll(Maintain::Wait);
                         data.backend
                             .queue()
