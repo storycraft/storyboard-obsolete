@@ -1,7 +1,7 @@
 // Nightly features
 #![feature(generic_associated_types)]
 
-pub mod state;
+pub mod app;
 
 // Reexports
 pub use storyboard_core as core;
@@ -11,9 +11,9 @@ pub use winit;
 
 use instant::Instant;
 
-use state::{StoryboardStateData, StoryboardSystemProp, StoryboardSystemState};
+use app::{StoryboardApp, StoryboardAppProp, StoryboardAppState};
 use std::{sync::Arc, time::Duration};
-use storyboard_core::{euclid::Size2D, store::Store};
+use storyboard_core::euclid::Size2D;
 use storyboard_render::{
     backend::{BackendInitError, BackendOptions, StoryboardBackend},
     renderer::surface::{StoryboardSurfaceRenderer, SurfaceConfiguration},
@@ -21,7 +21,6 @@ use storyboard_render::{
     wgpu::TextureFormat,
     wgpu::{Backends, Features, Instance, PresentMode, Surface},
 };
-use storyboard_state::{State, StateSystem, SystemStatus};
 use storyboard_texture::render::data::TextureData;
 use winit::{
     event::{Event, WindowEvent},
@@ -94,13 +93,8 @@ impl Storyboard {
 
     /// Start app
     ///
-    /// Start render thread and run given inital [StoryboardState].
-    /// The state system will wait for event loop event when the state returns [SystemStatus::Wait].
-    pub fn run(
-        self,
-        event_loop: EventLoop<()>,
-        state: impl State<StoryboardStateData> + 'static,
-    ) -> ! {
+    /// Start render thread and run given inital [StoryboardApp].
+    pub fn run(self, event_loop: EventLoop<()>, mut app: impl StoryboardApp + 'static) -> ! {
         let backend = Arc::new(self.backend);
         let texture_data = Arc::new(self.texture_data);
 
@@ -122,26 +116,25 @@ impl Storyboard {
 
         let mut render_task = Some(RenderTask::run(backend.clone(), surface_renderer));
 
-        let mut system_prop = StoryboardSystemProp {
+        let mut app_prop = StoryboardAppProp {
             backend,
             screen_format: self.screen_format,
             texture_data,
             elapsed: Duration::ZERO,
             window: self.window,
-            store: Arc::new(Store::new()),
         };
-
-        let mut state_system = StateSystem::new(Box::new(state), &system_prop);
+        app.load(&app_prop);
 
         event_loop.run(move |event, _, control_flow| {
             let instant = Instant::now();
 
-            let mut system_state = StoryboardSystemState {
+            let mut app_state = StoryboardAppState {
                 render_task: &mut render_task.as_mut().unwrap(),
+                control_flow,
                 event,
             };
 
-            match &system_state.event {
+            match &app_state.event {
                 Event::WindowEvent {
                     window_id: _,
                     event: WindowEvent::Resized(size),
@@ -152,11 +145,11 @@ impl Storyboard {
                         Size2D::new(width, height)
                     };
 
-                    system_state
+                    app_state
                         .render_task
                         .set_configuration(SurfaceConfiguration {
                             screen_size: win_size,
-                            ..system_state.render_task.configuration()
+                            ..app_state.render_task.configuration()
                         });
                 }
 
@@ -174,38 +167,29 @@ impl Storyboard {
                         Size2D::new(width, height)
                     };
 
-                    system_state
+                    app_state
                         .render_task
                         .set_configuration(SurfaceConfiguration {
                             screen_size: win_size,
                             screen_scale: *scale_factor as _,
-                            ..system_state.render_task.configuration()
+                            ..app_state.render_task.configuration()
                         });
                 }
 
                 _ => {}
             }
 
-            let status = state_system.run(&system_prop, &mut system_state);
+            app.update(&app_prop, &mut app_state);
 
-            if state_system.finished() {
-                system_state.render_task.interrupt();
-                *control_flow = ControlFlow::Exit;
+            if let ControlFlow::Exit = app_state.control_flow {
+                app.unload(&app_prop);
+                app_state.render_task.interrupt();
                 return;
-            } else {
-                *control_flow = match status {
-                    SystemStatus::Poll => ControlFlow::Poll,
-                    SystemStatus::Wait => ControlFlow::Wait,
-                }
             }
 
-            match &system_state.event {
-                Event::RedrawRequested(_) => {
-                    system_state.render_task.submit();
-                }
-
+            match &app_state.event {
                 Event::MainEventsCleared => {
-                    system_prop.elapsed = instant.elapsed();
+                    app_prop.elapsed = instant.elapsed();
                 }
 
                 _ => {}

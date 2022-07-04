@@ -7,6 +7,7 @@ edition = "2021"
 storyboard = { path = "../../storyboard" }
 storyboard-text = { path = "../../components/text" }
 storyboard-box2d = { path = "../../components/box2d" }
+storyboard-state = { path = "../../crates/state" }
 
 futures = "0.3.21"
 instant = "0.1.12"

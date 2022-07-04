@@ -10,14 +10,15 @@ use storyboard::{
         backend::BackendOptions,
         wgpu::{PowerPreference, PresentMode, TextureFormat, TextureUsages, Limits},
     },
-    state::{
-        State, StoryboardStateData, StoryboardStateStatus, StoryboardSystemProp,
-        StoryboardSystemState,
+    app::{
+        StoryboardApp,
+        StoryboardAppProp,
+        StoryboardAppState,
     },
     texture::{ComponentTexture, TextureLayout, TextureLayoutStyle, TextureWrap},
     winit::{
         event::{Event, WindowEvent},
-        event_loop::EventLoop,
+        event_loop::{EventLoop, ControlFlow},
         window::{Window, WindowBuilder},
     },
     Storyboard,
@@ -102,8 +103,8 @@ impl SampleApp {
     }
 }
 
-impl State<StoryboardStateData> for SampleApp {
-    fn load(&mut self, system_prop: &StoryboardSystemProp) {
+impl StoryboardApp for SampleApp {
+    fn load(&mut self, system_prop: &StoryboardAppProp) {
         let texture = system_prop.create_texture_with_data(
             Some("App texture"),
             Size2D::new(2, 2),
@@ -132,20 +133,18 @@ impl State<StoryboardStateData> for SampleApp {
         println!("App loaded");
     }
 
-    fn unload(&mut self, _: &StoryboardSystemProp) {
-        self.texture.take();
-
+    fn unload(&mut self, _: &StoryboardAppProp) {
         println!("App unloaded");
     }
 
     fn update(
         &mut self,
-        system_prop: &StoryboardSystemProp,
-        system_state: &mut StoryboardSystemState,
-    ) -> StoryboardStateStatus {
-        if let Event::RedrawRequested(_) = system_state.event {
+        prop: &StoryboardAppProp,
+        state: &mut StoryboardAppState,
+    ) {
+        if let Event::RedrawRequested(_) = state.event {
             for _ in 0..50 {
-                system_state.draw(Box2D {
+                state.draw(Box2D {
                     bounds: Rect::new(self.cursor, Size2D::new(50.0, 50.0)),
                     fill_color: ShapeColor::WHITE,
                     border_color: ShapeColor::RED,
@@ -161,16 +160,16 @@ impl State<StoryboardStateData> for SampleApp {
             }
 
             self.text.update(
-                system_prop.backend.device(),
-                system_prop.backend.queue(),
-                system_prop.window.scale_factor() as _,
-                &system_prop.texture_data,
+                prop.backend.device(),
+                prop.backend.queue(),
+                prop.window.scale_factor() as _,
+                &prop.texture_data,
                 &mut self.cache,
             );
 
-            system_state.draw(self.text.draw(&ShapeColor::WHITE));
+            state.draw(self.text.draw(&ShapeColor::WHITE));
 
-            system_state.draw(Box2D {
+            state.draw(Box2D {
                 bounds: self.text.bounding_box().to_rect(),
                 fill_color: ShapeColor::TRANSPARENT,
                 border_color: ShapeColor::WHITE,
@@ -180,30 +179,33 @@ impl State<StoryboardStateData> for SampleApp {
                     ..Default::default()
                 },
             });
+
+            state.render();
         } else if let Event::WindowEvent {
             event: WindowEvent::CloseRequested,
             ..
-        } = system_state.event
+        } = state.event
         {
-            return StoryboardStateStatus::PopState;
+            *state.control_flow = ControlFlow::Exit;
+            return;
         } else if let Event::WindowEvent {
             event: WindowEvent::CursorMoved { position, .. },
             ..
-        } = system_state.event
+        } = state.event
         {
             self.cursor = Point2D::new(position.x as f32, position.y as f32)
-                / system_prop.window.scale_factor() as f32;
+                / prop.window.scale_factor() as f32;
 
             self.text.position = self.cursor;
         }
 
         self.text.set_text(Cow::Owned(format!(
             "렌더링 테스트\n{:?}\nElapsed: {} ms",
-            self.cursor * system_prop.window.scale_factor() as f32,
-            system_prop.elapsed.as_nanos() as f64 / 1_000_000.0
+            self.cursor * prop.window.scale_factor() as f32,
+            prop.elapsed.as_nanos() as f64 / 1_000_000.0
         )));
-        system_prop.request_redraw();
+        prop.request_redraw();
 
-        StoryboardStateStatus::Poll
+        *state.control_flow = ControlFlow::Poll;
     }
 }

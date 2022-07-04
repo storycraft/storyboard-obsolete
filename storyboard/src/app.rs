@@ -1,11 +1,7 @@
 //! Prop and States implemention for storyboard app.
 use std::{sync::Arc, time::Duration};
 
-use storyboard_core::{
-    euclid::Size2D,
-    store::{Store, StoreResources},
-    unit::PhyiscalPixelUnit,
-};
+use storyboard_core::{euclid::Size2D, unit::PhyiscalPixelUnit};
 use storyboard_render::{
     backend::StoryboardBackend,
     component::Drawable,
@@ -13,29 +9,30 @@ use storyboard_render::{
     texture::{SizedTexture2D, TextureView2D},
     wgpu::{Sampler, TextureFormat, TextureUsages},
 };
-use storyboard_state::{StateData, StateStatus};
 use storyboard_texture::render::{data::TextureData, RenderTexture2D};
-use winit::{event::Event, window::Window};
+use winit::{event::Event, event_loop::ControlFlow, window::Window};
 
-//
-pub use storyboard_state::State;
+pub trait StoryboardApp {
+    fn load(&mut self, prop: &StoryboardAppProp);
+    fn unload(&mut self, prop: &StoryboardAppProp);
+
+    fn update(&mut self, prop: &StoryboardAppProp, state: &mut StoryboardAppState);
+}
 
 /// System properties for [StoryboardState].
 ///
 /// Contains [winit::window::Window], [GraphicsData] of app
 #[derive(Debug)]
-pub struct StoryboardSystemProp {
+pub struct StoryboardAppProp {
     pub backend: Arc<StoryboardBackend>,
     pub screen_format: TextureFormat,
     pub texture_data: Arc<TextureData>,
     pub window: Window,
 
     pub elapsed: Duration,
-
-    pub store: Arc<Store>,
 }
 
-impl StoryboardSystemProp {
+impl StoryboardAppProp {
     /// Create [SizedTexture2D] from descriptor
     pub fn create_texture(
         &self,
@@ -93,46 +90,31 @@ impl StoryboardSystemProp {
         )
     }
 
-    pub fn get<'a, T: StoreResources<GlobalStoreContext<'a>>>(&'a self) -> &'a T {
-        self.store.get(&GlobalStoreContext {
-            backend: &self.backend,
-            texture_data: &self.texture_data,
-        })
-    }
-
     pub fn request_redraw(&self) {
         self.window.request_redraw()
     }
-}
-
-#[derive(Debug)]
-pub struct GlobalStoreContext<'a> {
-    pub backend: &'a Arc<StoryboardBackend>,
-    pub texture_data: &'a Arc<TextureData>,
 }
 
 /// Mutable system state.
 ///
 /// Contains event.
 #[derive(Debug)]
-pub struct StoryboardSystemState<'a> {
+pub struct StoryboardAppState<'a> {
     pub event: Event<'a, ()>,
+
+    pub control_flow: &'a mut ControlFlow,
 
     pub render_task: &'a mut RenderTask,
 }
 
-impl<'a> StoryboardSystemState<'a> {
+impl<'a> StoryboardAppState<'a> {
     #[inline]
     pub fn draw(&mut self, drawable: impl Drawable + 'static) {
         self.render_task.push(drawable);
     }
+
+    #[inline]
+    pub fn render(&mut self) {
+        self.render_task.submit();
+    }
 }
-
-pub struct StoryboardStateData {}
-
-impl StateData for StoryboardStateData {
-    type Prop<'p> = StoryboardSystemProp;
-    type State<'s> = StoryboardSystemState<'s>;
-}
-
-pub type StoryboardStateStatus = StateStatus<StoryboardStateData>;

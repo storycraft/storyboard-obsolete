@@ -1,18 +1,22 @@
+#![feature(generic_associated_types)]
+
 pub mod main_menu;
 pub mod player;
 
-use main_menu::AppMain;
+use main_menu::MainMenu;
 use storyboard::{
+    app::{StoryboardApp, StoryboardAppProp, StoryboardAppState},
     render::{
         backend::BackendOptions,
-        wgpu::{PowerPreference, PresentMode, Limits},
+        wgpu::{Limits, PowerPreference, PresentMode},
     },
     winit::{
-        event_loop::EventLoop,
+        event_loop::{ControlFlow, EventLoop},
         window::{Window, WindowBuilder},
     },
     Storyboard,
 };
+use storyboard_state::{StateData, StateSystem, SystemStatus};
 
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {
@@ -64,5 +68,50 @@ async fn main_async(event_loop: EventLoop<()>, window: Window) {
     .await
     .unwrap();
 
-    storyboard.run(event_loop, AppMain::new());
+    storyboard.run(event_loop, App::new());
+}
+
+#[derive(Debug)]
+pub struct StoryboardStateData;
+impl StateData for StoryboardStateData {
+    type Prop<'p> = StoryboardAppProp;
+    type State<'s> = StoryboardAppState<'s>;
+}
+
+#[derive(Debug)]
+pub struct App {
+    system: Option<StateSystem<StoryboardStateData>>,
+}
+
+impl App {
+    pub fn new() -> Self {
+        Self {
+            system: None
+        }
+    }
+}
+
+impl StoryboardApp for App {
+    fn load(&mut self, prop: &StoryboardAppProp) {
+        self.system = Some(StateSystem::new(Box::new(MainMenu::new()), prop));
+    }
+
+    fn unload(&mut self, _: &StoryboardAppProp) {
+        self.system.take();
+    }
+
+    fn update(&mut self, prop: &StoryboardAppProp, state: &mut StoryboardAppState) {
+        let system = self.system.as_mut().unwrap();
+
+        let status = system.run(prop, state);
+
+        *state.control_flow = if system.finished() {
+            ControlFlow::Exit
+        } else {
+            match status {
+                SystemStatus::Poll => ControlFlow::Poll,
+                SystemStatus::Wait => ControlFlow::Wait,
+            }
+        };
+    }
 }

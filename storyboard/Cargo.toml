@@ -11,7 +11,6 @@ webgl = ["storyboard-render/webgl"]
 storyboard-core = { path = "../crates/core" }
 storyboard-texture = { path = "../crates/texture" }
 storyboard-render = { path = "../crates/render" }
-storyboard-state = { path = "../crates/state" }
 
 winit = "0.26.1"
 bytemuck = { version = "1.9.1", features = ["derive"] }

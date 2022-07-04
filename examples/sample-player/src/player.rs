@@ -11,10 +11,13 @@ use storyboard::{
         color::ShapeColor,
         euclid::{Point2D, Rect, Size2D},
     },
-    state::{StoryboardStateData, StoryboardSystemProp, StoryboardSystemState, StoryboardStateStatus, State},
+    app::{StoryboardAppProp, StoryboardAppState},
     winit::event::{Event, WindowEvent},
 };
 use storyboard_box2d::{Box2D, Box2DStyle};
+use storyboard_state::{State, StateStatus};
+
+use crate::StoryboardStateData;
 
 pub const BAR_COUNT: usize = 36;
 pub struct Player {
@@ -47,7 +50,7 @@ impl Player {
 }
 
 impl State<StoryboardStateData> for Player {
-    fn load(&mut self, _: &StoryboardSystemProp) {
+    fn load(&mut self, _: &StoryboardAppProp) {
         println!(
             "Channels: {}, sample_rate: {}",
             self.channels, self.sample_rate
@@ -63,15 +66,15 @@ impl State<StoryboardStateData> for Player {
         self.start_time = Instant::now();
     }
 
-    fn unload(&mut self, _: &StoryboardSystemProp) {
+    fn unload(&mut self, _: &StoryboardAppProp) {
         self.sink.stop();
     }
 
     fn update(
         &mut self,
-        system_prop: &StoryboardSystemProp,
-        system_state: &mut StoryboardSystemState,
-    ) -> StoryboardStateStatus {
+        system_prop: &StoryboardAppProp,
+        system_state: &mut StoryboardAppState,
+    ) -> StateStatus<StoryboardStateData> {
         match &system_state.event {
             Event::RedrawRequested(_) => {
                 let (_, win_height): (u32, u32) = system_prop.window.inner_size().into();
@@ -98,6 +101,8 @@ impl State<StoryboardStateData> for Player {
                         },
                     });
                 }
+
+                system_state.render();
             }
 
             Event::MainEventsCleared => {
@@ -128,7 +133,7 @@ impl State<StoryboardStateData> for Player {
                         self.bars[i] = sum / self.bars.len() as f32 / 2.0;
                     }
                 } else {
-                    return StoryboardStateStatus::PopState;
+                    return StateStatus::PopState;
                 }
 
                 system_prop.request_redraw();
@@ -138,12 +143,12 @@ impl State<StoryboardStateData> for Player {
                 window_id: _,
                 event: WindowEvent::CloseRequested,
             } => {
-                return StoryboardStateStatus::PopState;
+                return StateStatus::PopState;
             }
 
             _ => {}
         };
 
-        StoryboardStateStatus::Poll
+        StateStatus::Poll
     }
 }
