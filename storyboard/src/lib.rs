@@ -24,7 +24,7 @@ use storyboard_render::{
 use storyboard_texture::render::data::TextureData;
 use winit::{
     event::{Event, WindowEvent},
-    event_loop::{ControlFlow, EventLoop},
+    event_loop::EventLoop,
     window::Window,
 };
 
