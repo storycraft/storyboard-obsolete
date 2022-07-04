@@ -1,9 +1,9 @@
 use std::fmt::Debug;
 
-use storyboard_core::{observable::Observable, euclid::Size2D, unit::PhyiscalPixelUnit};
+use storyboard_core::{euclid::Size2D, observable::Observable, unit::PhyiscalPixelUnit};
 use wgpu::{
-    self, Color, CommandBuffer, Device, LoadOp, Operations, PresentMode, Queue,
-    RenderPassColorAttachment, Surface, SurfaceTexture, TextureFormat, TextureUsages,
+    self, Color, CommandBuffer, CommandEncoderDescriptor, Device, LoadOp, Operations, PresentMode,
+    Queue, RenderPassColorAttachment, Surface, SurfaceTexture, TextureFormat, TextureUsages,
     TextureViewDescriptor,
 };
 
@@ -75,7 +75,11 @@ impl StoryboardSurfaceRenderer {
         }
 
         if let Ok(surface_texture) = self.surface.get_current_texture() {
-            let renderer_encoder = self.renderer.render(
+            let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
+                label: Some("StoryboardSurfaceRenderer command encoder"),
+            });
+
+            self.renderer.render(
                 device,
                 queue,
                 drawables,
@@ -89,11 +93,12 @@ impl StoryboardSurfaceRenderer {
                         store: true,
                     },
                 }),
-            )?;
+                &mut encoder,
+            );
 
             return Some(SurfaceRenderResult {
                 surface_texture,
-                command_buffer: renderer_encoder.finish(),
+                command_buffer: encoder.finish(),
             });
         }
 

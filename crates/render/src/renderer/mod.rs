@@ -26,7 +26,7 @@ use super::{
 use crate::{
     component::{Component, Drawable},
     wgpu::{
-        BufferUsages, CommandEncoder, CommandEncoderDescriptor, CompareFunction, DepthBiasState,
+        BufferUsages, CommandEncoder, CompareFunction, DepthBiasState,
         DepthStencilState, LoadOp, Operations, RenderPassColorAttachment,
         RenderPassDepthStencilAttachment, RenderPassDescriptor, StencilState, TextureFormat,
         TextureUsages,
@@ -145,18 +145,15 @@ impl StoryboardRenderer {
         queue: &Queue,
         drawables: impl ExactSizeIterator<Item = &'a dyn Drawable>,
         color_attachment: Option<RenderPassColorAttachment>,
-    ) -> Option<CommandEncoder> {
+        encoder: &mut CommandEncoder,
+    ) {
         if drawables.len() <= 0 || self.screen.0.area() <= 0 {
-            return None;
+            return;
         }
 
         self.prepare_screen_matrix();
 
         self.prepare_depth_stencil(device);
-
-        let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
-            label: Some("StoryboardRenderer command encoder"),
-        });
 
         let backend_context = BackendContext {
             device,
@@ -197,7 +194,7 @@ impl StoryboardRenderer {
                 drawable.prepare(
                     &mut components_queue,
                     &mut draw_context,
-                    &mut encoder,
+                    encoder,
                     1.0_f32 - ((1.0_f32 + i as f32) / total),
                 );
             }
@@ -245,8 +242,6 @@ impl StoryboardRenderer {
         if render_transparent {
             self.transparent_component.clear();
         }
-
-        Some(encoder)
     }
 
     pub fn clone_shared(
