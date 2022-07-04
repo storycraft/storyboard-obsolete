@@ -1,4 +1,4 @@
-use std::{error::Error, fmt::Display};
+use std::{error::Error, fmt::Display, path::Path};
 
 use wgpu::{
     Adapter, Device, DeviceDescriptor, Features, Instance, Limits, PowerPreference, Queue,
@@ -21,6 +21,7 @@ impl StoryboardBackend {
         compatible_surface: Option<&Surface>,
         features: Features,
         options: &BackendOptions,
+        trace_path: Option<&Path>
     ) -> Result<Self, BackendInitError> {
         let adapter = instance
             .request_adapter(&RequestAdapterOptions {
@@ -46,7 +47,7 @@ impl StoryboardBackend {
                     limits: options.limits.clone(),
                     label: Some("StoryboardBackend device"),
                 },
-                None, // Trace path
+                trace_path, // Trace path
             )
             .await?;
 

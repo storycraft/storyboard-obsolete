@@ -7,6 +7,12 @@ license = "MIT"
 
 [features]
 webgl = ["wgpu/webgl"]
+trace = ["wgpu/trace"]
+glsl = ["wgpu/glsl"]
+spirv = ["wgpu/spirv"]
+angle = ["wgpu/angle"]
+emscripten = ["wgpu/emscripten"]
+vulkan-portability = ["wgpu/vulkan-portability"]
 
 [dependencies]
 storyboard-core = { path = "../core" }

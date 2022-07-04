@@ -6,6 +6,12 @@ license = "MIT"
 
 [features]
 webgl = ["storyboard-render/webgl"]
+trace = ["storyboard-render/trace"]
+glsl = ["storyboard-render/glsl"]
+spirv = ["storyboard-render/spirv"]
+angle = ["storyboard-render/angle"]
+emscripten = ["storyboard-render/emscripten"]
+vulkan-portability = ["storyboard-render/vulkan-portability"]
 
 [dependencies]
 storyboard-core = { path = "../crates/core" }

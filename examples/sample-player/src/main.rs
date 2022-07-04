@@ -3,6 +3,8 @@
 pub mod main_menu;
 pub mod player;
 
+use std::path::Path;
+
 use main_menu::MainMenu;
 use storyboard::{
     app::{StoryboardApp, StoryboardAppProp, StoryboardAppState},
@@ -64,6 +66,7 @@ async fn main_async(event_loop: EventLoop<()>, window: Window) {
             ..Default::default()
         },
         PresentMode::AutoNoVsync,
+        None,
     )
     .await
     .unwrap();

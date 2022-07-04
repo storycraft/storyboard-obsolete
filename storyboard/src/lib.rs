@@ -12,7 +12,7 @@ pub use winit;
 use instant::Instant;
 
 use app::{StoryboardApp, StoryboardAppProp, StoryboardAppState};
-use std::{sync::Arc, time::Duration};
+use std::{sync::Arc, time::Duration, path::Path};
 use storyboard_core::euclid::Size2D;
 use storyboard_render::{
     backend::{BackendInitError, BackendOptions, StoryboardBackend},
@@ -48,6 +48,7 @@ impl Storyboard {
         window: Window,
         options: &BackendOptions,
         present_mode: PresentMode,
+        trace_path: Option<&Path>
     ) -> Result<Self, BackendInitError> {
         let instance = Instance::new(Backends::all());
 
@@ -55,7 +56,7 @@ impl Storyboard {
         let surface = unsafe { instance.create_surface(&window) };
 
         let backend =
-            StoryboardBackend::init(&instance, Some(&surface), Features::empty(), options).await?;
+            StoryboardBackend::init(&instance, Some(&surface), Features::empty(), options, trace_path).await?;
 
         let screen_format = *surface
             .get_supported_formats(backend.adapter())

@@ -1,24 +1,20 @@
 use std::{borrow::Cow, sync::Arc};
 
 use storyboard::{
+    app::{StoryboardApp, StoryboardAppProp, StoryboardAppState},
     core::{
         color::ShapeColor,
-        euclid::{Point2D, Rect, Size2D, Vector2D, Transform3D},
+        euclid::{Point2D, Rect, Size2D, Transform3D, Vector2D},
         unit::LogicalPixelUnit,
     },
     render::{
         backend::BackendOptions,
-        wgpu::{PowerPreference, PresentMode, TextureFormat, TextureUsages, Limits},
-    },
-    app::{
-        StoryboardApp,
-        StoryboardAppProp,
-        StoryboardAppState,
+        wgpu::{Limits, PowerPreference, PresentMode, TextureFormat, TextureUsages},
     },
     texture::{ComponentTexture, TextureLayout, TextureLayoutStyle, TextureWrap},
     winit::{
         event::{Event, WindowEvent},
-        event_loop::{EventLoop, ControlFlow},
+        event_loop::{ControlFlow, EventLoop},
         window::{Window, WindowBuilder},
     },
     Storyboard,
@@ -72,6 +68,7 @@ async fn main_async(event_loop: EventLoop<()>, window: Window) {
             ..Default::default()
         },
         PresentMode::AutoNoVsync,
+        None,
     )
     .await
     .unwrap();
@@ -98,7 +95,13 @@ impl SampleApp {
             texture: None,
             cursor: Default::default(),
             cache: GlyphCache::new(),
-            text: Text::new(Point2D::new(100.0, 100.0), 32, Transform3D::identity(), font, Cow::Borrowed("")),
+            text: Text::new(
+                Point2D::new(100.0, 100.0),
+                32,
+                Transform3D::identity(),
+                font,
+                Cow::Borrowed(""),
+            ),
         }
     }
 }
@@ -137,11 +140,7 @@ impl StoryboardApp for SampleApp {
         println!("App unloaded");
     }
 
-    fn update(
-        &mut self,
-        prop: &StoryboardAppProp,
-        state: &mut StoryboardAppState,
-    ) {
+    fn update(&mut self, prop: &StoryboardAppProp, state: &mut StoryboardAppState) {
         if let Event::RedrawRequested(_) = state.event {
             for _ in 0..50 {
                 state.draw(Box2D {
