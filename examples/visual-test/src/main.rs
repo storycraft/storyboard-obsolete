@@ -141,22 +141,27 @@ impl StoryboardApp for SampleApp {
 
     fn update(&mut self, prop: &StoryboardAppProp, state: &mut StoryboardAppState) {
         if let Event::RedrawRequested(_) = state.event {
-            for _ in 0..50 {
-                state.draw(Box2D {
-                    bounds: Rect::new(self.cursor, Size2D::new(50.0, 50.0)),
-                    fill_color: ShapeColor::WHITE,
-                    border_color: ShapeColor::RED,
-                    texture: self.texture.clone(),
-                    style: Box2DStyle {
-                        border_thickness: 5.0,
-                        shadow_offset: Vector2D::new(100.0, 100.0),
-                        shadow_radius: 2.0,
-                        shadow_color: ShapeColor::BLUE.into(),
-                        ..Default::default()
-                    },
-                    transform: Transform3D::identity(),
-                });
-            }
+            state.draw(Box2D {
+                bounds: Rect::new(self.cursor, Size2D::new(50.0, 50.0)),
+                fill_color: ShapeColor::WHITE,
+                border_color: ShapeColor::RED,
+                texture: self.texture.clone(),
+                style: Box2DStyle {
+                    border_thickness: 5.0,
+                    shadow_offset: Vector2D::new(100.0, 100.0),
+                    shadow_radius: 2.0,
+                    shadow_color: ShapeColor::BLUE.into(),
+                    ..Default::default()
+                },
+                transform: Transform3D::identity(),
+            });
+
+            self.text.set_text(Cow::Owned(format!(
+                "렌더링 테스트\n{:?}\nElapsed: {} ms\nFps: {}",
+                self.cursor * prop.window.scale_factor() as f32,
+                prop.elapsed.as_nanos() as f64 / 1_000_000.0,
+                state.render_task.report_rate()
+            )));
 
             self.text.update(
                 prop.backend.device(),
@@ -198,12 +203,6 @@ impl StoryboardApp for SampleApp {
 
             self.text.position = self.cursor;
         }
-
-        self.text.set_text(Cow::Owned(format!(
-            "렌더링 테스트\n{:?}\nElapsed: {} ms",
-            self.cursor * prop.window.scale_factor() as f32,
-            prop.elapsed.as_nanos() as f64 / 1_000_000.0
-        )));
         prop.request_redraw();
 
         *state.control_flow = ControlFlow::Poll;

@@ -3,8 +3,6 @@
 pub mod main_menu;
 pub mod player;
 
-
-
 use main_menu::MainMenu;
 use storyboard::{
     app::{StoryboardApp, StoryboardAppProp, StoryboardAppState},
@@ -19,6 +17,8 @@ use storyboard::{
     Storyboard,
 };
 use storyboard_state::{StateData, StateSystem, SystemStatus};
+
+pub static FONT: &[u8] = include_bytes!("./NotoSansCJKkr-Regular.otf");
 
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {

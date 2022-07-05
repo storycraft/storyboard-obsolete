@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     io::{Read, Seek},
     sync::Arc,
 };
@@ -7,17 +8,18 @@ use instant::Instant;
 use rodio::{buffer::SamplesBuffer, Decoder, Sink, Source};
 use rustfft::{num_complex::Complex, Fft, FftPlanner};
 use storyboard::{
+    app::{StoryboardAppProp, StoryboardAppState},
     core::{
         color::ShapeColor,
         euclid::{Point2D, Rect, Size2D, Transform3D},
     },
-    app::{StoryboardAppProp, StoryboardAppState},
     winit::event::{Event, WindowEvent},
 };
 use storyboard_box2d::{Box2D, Box2DStyle};
 use storyboard_state::{State, StateStatus};
+use storyboard_text::{font::Font, Text, cache::GlyphCache};
 
-use crate::StoryboardStateData;
+use crate::{StoryboardStateData, FONT};
 
 pub const BAR_COUNT: usize = 36;
 pub struct Player {
@@ -28,6 +30,9 @@ pub struct Player {
     start_time: Instant,
     fft: Arc<dyn Fft<f32>>,
     bars: [f32; BAR_COUNT],
+
+    glyph_cache: GlyphCache,
+    fps: Text,
 }
 
 impl Player {
@@ -45,6 +50,15 @@ impl Player {
             start_time: Instant::now(),
             fft,
             bars: [0.0; BAR_COUNT],
+
+            glyph_cache: GlyphCache::new(),
+            fps: Text::new(
+                Point2D::new(10.0, 10.0),
+                16,
+                Transform3D::identity(),
+                Font::new(Cow::Borrowed(FONT), 0).unwrap(),
+                Cow::Borrowed(""),
+            ),
         }
     }
 }
@@ -102,6 +116,21 @@ impl State<StoryboardStateData> for Player {
                         transform: Transform3D::identity(),
                     });
                 }
+
+                self.fps.set_text(Cow::Owned(format!(
+                    "{} fps",
+                    system_state.render_task.report_rate().floor()
+                )));
+
+                self.fps.update(
+                    system_prop.backend.device(),
+                    system_prop.backend.queue(),
+                    system_prop.window.scale_factor() as _,
+                    &system_prop.texture_data,
+                    &mut self.glyph_cache,
+                );
+
+                system_state.draw(self.fps.draw(&ShapeColor::WHITE));
 
                 system_state.render();
             }

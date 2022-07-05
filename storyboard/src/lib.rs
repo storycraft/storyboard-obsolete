@@ -3,6 +3,7 @@
 
 pub mod app;
 
+use render::task::RenderTaskConfiguration;
 // Reexports
 pub use storyboard_core as core;
 pub use storyboard_render as render;
@@ -37,6 +38,7 @@ pub struct Storyboard {
     texture_data: TextureData,
 
     pub present_mode: PresentMode,
+    pub render_task_config: RenderTaskConfiguration,
 
     window: Window,
     surface: Surface,
@@ -76,6 +78,7 @@ impl Storyboard {
             texture_data,
 
             present_mode,
+            render_task_config: RenderTaskConfiguration::default(),
 
             window,
             surface,
@@ -121,7 +124,11 @@ impl Storyboard {
             self.screen_format,
         );
 
-        let mut render_task = Some(RenderTask::run(backend.clone(), surface_renderer));
+        let mut render_task = Some(RenderTask::run(
+            backend.clone(),
+            surface_renderer,
+            self.render_task_config,
+        ));
 
         let mut app_prop = StoryboardAppProp {
             backend,
@@ -154,10 +161,9 @@ impl Storyboard {
 
                     app_state
                         .render_task
-                        .set_configuration(SurfaceConfiguration {
-                            screen_size: win_size,
-                            ..app_state.render_task.configuration()
-                        });
+                        .configuration_mut()
+                        .surface
+                        .screen_size = win_size;
                 }
 
                 Event::WindowEvent {
@@ -174,13 +180,9 @@ impl Storyboard {
                         Size2D::new(width, height)
                     };
 
-                    app_state
-                        .render_task
-                        .set_configuration(SurfaceConfiguration {
-                            screen_size: win_size,
-                            screen_scale: *scale_factor as _,
-                            ..app_state.render_task.configuration()
-                        });
+                    let mut configuration = app_state.render_task.configuration_mut();
+                    configuration.surface.screen_size = win_size;
+                    configuration.surface.screen_scale = *scale_factor as _;
                 }
 
                 _ => {}

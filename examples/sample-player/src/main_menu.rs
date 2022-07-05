@@ -12,9 +12,7 @@ use storyboard::{
 use storyboard_state::{State, StateStatus};
 use storyboard_text::{cache::GlyphCache, font::Font, Text};
 
-use crate::{player::Player, StoryboardStateData};
-
-pub static FONT: &[u8] = include_bytes!("./NotoSansCJKkr-Regular.otf");
+use crate::{player::Player, StoryboardStateData, FONT};
 
 pub struct MainMenu {
     text: Option<Text>,
