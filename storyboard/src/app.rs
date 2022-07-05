@@ -27,7 +27,7 @@ pub struct StoryboardAppProp {
     pub backend: Arc<StoryboardBackend>,
     pub screen_format: TextureFormat,
     pub texture_data: Arc<TextureData>,
-    pub window: Window,
+    pub window: Arc<Window>,
 
     pub elapsed: Duration,
 }

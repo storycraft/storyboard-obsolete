@@ -128,7 +128,7 @@ impl Storyboard {
             screen_format: self.screen_format,
             texture_data,
             elapsed: Duration::ZERO,
-            window: self.window,
+            window: Arc::new(self.window),
         };
         app.load(&app_prop);
 
