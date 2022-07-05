@@ -28,10 +28,7 @@ use storyboard_render::{
     },
 };
 use storyboard_texture::render::data::EmptyTextureResources;
-use storyboard_texture::{
-    render::{data::TextureData, RenderTexture2D},
-    ComponentTexture,
-};
+use storyboard_texture::render::{data::TextureData, RenderTexture2D};
 
 #[derive(Debug)]
 pub struct PrimitiveResources {
@@ -93,7 +90,7 @@ impl StoreResources<BackendContext<'_>> for PrimitiveResources {
 pub struct Triangle {
     pub bounds: Rect<f32, LogicalPixelUnit>,
     pub color: ShapeColor<3>,
-    pub texture: Option<ComponentTexture>,
+    pub texture: Option<Arc<RenderTexture2D>>,
     pub transform: Transform3D<f32, LogicalPixelUnit, LogicalPixelUnit>,
 }
 
@@ -117,7 +114,7 @@ impl Drawable for Triangle {
 pub struct Rectangle {
     pub bounds: Rect<f32, LogicalPixelUnit>,
     pub color: ShapeColor<4>,
-    pub texture: Option<ComponentTexture>,
+    pub texture: Option<Arc<RenderTexture2D>>,
     pub transform: Transform3D<f32, LogicalPixelUnit, LogicalPixelUnit>,
 }
 
@@ -142,7 +139,6 @@ pub struct PrimitiveComponent {
     primitive_type: PrimitiveType,
     texture: Option<Arc<RenderTexture2D>>,
     vertices_slice: StreamRange,
-    instance_slice: StreamRange,
 }
 
 #[derive(Debug)]
@@ -159,17 +155,6 @@ impl PrimitiveComponent {
             .unwrap_or(triangle.bounds)
             .into_coords();
 
-        let texture_bounds = ComponentTexture::option_get_texture_bounds(
-            triangle.texture.as_ref(),
-            triangle.bounds,
-            ctx.screen.size,
-        );
-
-        let texture_coords = texture_bounds
-            .relative_in(&triangle.bounds)
-            .cast_unit()
-            .into_coords();
-
         let vertices_slice = ctx.vertex_stream.write_slice(bytemuck::bytes_of(&[
             PrimitiveVertex {
                 position: ctx
@@ -178,7 +163,7 @@ impl PrimitiveComponent {
                     .unwrap()
                     .extend(depth),
                 color: triangle.color[0],
-                texture_coord: (texture_coords[0] + texture_coords[3].to_vector()) / 2.0,
+                texture_coord: Point2D::new(0.5, 0.0),
             },
             PrimitiveVertex {
                 position: ctx
@@ -187,7 +172,7 @@ impl PrimitiveComponent {
                     .unwrap()
                     .extend(depth),
                 color: triangle.color[1],
-                texture_coord: texture_coords[1],
+                texture_coord: Point2D::new(0.0, 1.0),
             },
             PrimitiveVertex {
                 position: ctx
@@ -196,29 +181,14 @@ impl PrimitiveComponent {
                     .unwrap()
                     .extend(depth),
                 color: triangle.color[2],
-                texture_coord: texture_coords[2],
+                texture_coord: Point2D::new(1.0, 1.0),
             },
         ]));
 
-        let texture_rect = ComponentTexture::option_view_texture_rect(triangle.texture.as_ref());
-        let texture_wrap_mode = ComponentTexture::option_wrapping_mode(triangle.texture.as_ref());
-
-        let instance_slice =
-            ctx.vertex_stream
-                .write_slice(bytemuck::bytes_of(&PrimitiveInstance {
-                    texture_rect,
-                    texture_wrap_mode_u: texture_wrap_mode.0 as _,
-                    texture_wrap_mode_v: texture_wrap_mode.1 as _,
-                }));
-
         Self {
             primitive_type: PrimitiveType::Triangle,
-            texture: triangle
-                .texture
-                .as_ref()
-                .map(|texture| texture.inner.clone()),
+            texture: triangle.texture.clone(),
             vertices_slice,
-            instance_slice,
         }
     }
 
@@ -229,17 +199,6 @@ impl PrimitiveComponent {
             .unwrap_or(rect.bounds)
             .into_coords();
 
-        let texture_bounds = ComponentTexture::option_get_texture_bounds(
-            rect.texture.as_ref(),
-            rect.bounds,
-            ctx.screen.size,
-        );
-
-        let texture_coords = texture_bounds
-            .relative_in(&rect.bounds)
-            .cast_unit()
-            .into_coords();
-
         let vertices_slice = ctx.vertex_stream.write_slice(bytemuck::bytes_of(&[
             PrimitiveVertex {
                 position: ctx
@@ -248,7 +207,7 @@ impl PrimitiveComponent {
                     .unwrap()
                     .extend(depth),
                 color: rect.color[0],
-                texture_coord: texture_coords[0],
+                texture_coord: Point2D::new(0.0, 0.0),
             },
             PrimitiveVertex {
                 position: ctx
@@ -257,7 +216,7 @@ impl PrimitiveComponent {
                     .unwrap()
                     .extend(depth),
                 color: rect.color[1],
-                texture_coord: texture_coords[1],
+                texture_coord: Point2D::new(0.0, 1.0),
             },
             PrimitiveVertex {
                 position: ctx
@@ -266,7 +225,7 @@ impl PrimitiveComponent {
                     .unwrap()
                     .extend(depth),
                 color: rect.color[2],
-                texture_coord: texture_coords[2],
+                texture_coord: Point2D::new(1.0, 1.0),
             },
             PrimitiveVertex {
                 position: ctx
@@ -275,26 +234,14 @@ impl PrimitiveComponent {
                     .unwrap()
                     .extend(depth),
                 color: rect.color[3],
-                texture_coord: texture_coords[3],
+                texture_coord: Point2D::new(1.0, 0.0),
             },
         ]));
 
-        let texture_rect = ComponentTexture::option_view_texture_rect(rect.texture.as_ref());
-        let texture_wrap_mode = ComponentTexture::option_wrapping_mode(rect.texture.as_ref());
-
-        let instance_slice =
-            ctx.vertex_stream
-                .write_slice(bytemuck::bytes_of(&PrimitiveInstance {
-                    texture_rect,
-                    texture_wrap_mode_u: texture_wrap_mode.0 as _,
-                    texture_wrap_mode_v: texture_wrap_mode.1 as _,
-                }));
-
         Self {
             primitive_type: PrimitiveType::Rectangle,
-            texture: rect.texture.as_ref().map(|texture| texture.inner.clone()),
+            texture: rect.texture.clone(),
             vertices_slice,
-            instance_slice,
         }
     }
 }
@@ -320,7 +267,6 @@ impl Component for PrimitiveComponent {
         );
 
         pass.set_vertex_buffer(0, ctx.vertex_stream.slice(self.vertices_slice.clone()));
-        pass.set_vertex_buffer(1, ctx.vertex_stream.slice(self.instance_slice.clone()));
 
         match self.primitive_type {
             PrimitiveType::Triangle => {
@@ -355,7 +301,6 @@ impl Component for PrimitiveComponent {
         );
 
         pass.set_vertex_buffer(0, ctx.vertex_stream.slice(self.vertices_slice.clone()));
-        pass.set_vertex_buffer(1, ctx.vertex_stream.slice(self.instance_slice.clone()));
 
         match self.primitive_type {
             PrimitiveType::Triangle => {
@@ -377,14 +322,6 @@ pub struct PrimitiveVertex {
     pub position: Point3D<f32, RenderUnit>,
     pub color: LinSrgba<f32>,
     pub texture_coord: Point2D<f32, TextureUnit>,
-}
-
-#[derive(Debug, Clone, Copy, Pod, Zeroable)]
-#[repr(C)]
-pub struct PrimitiveInstance {
-    pub texture_rect: Rect<f32, TextureUnit>,
-    pub texture_wrap_mode_u: u32,
-    pub texture_wrap_mode_v: u32,
 }
 
 pub fn init_primitive_shader(device: &Device) -> ShaderModule {
@@ -418,18 +355,11 @@ pub fn init_primitive_pipeline(
         vertex: VertexState {
             module: shader,
             entry_point: "vs_main",
-            buffers: &[
-                VertexBufferLayout {
-                    array_stride: std::mem::size_of::<PrimitiveVertex>() as u64,
-                    step_mode: VertexStepMode::Vertex,
-                    attributes: &vertex_attr_array![0 => Float32x3, 1 => Float32x4, 2 => Float32x2],
-                },
-                VertexBufferLayout {
-                    array_stride: std::mem::size_of::<PrimitiveInstance>() as u64,
-                    step_mode: VertexStepMode::Instance,
-                    attributes: &vertex_attr_array![3 => Float32x4, 4 => Uint32x2],
-                },
-            ],
+            buffers: &[VertexBufferLayout {
+                array_stride: std::mem::size_of::<PrimitiveVertex>() as u64,
+                step_mode: VertexStepMode::Vertex,
+                attributes: &vertex_attr_array![0 => Float32x3, 1 => Float32x4, 2 => Float32x2],
+            }],
         },
         primitive: PrimitiveState {
             topology: PrimitiveTopology::TriangleList,

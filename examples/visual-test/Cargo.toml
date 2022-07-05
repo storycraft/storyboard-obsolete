@@ -9,6 +9,7 @@ license = "MIT"
 [dependencies]
 storyboard = { path = "../../storyboard" }
 storyboard-text = { path = "../../components/text" }
+storyboard-primitive = { path = "../../components/primitive" }
 storyboard-box2d = { path = "../../components/box2d" }
 
 futures = "0.3.21"

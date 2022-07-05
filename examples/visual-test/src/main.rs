@@ -20,6 +20,7 @@ use storyboard::{
     Storyboard,
 };
 use storyboard_box2d::{Box2D, Box2DStyle};
+use storyboard_primitive::Triangle;
 use storyboard_text::{cache::GlyphCache, font::Font, Text};
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -141,6 +142,13 @@ impl StoryboardApp for SampleApp {
 
     fn update(&mut self, prop: &StoryboardAppProp, state: &mut StoryboardAppState) {
         if let Event::RedrawRequested(_) = state.event {
+            state.draw(Triangle {
+                bounds: Rect::new(Point2D::new(30.0, 30.0), Size2D::new(50.0, 50.0)),
+                color: ShapeColor::WHITE,
+                texture: self.texture.as_ref().map(|component| component.inner.clone()),
+                transform: Transform3D::identity(),
+            });
+
             state.draw(Box2D {
                 bounds: Rect::new(self.cursor, Size2D::new(50.0, 50.0)),
                 fill_color: ShapeColor::WHITE,
