@@ -1,6 +1,7 @@
 pub mod context;
 pub mod pass;
 pub mod surface;
+pub mod texture;
 
 use std::{borrow::Cow, fmt::Debug, sync::Arc};
 
@@ -263,6 +264,13 @@ pub struct ComponentQueue<'a> {
 }
 
 impl<'a> ComponentQueue<'a> {
+    pub fn new(opaque: &'a mut TraitStack<dyn Component>, transparent: &'a mut TraitStack<dyn Component>) -> Self {
+        Self {
+            opaque,
+            transparent
+        }
+    }
+
     pub fn push_opaque(&mut self, component: impl Component + 'static) {
         self.opaque.push(component);
     }
