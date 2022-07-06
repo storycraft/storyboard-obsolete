@@ -32,9 +32,9 @@ use storyboard_texture::render::{data::TextureData, RenderTexture2D};
 
 #[derive(Debug)]
 pub struct PrimitiveResources {
-    opaque_pipeline: RenderPipeline,
-    transparent_pipeline: RenderPipeline,
-    quad_index_buffer: Buffer,
+    pub opaque_pipeline: RenderPipeline,
+    pub transparent_pipeline: RenderPipeline,
+    pub quad_index_buffer: Buffer,
 }
 
 impl StoreResources<BackendContext<'_>> for PrimitiveResources {

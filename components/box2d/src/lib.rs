@@ -37,8 +37,8 @@ use storyboard_texture::{
 
 #[derive(Debug)]
 pub struct Box2DResources {
-    pipeline: RenderPipeline,
-    box_index_buffer: Buffer,
+    pub pipeline: RenderPipeline,
+    pub box_index_buffer: Buffer,
 }
 
 impl StoreResources<BackendContext<'_>> for Box2DResources {
