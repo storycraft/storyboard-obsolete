@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use storyboard_core::{euclid::Size2D, observable::Observable, unit::PhyiscalPixelUnit};
+use storyboard_core::{euclid::{Size2D, Rect}, observable::Observable, unit::PhyiscalPixelUnit};
 use wgpu::{
     self, Color, CommandEncoder, Device, LoadOp, Operations, Queue, RenderPassColorAttachment,
     TextureFormat, TextureUsages,
@@ -24,25 +24,25 @@ pub struct StoryboardTextureRenderer {
 
 impl StoryboardTextureRenderer {
     pub fn new(
-        size: Size2D<u32, PhyiscalPixelUnit>,
+        rect: Rect<u32, PhyiscalPixelUnit>,
         screen_scale: f32,
         format: TextureFormat,
     ) -> Self {
-        let renderer = StoryboardRenderer::new(size, screen_scale, format);
+        let renderer = StoryboardRenderer::new(rect, screen_scale, format);
 
         Self {
-            size: Observable::new_unchanged(size),
+            size: Observable::new_unchanged(rect.size),
             view: None,
             renderer,
         }
     }
 
-    pub fn set_size(&mut self, size: Size2D<u32, PhyiscalPixelUnit>, screen_scale: f32) {
-        if *self.size != size {
-            self.size = size.into();
+    pub fn set_size(&mut self, rect: Rect<u32, PhyiscalPixelUnit>, screen_scale: f32) {
+        if *self.size != rect.size {
+            self.size = rect.size.into();
         }
 
-        self.renderer.set_screen_size(size, screen_scale);
+        self.renderer.set_screen(rect, screen_scale);
     }
 
     pub fn render<'a>(

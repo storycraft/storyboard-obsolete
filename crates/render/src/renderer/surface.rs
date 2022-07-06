@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use storyboard_core::{euclid::Size2D, observable::Observable, unit::PhyiscalPixelUnit};
+use storyboard_core::{euclid::Rect, observable::Observable, unit::PhyiscalPixelUnit};
 use wgpu::{
     self, Color, CommandBuffer, CommandEncoderDescriptor, Device, LoadOp, Operations, PresentMode,
     Queue, RenderPassColorAttachment, Surface, SurfaceTexture, TextureFormat, TextureUsages,
@@ -26,7 +26,7 @@ impl StoryboardSurfaceRenderer {
         screen_format: TextureFormat,
     ) -> Self {
         let renderer = StoryboardRenderer::new(
-            configuration.screen_size,
+            configuration.screen,
             configuration.screen_scale,
             screen_format,
         );
@@ -55,23 +55,21 @@ impl StoryboardSurfaceRenderer {
         drawables: impl ExactSizeIterator<Item = &'a dyn Drawable>,
     ) -> Option<SurfaceRenderResult> {
         if Observable::invalidate(&mut self.configuration) {
-            if self.configuration.screen_size.area() > 0 {
+            if self.configuration.screen.size.area() > 0 {
                 self.surface.configure(
                     device,
                     &wgpu::SurfaceConfiguration {
                         usage: TextureUsages::RENDER_ATTACHMENT,
                         format: self.renderer.screen_format(),
-                        width: self.configuration.screen_size.width,
-                        height: self.configuration.screen_size.height,
+                        width: self.configuration.screen.size.width,
+                        height: self.configuration.screen.size.height,
                         present_mode: self.configuration.present_mode,
                     },
                 );
             }
 
-            self.renderer.set_screen_size(
-                self.configuration.screen_size,
-                self.configuration.screen_scale,
-            );
+            self.renderer
+                .set_screen(self.configuration.screen, self.configuration.screen_scale);
         }
 
         if let Ok(surface_texture) = self.surface.get_current_texture() {
@@ -113,7 +111,7 @@ impl StoryboardSurfaceRenderer {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SurfaceConfiguration {
     pub present_mode: PresentMode,
-    pub screen_size: Size2D<u32, PhyiscalPixelUnit>,
+    pub screen: Rect<u32, PhyiscalPixelUnit>,
     pub screen_scale: f32,
 }
 

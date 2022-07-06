@@ -6,7 +6,7 @@ pub mod texture;
 use std::{borrow::Cow, fmt::Debug, sync::Arc};
 
 use storyboard_core::{
-    euclid::{Point2D, Rect, Size2D, Transform3D},
+    euclid::{Rect, Transform3D},
     observable::Observable,
     store::Store,
     unit::{LogicalPixelUnit, PhyiscalPixelUnit, RenderUnit},
@@ -27,16 +27,15 @@ use super::{
 use crate::{
     component::{Component, Drawable},
     wgpu::{
-        BufferUsages, CommandEncoder, CompareFunction, DepthBiasState,
-        DepthStencilState, LoadOp, Operations, RenderPassColorAttachment,
-        RenderPassDepthStencilAttachment, RenderPassDescriptor, StencilState, TextureFormat,
-        TextureUsages,
+        BufferUsages, CommandEncoder, CompareFunction, DepthBiasState, DepthStencilState, LoadOp,
+        Operations, RenderPassColorAttachment, RenderPassDepthStencilAttachment,
+        RenderPassDescriptor, StencilState, TextureFormat, TextureUsages,
     },
 };
 
 #[derive(Debug)]
 pub struct StoryboardRenderer {
-    screen: Observable<(Size2D<u32, PhyiscalPixelUnit>, f32)>,
+    screen: Observable<(Rect<u32, PhyiscalPixelUnit>, f32)>,
 
     screen_format: TextureFormat,
     screen_matrix: Transform3D<f32, LogicalPixelUnit, RenderUnit>,
@@ -56,7 +55,7 @@ impl StoryboardRenderer {
     pub const DEPTH_TEXTURE_FORMAT: TextureFormat = TextureFormat::Depth32Float;
 
     pub fn new(
-        screen_size: Size2D<u32, PhyiscalPixelUnit>,
+        screen: Rect<u32, PhyiscalPixelUnit>,
         screen_scale: f32,
         screen_format: TextureFormat,
     ) -> Self {
@@ -70,7 +69,7 @@ impl StoryboardRenderer {
         );
 
         Self {
-            screen: (screen_size, screen_scale).into(),
+            screen: (screen, screen_scale).into(),
 
             screen_format,
             screen_matrix: Transform3D::identity(),
@@ -87,7 +86,7 @@ impl StoryboardRenderer {
         }
     }
 
-    pub fn screen_size(&self) -> Size2D<u32, PhyiscalPixelUnit> {
+    pub fn screen_rect(&self) -> Rect<u32, PhyiscalPixelUnit> {
         self.screen.0
     }
 
@@ -95,13 +94,9 @@ impl StoryboardRenderer {
         self.screen.1
     }
 
-    pub fn set_screen_size(
-        &mut self,
-        screen_size: Size2D<u32, PhyiscalPixelUnit>,
-        screen_scale: f32,
-    ) {
-        if self.screen.ne(&(screen_size, screen_scale)) {
-            self.screen = (screen_size, screen_scale).into();
+    pub fn set_screen(&mut self, screen_rect: Rect<u32, PhyiscalPixelUnit>, screen_scale: f32) {
+        if self.screen.ne(&(screen_rect, screen_scale)) {
+            self.screen = (screen_rect, screen_scale).into();
         }
     }
 
@@ -112,10 +107,10 @@ impl StoryboardRenderer {
     fn prepare_screen_matrix(&mut self) {
         if Observable::invalidate(&mut self.screen) {
             self.screen_matrix = Transform3D::ortho(
-                0.0_f32,
-                self.screen.0.width as f32 / self.screen.1,
-                self.screen.0.height as f32 / self.screen.1,
-                0.0,
+                self.screen.0.origin.x as f32,
+                self.screen.0.origin.x as f32 + self.screen.0.size.width as f32 / self.screen.1,
+                self.screen.0.origin.y as f32 + self.screen.0.size.height as f32 / self.screen.1,
+                self.screen.0.origin.y as f32,
                 0.0,
                 1.0,
             );
@@ -130,7 +125,7 @@ impl StoryboardRenderer {
                 SizedTexture2D::init(
                     device,
                     Some("StoryboardRenderer depth texture"),
-                    self.screen.0,
+                    self.screen.0.size,
                     Self::DEPTH_TEXTURE_FORMAT,
                     TextureUsages::TEXTURE_BINDING | TextureUsages::RENDER_ATTACHMENT,
                 )
@@ -174,9 +169,10 @@ impl StoryboardRenderer {
         let mut draw_context = DrawContext {
             backend: backend_context,
             screen: Rect::new(
-                Point2D::zero(),
-                (self.screen.0.cast() / self.screen.1).cast_unit(),
-            ),
+                self.screen.0.origin.cast(),
+                self.screen.0.size.cast() / self.screen.1,
+            )
+            .cast_unit(),
             pixel_density: self.screen.1,
             screen_matrix: &self.screen_matrix,
             resources: &self.store,
@@ -244,17 +240,6 @@ impl StoryboardRenderer {
             self.transparent_component.clear();
         }
     }
-
-    pub fn clone_shared(
-        &self,
-        screen_size: Size2D<u32, PhyiscalPixelUnit>,
-        screen_scale: f32,
-    ) -> Self {
-        Self {
-            store: self.store.clone(),
-            ..Self::new(screen_size, screen_scale, self.screen_format)
-        }
-    }
 }
 
 #[derive(Debug)]
@@ -264,10 +249,13 @@ pub struct ComponentQueue<'a> {
 }
 
 impl<'a> ComponentQueue<'a> {
-    pub fn new(opaque: &'a mut TraitStack<dyn Component>, transparent: &'a mut TraitStack<dyn Component>) -> Self {
+    pub fn new(
+        opaque: &'a mut TraitStack<dyn Component>,
+        transparent: &'a mut TraitStack<dyn Component>,
+    ) -> Self {
         Self {
             opaque,
-            transparent
+            transparent,
         }
     }
 
