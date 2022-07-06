@@ -3,7 +3,6 @@
 
 pub mod app;
 
-use render::task::RenderTaskConfiguration;
 // Reexports
 pub use storyboard_core as core;
 pub use storyboard_render as render;
@@ -13,8 +12,9 @@ pub use winit;
 use instant::Instant;
 
 use app::{StoryboardApp, StoryboardAppProp, StoryboardAppState};
+use render::task::RenderTaskConfiguration;
 use std::{path::Path, sync::Arc, time::Duration};
-use storyboard_core::euclid::Size2D;
+use storyboard_core::euclid::{Point2D, Rect, Size2D};
 use storyboard_render::{
     backend::{BackendInitError, BackendOptions, StoryboardBackend},
     renderer::surface::{StoryboardSurfaceRenderer, SurfaceConfiguration},
@@ -118,7 +118,7 @@ impl Storyboard {
             self.surface,
             SurfaceConfiguration {
                 present_mode: self.present_mode,
-                screen_size: win_size,
+                screen: Rect::new(Point2D::zero(), win_size),
                 screen_scale: self.window.scale_factor() as _,
             },
             self.screen_format,
@@ -163,7 +163,7 @@ impl Storyboard {
                         .render_task
                         .configuration_mut()
                         .surface
-                        .screen_size = win_size;
+                        .screen.size = win_size;
                 }
 
                 Event::WindowEvent {
@@ -181,7 +181,7 @@ impl Storyboard {
                     };
 
                     let mut configuration = app_state.render_task.configuration_mut();
-                    configuration.surface.screen_size = win_size;
+                    configuration.surface.screen.size = win_size;
                     configuration.surface.screen_scale = *scale_factor as _;
                 }
 
