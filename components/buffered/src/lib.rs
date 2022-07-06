@@ -36,6 +36,9 @@ impl<T: Bufferable> Drawable for BufferedDrawable<T> {
         depth: f32,
     ) {
         let target_bounds = self.drawable.bounds();
+        if target_bounds.area() == 0 {
+            return;
+        }
 
         let mut phyiscal_size = target_bounds.size;
         phyiscal_size.width = (phyiscal_size.width as f32 * ctx.pixel_density).ceil() as _;
