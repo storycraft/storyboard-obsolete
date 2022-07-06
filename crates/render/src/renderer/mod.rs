@@ -1,7 +1,6 @@
 pub mod context;
 pub mod pass;
 pub mod surface;
-pub mod texture;
 
 use std::{borrow::Cow, fmt::Debug, sync::Arc};
 

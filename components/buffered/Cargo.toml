@@ -1,0 +1,14 @@
+[package]
+name = "storyboard-buffered"
+description = "buffered texture rendering component"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+storyboard-core = { path = "../../crates/core" }
+storyboard-render = { path = "../../crates/render" }
+storyboard-texture = { path = "../../crates/texture" }
+storyboard-primitive = { path = "../primitive" }
+
+parking_lot = "0.12.1"

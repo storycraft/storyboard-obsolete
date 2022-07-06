@@ -11,6 +11,7 @@ members = [
     "components/primitive",
     "components/box2d",
     "components/text",
+    "components/buffered",
     
     "storyboard",
 
