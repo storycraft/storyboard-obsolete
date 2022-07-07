@@ -25,7 +25,7 @@ use storyboard_render::{
         IndexFormat, MultisampleState, PipelineLayout, PipelineLayoutDescriptor, PrimitiveState,
         PrimitiveTopology, RenderPipeline, RenderPipelineDescriptor, ShaderModule,
         ShaderModuleDescriptor, ShaderSource, VertexBufferLayout, VertexState, VertexStepMode,
-    },
+    }, cache::shader::ShaderCache,
 };
 use storyboard_texture::{
     render::{
@@ -45,7 +45,7 @@ impl StoreResources<BackendContext<'_>> for Box2DResources {
     fn initialize(_: &Store, ctx: &BackendContext) -> Self {
         let textures = ctx.get::<TextureData>();
 
-        let shader = init_box_shader(ctx.device);
+        let shader = ctx.get::<ShaderCache>().get_or_create("box_2d_shader", || init_box_shader(ctx.device));
         let pipeline_layout = init_box_pipeline_layout(ctx.device, textures.bind_group_layout());
         let pipeline = init_box_pipeline(
             ctx.device,

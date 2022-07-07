@@ -25,7 +25,7 @@ use storyboard_render::{
         MultisampleState, PipelineLayout, PipelineLayoutDescriptor, PrimitiveState,
         PrimitiveTopology, RenderPipeline, RenderPipelineDescriptor, ShaderModule,
         ShaderModuleDescriptor, ShaderSource, VertexBufferLayout, VertexState, VertexStepMode,
-    },
+    }, cache::shader::ShaderCache,
 };
 use storyboard_texture::render::data::EmptyTextureResources;
 use storyboard_texture::render::{data::TextureData, RenderTexture2D};
@@ -40,8 +40,8 @@ pub struct PrimitiveResources {
 impl StoreResources<BackendContext<'_>> for PrimitiveResources {
     fn initialize(_: &Store, ctx: &BackendContext) -> Self {
         let textures = ctx.get::<TextureData>();
-
-        let shader = init_primitive_shader(ctx.device);
+        let shader = ctx.get::<ShaderCache>().get_or_create("primitive_shader", || init_primitive_shader(ctx.device));
+        
         let pipeline_layout =
             init_primitive_pipeline_layout(ctx.device, textures.bind_group_layout());
 

@@ -8,3 +8,4 @@ pub mod component;
 pub mod renderer;
 pub mod task;
 pub mod texture;
+pub mod cache;

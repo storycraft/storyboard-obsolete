@@ -23,7 +23,7 @@ use storyboard_render::{
         PipelineLayoutDescriptor, PrimitiveState, PrimitiveTopology, RenderPipeline,
         RenderPipelineDescriptor, ShaderModule, ShaderModuleDescriptor, ShaderSource,
         VertexBufferLayout, VertexState, VertexStepMode,
-    },
+    }, cache::shader::ShaderCache,
 };
 use storyboard_texture::render::{data::TextureData, RenderTexture2D};
 
@@ -36,7 +36,7 @@ impl StoreResources<BackendContext<'_>> for TextResources {
     fn initialize(_: &Store, ctx: &BackendContext) -> Self {
         let textures = ctx.get::<TextureData>();
 
-        let shader = init_glyph_shader(ctx.device);
+        let shader = ctx.get::<ShaderCache>().get_or_create("glyph_shader", || init_glyph_shader(ctx.device));
         let pipeline_layout = init_glyph_pipeline_layout(ctx.device, textures.bind_group_layout());
 
         let pipeline = init_glyph_pipeline(
