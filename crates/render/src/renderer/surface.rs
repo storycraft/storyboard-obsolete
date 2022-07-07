@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use storyboard_core::{euclid::Rect, observable::Observable, unit::PhyiscalPixelUnit};
+use storyboard_core::observable::Observable;
 use wgpu::{
     self, Color, CommandBuffer, CommandEncoderDescriptor, Device, LoadOp, Operations, PresentMode,
     Queue, RenderPassColorAttachment, Surface, SurfaceTexture, TextureUsages,
@@ -9,7 +9,7 @@ use wgpu::{
 
 use crate::component::Drawable;
 
-use super::{RendererData, StoryboardRenderer};
+use super::{RendererData, ScreenRect, StoryboardRenderer};
 
 #[derive(Debug)]
 pub struct StoryboardSurfaceRenderer {
@@ -20,14 +20,8 @@ pub struct StoryboardSurfaceRenderer {
 }
 
 impl StoryboardSurfaceRenderer {
-    pub fn new(
-        surface: Surface,
-        configuration: SurfaceConfiguration,
-    ) -> Self {
-        let renderer = StoryboardRenderer::new(
-            configuration.screen,
-            configuration.screen_scale,
-        );
+    pub fn new(surface: Surface, configuration: SurfaceConfiguration) -> Self {
+        let renderer = StoryboardRenderer::new();
 
         Self {
             surface,
@@ -51,24 +45,21 @@ impl StoryboardSurfaceRenderer {
         device: &Device,
         queue: &Queue,
         drawables: impl ExactSizeIterator<Item = &'a dyn Drawable>,
-        renderer_data: &RendererData
+        renderer_data: &RendererData,
     ) -> Option<SurfaceRenderResult> {
         if Observable::invalidate(&mut self.configuration) {
-            if self.configuration.screen.size.area() > 0 {
+            if self.configuration.screen.rect.size.area() > 0 {
                 self.surface.configure(
                     device,
                     &wgpu::SurfaceConfiguration {
                         usage: TextureUsages::RENDER_ATTACHMENT,
                         format: renderer_data.screen_format(),
-                        width: self.configuration.screen.size.width,
-                        height: self.configuration.screen.size.height,
+                        width: self.configuration.screen.rect.size.width,
+                        height: self.configuration.screen.rect.size.height,
                         present_mode: self.configuration.present_mode,
                     },
                 );
             }
-
-            self.renderer
-                .set_screen(self.configuration.screen, self.configuration.screen_scale);
         }
 
         if let Ok(surface_texture) = self.surface.get_current_texture() {
@@ -79,6 +70,7 @@ impl StoryboardSurfaceRenderer {
             self.renderer.render(
                 device,
                 queue,
+                self.configuration.screen,
                 drawables,
                 Some(RenderPassColorAttachment {
                     view: &surface_texture
@@ -111,8 +103,7 @@ impl StoryboardSurfaceRenderer {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SurfaceConfiguration {
     pub present_mode: PresentMode,
-    pub screen: Rect<u32, PhyiscalPixelUnit>,
-    pub screen_scale: f32,
+    pub screen: ScreenRect,
 }
 
 #[derive(Debug)]

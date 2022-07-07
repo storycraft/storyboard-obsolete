@@ -12,7 +12,11 @@ pub use winit;
 use instant::Instant;
 
 use app::{StoryboardApp, StoryboardAppProp, StoryboardAppState};
-use render::{task::RenderTaskConfiguration, renderer::RendererData};
+use render::{
+    renderer::{RendererData},
+    ScreenRect,
+    task::RenderTaskConfiguration,
+};
 use std::{path::Path, sync::Arc, time::Duration};
 use storyboard_core::euclid::{Point2D, Rect, Size2D};
 use storyboard_render::{
@@ -118,8 +122,10 @@ impl Storyboard {
             self.surface,
             SurfaceConfiguration {
                 present_mode: self.present_mode,
-                screen: Rect::new(Point2D::zero(), win_size),
-                screen_scale: self.window.scale_factor() as _,
+                screen: ScreenRect::new(
+                    Rect::new(Point2D::zero(), win_size),
+                    self.window.scale_factor() as _,
+                ),
             },
         );
 
@@ -163,7 +169,9 @@ impl Storyboard {
                         .render_task
                         .configuration_mut()
                         .surface
-                        .screen.size = win_size;
+                        .screen
+                        .rect
+                        .size = win_size;
                 }
 
                 Event::WindowEvent {
@@ -181,8 +189,8 @@ impl Storyboard {
                     };
 
                     let mut configuration = app_state.render_task.configuration_mut();
-                    configuration.surface.screen.size = win_size;
-                    configuration.surface.screen_scale = *scale_factor as _;
+                    configuration.surface.screen.rect.size = win_size;
+                    configuration.surface.screen.scale_factor = *scale_factor as _;
                 }
 
                 _ => {}

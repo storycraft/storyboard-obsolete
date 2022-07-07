@@ -6,7 +6,6 @@ use std::{borrow::Cow, fmt::Debug};
 
 use storyboard_core::{
     euclid::{Rect, Transform3D},
-    observable::Observable,
     store::Store,
     unit::{LogicalPixelUnit, PhyiscalPixelUnit, RenderUnit},
 };
@@ -30,18 +29,18 @@ use crate::{
         Operations, RenderPassColorAttachment, RenderPassDepthStencilAttachment,
         RenderPassDescriptor, StencilState, TextureFormat, TextureUsages,
     },
+    ScreenRect,
 };
 
 #[derive(Debug)]
 pub struct StoryboardRenderer {
-    screen: Observable<(Rect<u32, PhyiscalPixelUnit>, f32)>,
-
+    current_screen_rect: Rect<u32, PhyiscalPixelUnit>,
     screen_matrix: Transform3D<f32, LogicalPixelUnit, RenderUnit>,
 
     opaque_component: TraitStack<dyn Component>,
     transparent_component: TraitStack<dyn Component>,
 
-    depth_texture: Observable<Option<SizedTextureView2D>>,
+    depth_texture: Option<SizedTextureView2D>,
 
     vertex_stream: BufferStream<'static>,
     index_stream: BufferStream<'static>,
@@ -66,7 +65,7 @@ impl StoryboardRenderer {
         },
     };
 
-    pub fn new(screen: Rect<u32, PhyiscalPixelUnit>, screen_scale: f32) -> Self {
+    pub fn new() -> Self {
         let vertex_stream = BufferStream::new(
             Some(Cow::from("StoryboardRenderer vertex stream buffer")),
             BufferUsages::VERTEX,
@@ -77,8 +76,7 @@ impl StoryboardRenderer {
         );
 
         Self {
-            screen: (screen, screen_scale).into(),
-
+            current_screen_rect: Rect::zero(),
             screen_matrix: Transform3D::identity(),
 
             opaque_component: TraitStack::new(),
@@ -91,67 +89,46 @@ impl StoryboardRenderer {
         }
     }
 
-    pub fn screen_rect(&self) -> Rect<u32, PhyiscalPixelUnit> {
-        self.screen.0
+    fn update_screen_matrix(&mut self, screen: ScreenRect) {
+        self.screen_matrix = screen.get_logical_ortho_matrix();
     }
 
-    pub fn screen_scale(&self) -> f32 {
-        self.screen.1
-    }
-
-    pub fn set_screen(&mut self, screen_rect: Rect<u32, PhyiscalPixelUnit>, screen_scale: f32) {
-        if self.screen.ne(&(screen_rect, screen_scale)) {
-            self.screen = (screen_rect, screen_scale).into();
-        }
-    }
-
-    fn prepare_screen_matrix(&mut self) {
-        if Observable::invalidate(&mut self.screen) {
-            self.screen_matrix = Transform3D::ortho(
-                self.screen.0.origin.x as f32,
-                self.screen.0.origin.x as f32 + self.screen.0.size.width as f32 / self.screen.1,
-                self.screen.0.origin.y as f32 + self.screen.0.size.height as f32 / self.screen.1,
-                self.screen.0.origin.y as f32,
-                0.0,
-                1.0,
-            );
-
-            Observable::mark(&mut self.depth_texture);
-        }
-    }
-
-    fn prepare_depth_stencil(&mut self, device: &Device) {
-        if Observable::invalidate(&mut self.depth_texture) || self.depth_texture.is_none() {
-            self.depth_texture = Some(
-                SizedTexture2D::init(
-                    device,
-                    Some("StoryboardRenderer depth texture"),
-                    self.screen.0.size,
-                    Self::DEPTH_TEXTURE_FORMAT,
-                    TextureUsages::TEXTURE_BINDING | TextureUsages::RENDER_ATTACHMENT,
-                )
-                .create_view_default(None),
+    fn update_depth_stencil(&mut self, device: &Device, screen: ScreenRect) {
+        self.depth_texture = Some(
+            SizedTexture2D::init(
+                device,
+                Some("StoryboardRenderer depth texture"),
+                screen.rect.size,
+                Self::DEPTH_TEXTURE_FORMAT,
+                TextureUsages::TEXTURE_BINDING | TextureUsages::RENDER_ATTACHMENT,
             )
-            .into();
-        }
+            .create_view_default(None),
+        );
     }
 
     pub fn render<'a>(
         &mut self,
         device: &Device,
         queue: &Queue,
+        screen: ScreenRect,
         drawables: impl ExactSizeIterator<Item = &'a dyn Drawable>,
         color_attachment: Option<RenderPassColorAttachment>,
         renderer_data: &RendererData,
         encoder: &mut CommandEncoder,
     ) {
-        if drawables.len() == 0 || self.screen.0.area() == 0 {
+        if drawables.len() == 0 || screen.rect.area() == 0 {
             return;
         }
 
-        self.prepare_screen_matrix();
+        if self.current_screen_rect != screen.rect {
+            self.update_screen_matrix(screen);
 
-        self.prepare_depth_stencil(device);
+            if self.current_screen_rect.size != screen.rect.size {
+                self.update_depth_stencil(device, screen);
+            }
+
+            self.current_screen_rect = screen.rect;
+        }
 
         let backend_context = BackendContext {
             device,
@@ -164,12 +141,8 @@ impl StoryboardRenderer {
 
         let mut draw_context = DrawContext {
             backend: backend_context,
-            screen: Rect::new(
-                self.screen.0.origin.cast(),
-                self.screen.0.size.cast() / self.screen.1,
-            )
-            .cast_unit(),
-            pixel_density: self.screen.1,
+            screen: screen.logical_rect(),
+            pixel_density: screen.scale_factor,
             screen_matrix: &self.screen_matrix,
             vertex_stream: &mut self.vertex_stream,
             index_stream: &mut self.index_stream,
@@ -234,6 +207,12 @@ impl StoryboardRenderer {
         if render_transparent {
             self.transparent_component.clear();
         }
+    }
+}
+
+impl Default for StoryboardRenderer {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
