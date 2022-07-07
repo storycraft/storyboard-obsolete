@@ -17,7 +17,8 @@ vulkan-portability = ["wgpu/vulkan-portability"]
 [dependencies]
 storyboard-core = { path = "../core" }
 
-wgpu = "0.13.1"
+# wgpu = "0.13.1"
+wgpu = { git = "https://github.com/gfx-rs/wgpu", branch = "master" }
 bytemuck = "1.9.1"
 rustc-hash = "1.1.0"
 parking_lot = "0.12.1"

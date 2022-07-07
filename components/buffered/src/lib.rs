@@ -53,9 +53,9 @@ impl<T: Bufferable> Drawable for BufferedDrawable<T> {
             *inner_renderer = Some(StoryboardTextureRenderer::init(
                 ctx.backend.device,
                 textures,
+                ctx.backend.renderer_data.screen_format(),
                 rect,
                 ctx.pixel_density,
-                ctx.backend.renderer_data.clone(),
             ));
         }
 
@@ -67,6 +67,7 @@ impl<T: Bufferable> Drawable for BufferedDrawable<T> {
             ctx.backend.queue,
             textures,
             iter::once(&self.drawable as _),
+            ctx.backend.renderer_data,
             encoder,
         );
 

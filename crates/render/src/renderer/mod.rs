@@ -2,7 +2,7 @@ pub mod context;
 pub mod pass;
 pub mod surface;
 
-use std::{borrow::Cow, fmt::Debug, sync::Arc};
+use std::{borrow::Cow, fmt::Debug};
 
 use storyboard_core::{
     euclid::{Rect, Transform3D},
@@ -11,7 +11,7 @@ use storyboard_core::{
     unit::{LogicalPixelUnit, PhyiscalPixelUnit, RenderUnit},
 };
 use trait_stack::TraitStack;
-use wgpu::{Device, Queue};
+use wgpu::{Device, Queue, StencilFaceState};
 
 use self::{
     context::{BackendContext, DrawContext},
@@ -43,20 +43,30 @@ pub struct StoryboardRenderer {
 
     depth_texture: Observable<Option<SizedTextureView2D>>,
 
-    renderer_data: RendererData,
-
     vertex_stream: BufferStream<'static>,
     index_stream: BufferStream<'static>,
 }
 
 impl StoryboardRenderer {
     pub const DEPTH_TEXTURE_FORMAT: TextureFormat = TextureFormat::Depth32Float;
+    pub const DEPTH_STENCIL_STATE: DepthStencilState = DepthStencilState {
+        format: Self::DEPTH_TEXTURE_FORMAT,
+        depth_write_enabled: true,
+        depth_compare: CompareFunction::Less,
+        stencil: StencilState {
+            front: StencilFaceState::IGNORE,
+            back: StencilFaceState::IGNORE,
+            read_mask: 0,
+            write_mask: 0,
+        },
+        bias: DepthBiasState {
+            constant: 0,
+            slope_scale: 0.0,
+            clamp: 0.0,
+        },
+    };
 
-    pub fn new(
-        screen: Rect<u32, PhyiscalPixelUnit>,
-        screen_scale: f32,
-        renderer_data: RendererData,
-    ) -> Self {
+    pub fn new(screen: Rect<u32, PhyiscalPixelUnit>, screen_scale: f32) -> Self {
         let vertex_stream = BufferStream::new(
             Some(Cow::from("StoryboardRenderer vertex stream buffer")),
             BufferUsages::VERTEX,
@@ -76,8 +86,6 @@ impl StoryboardRenderer {
 
             depth_texture: None.into(),
 
-            renderer_data,
-
             vertex_stream,
             index_stream,
         }
@@ -95,14 +103,6 @@ impl StoryboardRenderer {
         if self.screen.ne(&(screen_rect, screen_scale)) {
             self.screen = (screen_rect, screen_scale).into();
         }
-    }
-
-    pub const fn renderer_data(&self) -> &RendererData {
-        &self.renderer_data
-    }
-
-    pub const fn screen_format(&self) -> TextureFormat {
-        self.renderer_data.screen_format
     }
 
     fn prepare_screen_matrix(&mut self) {
@@ -142,6 +142,7 @@ impl StoryboardRenderer {
         queue: &Queue,
         drawables: impl ExactSizeIterator<Item = &'a dyn Drawable>,
         color_attachment: Option<RenderPassColorAttachment>,
+        renderer_data: &RendererData,
         encoder: &mut CommandEncoder,
     ) {
         if drawables.len() == 0 || self.screen.0.area() == 0 {
@@ -156,15 +157,9 @@ impl StoryboardRenderer {
             device,
             queue,
 
-            renderer_data: &self.renderer_data,
+            renderer_data,
 
-            depth_stencil: DepthStencilState {
-                format: Self::DEPTH_TEXTURE_FORMAT,
-                depth_write_enabled: true,
-                depth_compare: CompareFunction::Less,
-                stencil: StencilState::default(),
-                bias: DepthBiasState::default(),
-            },
+            depth_stencil: Self::DEPTH_STENCIL_STATE,
         };
 
         let mut draw_context = DrawContext {
@@ -268,25 +263,29 @@ impl<'a> ComponentQueue<'a> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct RendererData {
     screen_format: TextureFormat,
-    store: Arc<Store>,
+    store: Store,
 }
 
 impl RendererData {
     pub fn new(screen_format: TextureFormat) -> Self {
         Self {
             screen_format,
-            store: Arc::new(Store::new())
+            store: Store::new(),
         }
+    }
+
+    pub fn is_valid(&self, format: TextureFormat) -> bool {
+        self.screen_format == format
     }
 
     pub const fn screen_format(&self) -> TextureFormat {
         self.screen_format
     }
 
-    pub fn store(&self) -> &Store {
+    pub const fn store(&self) -> &Store {
         &self.store
     }
 }

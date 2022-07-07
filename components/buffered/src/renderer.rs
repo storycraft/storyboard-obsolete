@@ -11,7 +11,7 @@ use storyboard_render::{
     texture::{SizedTexture2D, SizedTextureView2D},
     wgpu::{
         Color, CommandEncoder, Device, LoadOp, Operations, Queue, RenderPassColorAttachment,
-        TextureUsages,
+        TextureUsages, TextureFormat,
     },
 };
 use storyboard_texture::render::{data::TextureData, RenderTexture2D};
@@ -22,6 +22,7 @@ pub struct StoryboardTextureRenderer {
 
     view: SizedTextureView2D,
     render_texture: Arc<RenderTexture2D>,
+    texture_format: TextureFormat,
 
     renderer: StoryboardRenderer,
 }
@@ -30,17 +31,17 @@ impl StoryboardTextureRenderer {
     pub fn init(
         device: &Device,
         textures: &TextureData,
+        texture_format: TextureFormat,
         rect: Rect<u32, PhyiscalPixelUnit>,
         screen_scale: f32,
-        renderer_data: RendererData
     ) -> Self {
-        let renderer = StoryboardRenderer::new(rect, screen_scale, renderer_data);
+        let renderer = StoryboardRenderer::new(rect, screen_scale);
 
         let texture = SizedTexture2D::init(
             device,
             Some("StoryboardTextureRenderer frame texture"),
             rect.size,
-            renderer.screen_format(),
+            texture_format,
             TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
         );
 
@@ -56,9 +57,14 @@ impl StoryboardTextureRenderer {
 
             view,
             render_texture,
+            texture_format,
 
             renderer,
         }
+    }
+
+    pub const fn texture_format(&self) -> TextureFormat {
+        self.texture_format
     }
 
     pub fn screen_rect(&self) -> Rect<u32, PhyiscalPixelUnit> {
@@ -87,14 +93,15 @@ impl StoryboardTextureRenderer {
         queue: &Queue,
         textures: &TextureData,
         drawables: impl ExactSizeIterator<Item = &'a dyn Drawable>,
+        renderer_data: &RendererData,
         encoder: &mut CommandEncoder,
     ) {
-        if Observable::invalidate(&mut self.size) {
+        if Observable::invalidate(&mut self.size) || !renderer_data.is_valid(self.texture_format) {
             let texture = SizedTexture2D::init(
                 device,
                 Some("StoryboardTextureRenderer frame texture"),
                 *self.size,
-                self.renderer.screen_format(),
+                renderer_data.screen_format(),
                 TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
             );
 
@@ -118,6 +125,7 @@ impl StoryboardTextureRenderer {
                     store: true,
                 },
             }),
+            renderer_data,
             encoder,
         );
     }

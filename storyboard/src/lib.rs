@@ -121,12 +121,12 @@ impl Storyboard {
                 screen: Rect::new(Point2D::zero(), win_size),
                 screen_scale: self.window.scale_factor() as _,
             },
-            RendererData::new(self.screen_format),
         );
 
         let mut render_task = Some(RenderTask::run(
             backend.clone(),
             surface_renderer,
+            Arc::new(RendererData::new(self.screen_format)),
             self.render_task_config,
         ));
 

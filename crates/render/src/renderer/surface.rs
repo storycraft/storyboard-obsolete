@@ -23,12 +23,10 @@ impl StoryboardSurfaceRenderer {
     pub fn new(
         surface: Surface,
         configuration: SurfaceConfiguration,
-        renderer_data: RendererData,
     ) -> Self {
         let renderer = StoryboardRenderer::new(
             configuration.screen,
             configuration.screen_scale,
-            renderer_data,
         );
 
         Self {
@@ -53,6 +51,7 @@ impl StoryboardSurfaceRenderer {
         device: &Device,
         queue: &Queue,
         drawables: impl ExactSizeIterator<Item = &'a dyn Drawable>,
+        renderer_data: &RendererData
     ) -> Option<SurfaceRenderResult> {
         if Observable::invalidate(&mut self.configuration) {
             if self.configuration.screen.size.area() > 0 {
@@ -60,7 +59,7 @@ impl StoryboardSurfaceRenderer {
                     device,
                     &wgpu::SurfaceConfiguration {
                         usage: TextureUsages::RENDER_ATTACHMENT,
-                        format: self.renderer.screen_format(),
+                        format: renderer_data.screen_format(),
                         width: self.configuration.screen.size.width,
                         height: self.configuration.screen.size.height,
                         present_mode: self.configuration.present_mode,
@@ -91,6 +90,7 @@ impl StoryboardSurfaceRenderer {
                         store: true,
                     },
                 }),
+                renderer_data,
                 &mut encoder,
             );
 

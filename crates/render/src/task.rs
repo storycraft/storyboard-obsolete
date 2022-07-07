@@ -11,7 +11,7 @@ use std::{
 use crate::{
     backend::StoryboardBackend,
     component::Drawable,
-    renderer::surface::{StoryboardSurfaceRenderer, SurfaceConfiguration},
+    renderer::{surface::{StoryboardSurfaceRenderer, SurfaceConfiguration}, RendererData},
 };
 use crossbeam_channel::{bounded, Receiver, Sender};
 use parking_lot::{Mutex, MutexGuard};
@@ -35,6 +35,7 @@ impl RenderTask {
     pub fn run(
         backend: Arc<StoryboardBackend>,
         renderer: StoryboardSurfaceRenderer,
+        renderer_data: Arc<RendererData>,
         task_config: RenderTaskConfiguration,
     ) -> Self {
         let (input, output) = TripleBuffer::default().split();
@@ -53,6 +54,7 @@ impl RenderTask {
 
         let data = RenderTaskData {
             backend,
+            renderer_data,
 
             configuration: renderer_config.clone(),
             signal_receiver,
@@ -85,6 +87,7 @@ impl RenderTask {
                             data.backend.device(),
                             data.backend.queue(),
                             data.output.output_buffer().0.iter(),
+                            &data.renderer_data
                         ) {
                             data.backend.device().poll(Maintain::Wait);
                             data.backend.queue().submit(
@@ -192,6 +195,7 @@ impl RenderTask {
 #[derive(Debug)]
 struct RenderTaskData {
     backend: Arc<StoryboardBackend>,
+    renderer_data: Arc<RendererData>,
 
     configuration: Arc<(Mutex<RenderConfiguration>, AtomicBool)>,
     signal_receiver: Receiver<()>,
