@@ -11,7 +11,7 @@ use storyboard_primitive::{PrimitiveComponent, Rectangle};
 use storyboard_render::{
     component::Drawable,
     renderer::{context::DrawContext, ComponentQueue},
-    wgpu::CommandEncoder,
+    wgpu::CommandEncoder, ScreenRect,
 };
 use storyboard_texture::render::data::TextureData;
 
@@ -54,17 +54,16 @@ impl<T: Bufferable> Drawable for BufferedDrawable<T> {
                 ctx.backend.device,
                 textures,
                 ctx.backend.renderer_data.screen_format(),
-                rect,
-                ctx.pixel_density,
+                rect.size,
             ));
         }
 
         let inner_renderer = inner_renderer.as_mut().unwrap();
-        inner_renderer.set_screen_rect(rect, ctx.pixel_density);
 
         inner_renderer.render(
             ctx.backend.device,
             ctx.backend.queue,
+            ScreenRect::new(rect, ctx.pixel_density),
             textures,
             iter::once(&self.drawable as _),
             ctx.backend.renderer_data,

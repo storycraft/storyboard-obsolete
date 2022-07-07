@@ -3,7 +3,7 @@ use storyboard_core::{
     store::StoreResources,
     unit::{LogicalPixelUnit, RenderUnit},
 };
-use wgpu::{Device, Queue, DepthStencilState, TextureFormat};
+use wgpu::{DepthStencilState, Device, Queue, TextureFormat};
 
 use crate::buffer::stream::{BufferStream, StreamBuffer};
 
@@ -14,7 +14,7 @@ pub struct BackendContext<'a> {
     pub device: &'a Device,
     pub queue: &'a Queue,
     pub renderer_data: &'a RendererData,
-    pub depth_stencil: DepthStencilState
+    pub depth_stencil: DepthStencilState,
 }
 
 impl<'a> BackendContext<'a> {

@@ -1,28 +1,25 @@
 use std::{fmt::Debug, sync::Arc};
 
-use storyboard_core::{
-    euclid::{Rect, Size2D},
-    observable::Observable,
-    unit::PhyiscalPixelUnit,
-};
+use storyboard_core::{euclid::Size2D, unit::PhyiscalPixelUnit};
 use storyboard_render::{
     component::Drawable,
-    renderer::{StoryboardRenderer, RendererData},
+    renderer::{RendererData, StoryboardRenderer},
     texture::{SizedTexture2D, SizedTextureView2D},
     wgpu::{
         Color, CommandEncoder, Device, LoadOp, Operations, Queue, RenderPassColorAttachment,
-        TextureUsages, TextureFormat,
+        TextureFormat, TextureUsages,
     },
+    ScreenRect,
 };
 use storyboard_texture::render::{data::TextureData, RenderTexture2D};
 
 #[derive(Debug)]
 pub struct StoryboardTextureRenderer {
-    size: Observable<Size2D<u32, PhyiscalPixelUnit>>,
+    current_screen_size: Size2D<u32, PhyiscalPixelUnit>,
+    current_texture_format: TextureFormat,
 
     view: SizedTextureView2D,
     render_texture: Arc<RenderTexture2D>,
-    texture_format: TextureFormat,
 
     renderer: StoryboardRenderer,
 }
@@ -32,15 +29,14 @@ impl StoryboardTextureRenderer {
         device: &Device,
         textures: &TextureData,
         texture_format: TextureFormat,
-        rect: Rect<u32, PhyiscalPixelUnit>,
-        screen_scale: f32,
+        screen_size: Size2D<u32, PhyiscalPixelUnit>,
     ) -> Self {
-        let renderer = StoryboardRenderer::new(rect, screen_scale);
+        let renderer = StoryboardRenderer::new();
 
         let texture = SizedTexture2D::init(
             device,
             Some("StoryboardTextureRenderer frame texture"),
-            rect.size,
+            screen_size,
             texture_format,
             TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
         );
@@ -53,34 +49,18 @@ impl StoryboardTextureRenderer {
         let view = texture.create_view_default(None);
 
         Self {
-            size: Observable::new_unchanged(rect.size),
+            current_screen_size: screen_size,
+            current_texture_format: texture_format,
 
             view,
             render_texture,
-            texture_format,
 
             renderer,
         }
     }
 
-    pub const fn texture_format(&self) -> TextureFormat {
-        self.texture_format
-    }
-
-    pub fn screen_rect(&self) -> Rect<u32, PhyiscalPixelUnit> {
-        self.renderer.screen_rect()
-    }
-
-    pub fn screen_scale(&self) -> f32 {
-        self.renderer.screen_scale()
-    }
-
-    pub fn set_screen_rect(&mut self, rect: Rect<u32, PhyiscalPixelUnit>, screen_scale: f32) {
-        if *self.size != rect.size {
-            self.size = rect.size.into();
-        }
-
-        self.renderer.set_screen(rect, screen_scale);
+    pub const fn current_texture_format(&self) -> TextureFormat {
+        self.current_texture_format
     }
 
     pub fn render_texture(&self) -> &Arc<RenderTexture2D> {
@@ -91,16 +71,19 @@ impl StoryboardTextureRenderer {
         &mut self,
         device: &Device,
         queue: &Queue,
+        screen: ScreenRect,
         textures: &TextureData,
         drawables: impl ExactSizeIterator<Item = &'a dyn Drawable>,
         renderer_data: &RendererData,
         encoder: &mut CommandEncoder,
     ) {
-        if Observable::invalidate(&mut self.size) || !renderer_data.is_valid(self.texture_format) {
+        if self.current_screen_size != screen.rect.size
+            || !renderer_data.is_valid(self.current_texture_format)
+        {
             let texture = SizedTexture2D::init(
                 device,
                 Some("StoryboardTextureRenderer frame texture"),
-                *self.size,
+                screen.rect.size,
                 renderer_data.screen_format(),
                 TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
             );
@@ -116,6 +99,7 @@ impl StoryboardTextureRenderer {
         self.renderer.render(
             device,
             queue,
+            screen,
             drawables,
             Some(RenderPassColorAttachment {
                 view: self.view.inner(),
