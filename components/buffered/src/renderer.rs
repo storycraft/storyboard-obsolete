@@ -7,11 +7,11 @@ use storyboard_core::{
 };
 use storyboard_render::{
     component::Drawable,
-    renderer::StoryboardRenderer,
+    renderer::{StoryboardRenderer, RendererData},
     texture::{SizedTexture2D, SizedTextureView2D},
     wgpu::{
         Color, CommandEncoder, Device, LoadOp, Operations, Queue, RenderPassColorAttachment,
-        TextureFormat, TextureUsages,
+        TextureUsages,
     },
 };
 use storyboard_texture::render::{data::TextureData, RenderTexture2D};
@@ -32,15 +32,15 @@ impl StoryboardTextureRenderer {
         textures: &TextureData,
         rect: Rect<u32, PhyiscalPixelUnit>,
         screen_scale: f32,
-        format: TextureFormat,
+        renderer_data: RendererData
     ) -> Self {
-        let renderer = StoryboardRenderer::new(rect, screen_scale, format);
+        let renderer = StoryboardRenderer::new(rect, screen_scale, renderer_data);
 
         let texture = SizedTexture2D::init(
             device,
             Some("StoryboardTextureRenderer frame texture"),
             rect.size,
-            format,
+            renderer.screen_format(),
             TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
         );
 

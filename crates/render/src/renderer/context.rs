@@ -1,24 +1,38 @@
-use storyboard_core::{unit::{LogicalPixelUnit, RenderUnit}, store::{Store, StoreResources}, euclid::{Rect, Transform3D}};
-use wgpu::{DepthStencilState, Device, Queue, TextureFormat};
+use storyboard_core::{
+    euclid::{Rect, Transform3D},
+    store::StoreResources,
+    unit::{LogicalPixelUnit, RenderUnit},
+};
+use wgpu::{Device, Queue, DepthStencilState, TextureFormat};
 
 use crate::buffer::stream::{BufferStream, StreamBuffer};
+
+use super::RendererData;
 
 #[derive(Debug, Clone)]
 pub struct BackendContext<'a> {
     pub device: &'a Device,
     pub queue: &'a Queue,
+    pub renderer_data: &'a RendererData,
+    pub depth_stencil: DepthStencilState
+}
 
-    pub screen_format: TextureFormat,
+impl<'a> BackendContext<'a> {
+    #[inline]
+    pub const fn screen_format(&self) -> TextureFormat {
+        self.renderer_data.screen_format()
+    }
 
-    /// Depth stencil state used for component pipeline
-    pub depth_stencil: DepthStencilState,
+    #[inline]
+    pub fn get<T: StoreResources<BackendContext<'a>>>(&self) -> &'a T {
+        self.renderer_data.store.get(self)
+    }
 }
 
 /// [DrawContext] contains reference to backend, resources store, and stream for component data preparing
 #[derive(Debug)]
 pub struct DrawContext<'a> {
     pub backend: BackendContext<'a>,
-    pub resources: &'a Store,
 
     pub screen: Rect<f32, LogicalPixelUnit>,
     pub pixel_density: f32,
@@ -39,14 +53,14 @@ impl<'a> DrawContext<'a> {
 
         RenderContext {
             backend: self.backend,
-            resources: self.resources,
             vertex_stream,
             index_stream,
         }
     }
 
+    #[inline]
     pub fn get<T: StoreResources<BackendContext<'a>>>(&self) -> &'a T {
-        self.resources.get(&self.backend)
+        self.backend.get::<T>()
     }
 }
 
@@ -55,14 +69,12 @@ impl<'a> DrawContext<'a> {
 pub struct RenderContext<'a> {
     pub backend: BackendContext<'a>,
 
-    pub(crate) resources: &'a Store,
-
     pub vertex_stream: StreamBuffer<'a>,
     pub index_stream: StreamBuffer<'a>,
 }
 
 impl<'a> RenderContext<'a> {
     pub fn get<T: StoreResources<BackendContext<'a>>>(&self) -> &'a T {
-        self.resources.get(&self.backend)
+        self.backend.renderer_data.store.get(&self.backend)
     }
 }

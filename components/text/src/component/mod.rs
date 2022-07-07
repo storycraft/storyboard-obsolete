@@ -33,8 +33,8 @@ pub struct TextResources {
 }
 
 impl StoreResources<BackendContext<'_>> for TextResources {
-    fn initialize(store: &Store, ctx: &BackendContext) -> Self {
-        let textures = store.get::<TextureData, _>(ctx);
+    fn initialize(_: &Store, ctx: &BackendContext) -> Self {
+        let textures = ctx.get::<TextureData>();
 
         let shader = init_glyph_shader(ctx.device);
         let pipeline_layout = init_glyph_pipeline_layout(ctx.device, textures.bind_group_layout());
@@ -44,7 +44,7 @@ impl StoreResources<BackendContext<'_>> for TextResources {
             &pipeline_layout,
             &shader,
             &[Some(ColorTargetState {
-                format: ctx.screen_format,
+                format: ctx.screen_format(),
                 blend: Some(BlendState::ALPHA_BLENDING),
                 write_mask: ColorWrites::ALL,
             })],

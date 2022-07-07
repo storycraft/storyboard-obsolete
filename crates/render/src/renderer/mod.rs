@@ -36,7 +36,6 @@ use crate::{
 pub struct StoryboardRenderer {
     screen: Observable<(Rect<u32, PhyiscalPixelUnit>, f32)>,
 
-    screen_format: TextureFormat,
     screen_matrix: Transform3D<f32, LogicalPixelUnit, RenderUnit>,
 
     opaque_component: TraitStack<dyn Component>,
@@ -44,7 +43,7 @@ pub struct StoryboardRenderer {
 
     depth_texture: Observable<Option<SizedTextureView2D>>,
 
-    store: Arc<Store>,
+    renderer_data: RendererData,
 
     vertex_stream: BufferStream<'static>,
     index_stream: BufferStream<'static>,
@@ -56,7 +55,7 @@ impl StoryboardRenderer {
     pub fn new(
         screen: Rect<u32, PhyiscalPixelUnit>,
         screen_scale: f32,
-        screen_format: TextureFormat,
+        renderer_data: RendererData,
     ) -> Self {
         let vertex_stream = BufferStream::new(
             Some(Cow::from("StoryboardRenderer vertex stream buffer")),
@@ -70,7 +69,6 @@ impl StoryboardRenderer {
         Self {
             screen: (screen, screen_scale).into(),
 
-            screen_format,
             screen_matrix: Transform3D::identity(),
 
             opaque_component: TraitStack::new(),
@@ -78,7 +76,7 @@ impl StoryboardRenderer {
 
             depth_texture: None.into(),
 
-            store: Arc::new(Store::new()),
+            renderer_data,
 
             vertex_stream,
             index_stream,
@@ -99,8 +97,12 @@ impl StoryboardRenderer {
         }
     }
 
+    pub const fn renderer_data(&self) -> &RendererData {
+        &self.renderer_data
+    }
+
     pub const fn screen_format(&self) -> TextureFormat {
-        self.screen_format
+        self.renderer_data.screen_format
     }
 
     fn prepare_screen_matrix(&mut self) {
@@ -154,7 +156,7 @@ impl StoryboardRenderer {
             device,
             queue,
 
-            screen_format: self.screen_format,
+            renderer_data: &self.renderer_data,
 
             depth_stencil: DepthStencilState {
                 format: Self::DEPTH_TEXTURE_FORMAT,
@@ -174,7 +176,6 @@ impl StoryboardRenderer {
             .cast_unit(),
             pixel_density: self.screen.1,
             screen_matrix: &self.screen_matrix,
-            resources: &self.store,
             vertex_stream: &mut self.vertex_stream,
             index_stream: &mut self.index_stream,
         };
@@ -264,5 +265,28 @@ impl<'a> ComponentQueue<'a> {
 
     pub fn push_transparent(&mut self, component: impl Component + 'static) {
         self.transparent.push(component);
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct RendererData {
+    screen_format: TextureFormat,
+    store: Arc<Store>,
+}
+
+impl RendererData {
+    pub fn new(screen_format: TextureFormat) -> Self {
+        Self {
+            screen_format,
+            store: Arc::new(Store::new())
+        }
+    }
+
+    pub const fn screen_format(&self) -> TextureFormat {
+        self.screen_format
+    }
+
+    pub fn store(&self) -> &Store {
+        &self.store
     }
 }

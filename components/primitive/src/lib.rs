@@ -38,8 +38,8 @@ pub struct PrimitiveResources {
 }
 
 impl StoreResources<BackendContext<'_>> for PrimitiveResources {
-    fn initialize(store: &Store, ctx: &BackendContext) -> Self {
-        let textures = store.get::<TextureData, _>(ctx);
+    fn initialize(_: &Store, ctx: &BackendContext) -> Self {
+        let textures = ctx.get::<TextureData>();
 
         let shader = init_primitive_shader(ctx.device);
         let pipeline_layout =
@@ -50,7 +50,7 @@ impl StoreResources<BackendContext<'_>> for PrimitiveResources {
             &pipeline_layout,
             &shader,
             &[Some(ColorTargetState {
-                format: ctx.screen_format,
+                format: ctx.screen_format(),
                 blend: None,
                 write_mask: ColorWrites::COLOR,
             })],
@@ -62,7 +62,7 @@ impl StoreResources<BackendContext<'_>> for PrimitiveResources {
             &pipeline_layout,
             &shader,
             &[Some(ColorTargetState {
-                format: ctx.screen_format,
+                format: ctx.renderer_data.screen_format(),
                 blend: Some(BlendState::ALPHA_BLENDING),
                 write_mask: ColorWrites::ALL,
             })],

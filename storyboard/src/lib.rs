@@ -12,7 +12,7 @@ pub use winit;
 use instant::Instant;
 
 use app::{StoryboardApp, StoryboardAppProp, StoryboardAppState};
-use render::task::RenderTaskConfiguration;
+use render::{task::RenderTaskConfiguration, renderer::RendererData};
 use std::{path::Path, sync::Arc, time::Duration};
 use storyboard_core::euclid::{Point2D, Rect, Size2D};
 use storyboard_render::{
@@ -121,7 +121,7 @@ impl Storyboard {
                 screen: Rect::new(Point2D::zero(), win_size),
                 screen_scale: self.window.scale_factor() as _,
             },
-            self.screen_format,
+            RendererData::new(self.screen_format),
         );
 
         let mut render_task = Some(RenderTask::run(

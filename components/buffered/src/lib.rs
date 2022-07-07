@@ -55,7 +55,7 @@ impl<T: Bufferable> Drawable for BufferedDrawable<T> {
                 textures,
                 rect,
                 ctx.pixel_density,
-                ctx.backend.screen_format,
+                ctx.backend.renderer_data.clone(),
             ));
         }
 

@@ -3,13 +3,13 @@ use std::fmt::Debug;
 use storyboard_core::{euclid::Rect, observable::Observable, unit::PhyiscalPixelUnit};
 use wgpu::{
     self, Color, CommandBuffer, CommandEncoderDescriptor, Device, LoadOp, Operations, PresentMode,
-    Queue, RenderPassColorAttachment, Surface, SurfaceTexture, TextureFormat, TextureUsages,
+    Queue, RenderPassColorAttachment, Surface, SurfaceTexture, TextureUsages,
     TextureViewDescriptor,
 };
 
 use crate::component::Drawable;
 
-use super::StoryboardRenderer;
+use super::{RendererData, StoryboardRenderer};
 
 #[derive(Debug)]
 pub struct StoryboardSurfaceRenderer {
@@ -23,12 +23,12 @@ impl StoryboardSurfaceRenderer {
     pub fn new(
         surface: Surface,
         configuration: SurfaceConfiguration,
-        screen_format: TextureFormat,
+        renderer_data: RendererData,
     ) -> Self {
         let renderer = StoryboardRenderer::new(
             configuration.screen,
             configuration.screen_scale,
-            screen_format,
+            renderer_data,
         );
 
         Self {
