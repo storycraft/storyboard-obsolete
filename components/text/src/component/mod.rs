@@ -12,7 +12,7 @@ use storyboard_core::{
 use storyboard_render::{
     buffer::stream::StreamRange,
     cache::shader::ShaderCache,
-    component::{Component, Drawable},
+    component::{Component, Drawable, self},
     renderer::{
         context::{BackendContext, DrawContext, RenderContext},
         pass::StoryboardRenderPass,
@@ -51,10 +51,7 @@ impl StoreResources<BackendContext<'_>> for TextResources {
                 blend: Some(BlendState::ALPHA_BLENDING),
                 write_mask: ColorWrites::ALL,
             })],
-            Some(DepthStencilState {
-                depth_write_enabled: false,
-                ..ctx.depth_stencil.clone()
-            }),
+            Some(component::TRANSPARENT_DEPTH_STENCIL),
         );
 
         Self { pipeline }

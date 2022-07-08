@@ -3,10 +3,10 @@ use std::{fmt::Debug, sync::Arc};
 use storyboard_core::{euclid::Size2D, unit::PhyiscalPixelUnit};
 use storyboard_render::{
     component::Drawable,
-    renderer::{RendererData, StoryboardRenderer},
+    renderer::{StoryboardRenderer, context::BackendContext},
     texture::{SizedTexture2D, SizedTextureView2D},
     wgpu::{
-        Color, CommandEncoder, Device, LoadOp, Operations, Queue, RenderPassColorAttachment,
+        Color, CommandEncoder, Device, LoadOp, Operations, RenderPassColorAttachment,
         TextureFormat, TextureUsages,
     },
     ScreenRect,
@@ -69,27 +69,25 @@ impl StoryboardTextureRenderer {
 
     pub fn render<'a>(
         &mut self,
-        device: &Device,
-        queue: &Queue,
+        backend: BackendContext<'a>,
         screen: ScreenRect,
         textures: &TextureData,
         drawables: impl ExactSizeIterator<Item = &'a dyn Drawable>,
-        renderer_data: &RendererData,
         encoder: &mut CommandEncoder,
     ) {
         if self.current_screen_size != screen.rect.size
-            || !renderer_data.is_valid(self.current_texture_format)
+            || !backend.renderer_data.is_valid(self.current_texture_format)
         {
             let texture = SizedTexture2D::init(
-                device,
+                backend.device,
                 Some("StoryboardTextureRenderer frame texture"),
                 screen.rect.size,
-                renderer_data.screen_format(),
+                backend.screen_format(),
                 TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
             );
 
             self.render_texture = Arc::new(textures.create_render_texture(
-                device,
+                backend.device,
                 texture.create_view_default(None).into(),
                 None,
             ));
@@ -97,8 +95,7 @@ impl StoryboardTextureRenderer {
         }
 
         self.renderer.render(
-            device,
-            queue,
+            backend,
             screen,
             drawables,
             Some(RenderPassColorAttachment {
@@ -109,7 +106,6 @@ impl StoryboardTextureRenderer {
                     store: true,
                 },
             }),
-            renderer_data,
             encoder,
         );
     }

@@ -69,7 +69,7 @@ async fn main_async(event_loop: EventLoop<()>, window: Window) {
             ..Default::default()
         },
         PresentMode::AutoNoVsync,
-        None,
+        Some(std::path::Path::new("traces")),
     )
     .await
     .unwrap();

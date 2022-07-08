@@ -69,12 +69,10 @@ impl<T: Bufferable> Drawable for BufferedDrawable<T> {
         let inner_renderer = inner_renderer.as_mut().unwrap();
 
         inner_renderer.render(
-            ctx.backend.device,
-            ctx.backend.queue,
+            ctx.backend,
             physical_screen,
             textures,
             iter::once(&self.drawable as _),
-            ctx.backend.renderer_data,
             encoder,
         );
 
@@ -99,7 +97,7 @@ impl<T: Bufferable> Drawable for BufferedDrawable<T> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct CachedBufferData {
     inner_renderer: Mutex<Option<StoryboardTextureRenderer>>,
 }

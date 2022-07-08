@@ -1,4 +1,4 @@
-use wgpu::CommandEncoder;
+use wgpu::{CommandEncoder, TextureFormat, DepthStencilState, CompareFunction, StencilState, StencilFaceState, DepthBiasState};
 
 use std::fmt::Debug;
 
@@ -8,6 +8,41 @@ use crate::renderer::{
 };
 
 use super::renderer::pass::StoryboardRenderPass;
+
+pub const DEPTH_TEXTURE_FORMAT: TextureFormat = TextureFormat::Depth32Float;
+
+pub const OPAQUE_DEPTH_STENCIL: DepthStencilState = DepthStencilState {
+    format: DEPTH_TEXTURE_FORMAT,
+    depth_write_enabled: true,
+    depth_compare: CompareFunction::Less,
+    stencil: StencilState {
+        front: StencilFaceState::IGNORE,
+        back: StencilFaceState::IGNORE,
+        read_mask: 0,
+        write_mask: 0,
+    },
+    bias: DepthBiasState {
+        constant: 0,
+        slope_scale: 0.0,
+        clamp: 0.0,
+    },
+};
+pub const TRANSPARENT_DEPTH_STENCIL: DepthStencilState = DepthStencilState {
+    format: DEPTH_TEXTURE_FORMAT,
+    depth_write_enabled: false,
+    depth_compare: CompareFunction::Less,
+    stencil: StencilState {
+        front: StencilFaceState::IGNORE,
+        back: StencilFaceState::IGNORE,
+        read_mask: 0,
+        write_mask: 0,
+    },
+    bias: DepthBiasState {
+        constant: 0,
+        slope_scale: 0.0,
+        clamp: 0.0,
+    },
+};
 
 pub trait Drawable: Send {
     fn prepare(

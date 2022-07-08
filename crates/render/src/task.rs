@@ -1,17 +1,21 @@
 use std::{
-    iter,
+    hint, iter,
     num::NonZeroU32,
     sync::{
         atomic::{AtomicBool, AtomicU64, Ordering},
         Arc,
     },
-    time::Duration, hint,
+    time::Duration,
 };
 
 use crate::{
     backend::StoryboardBackend,
     component::Drawable,
-    renderer::{surface::{StoryboardSurfaceRenderer, SurfaceConfiguration}, RendererData},
+    renderer::{
+        context::BackendContext,
+        surface::{StoryboardSurfaceRenderer, SurfaceConfiguration},
+        RendererData,
+    },
 };
 use crossbeam_channel::{bounded, Receiver, Sender};
 use parking_lot::{Mutex, MutexGuard};
@@ -84,10 +88,12 @@ impl RenderTask {
                 if data.output.update() {
                     if !data.output.output_buffer().0.is_empty() {
                         if let Some(res) = data.renderer.render(
-                            data.backend.device(),
-                            data.backend.queue(),
+                            BackendContext::new(
+                                data.backend.device(),
+                                data.backend.queue(),
+                                &data.renderer_data,
+                            ),
                             data.output.output_buffer().0.iter(),
-                            &data.renderer_data
                         ) {
                             data.backend.device().poll(Maintain::Wait);
                             data.backend.queue().submit(

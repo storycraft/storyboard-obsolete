@@ -10,7 +10,7 @@ use storyboard_core::{
     unit::{LogicalPixelUnit, PhyiscalPixelUnit, RenderUnit},
 };
 use trait_stack::TraitStack;
-use wgpu::{Device, Queue, StencilFaceState};
+use wgpu::Device;
 
 use self::{
     context::{BackendContext, DrawContext},
@@ -23,11 +23,10 @@ use super::{
 };
 
 use crate::{
-    component::{Component, Drawable},
+    component::{self, Component, Drawable},
     wgpu::{
-        BufferUsages, CommandEncoder, CompareFunction, DepthBiasState, DepthStencilState, LoadOp,
-        Operations, RenderPassColorAttachment, RenderPassDepthStencilAttachment,
-        RenderPassDescriptor, StencilState, TextureFormat, TextureUsages,
+        BufferUsages, CommandEncoder, LoadOp, Operations, RenderPassColorAttachment,
+        RenderPassDepthStencilAttachment, RenderPassDescriptor, TextureFormat, TextureUsages,
     },
     ScreenRect,
 };
@@ -47,24 +46,6 @@ pub struct StoryboardRenderer {
 }
 
 impl StoryboardRenderer {
-    pub const DEPTH_TEXTURE_FORMAT: TextureFormat = TextureFormat::Depth32Float;
-    pub const DEPTH_STENCIL_STATE: DepthStencilState = DepthStencilState {
-        format: Self::DEPTH_TEXTURE_FORMAT,
-        depth_write_enabled: true,
-        depth_compare: CompareFunction::Less,
-        stencil: StencilState {
-            front: StencilFaceState::IGNORE,
-            back: StencilFaceState::IGNORE,
-            read_mask: 0,
-            write_mask: 0,
-        },
-        bias: DepthBiasState {
-            constant: 0,
-            slope_scale: 0.0,
-            clamp: 0.0,
-        },
-    };
-
     pub fn new() -> Self {
         let vertex_stream = BufferStream::new(
             Some(Cow::from("StoryboardRenderer vertex stream buffer")),
@@ -82,7 +63,7 @@ impl StoryboardRenderer {
             opaque_component: TraitStack::new(),
             transparent_component: TraitStack::new(),
 
-            depth_texture: None.into(),
+            depth_texture: None,
 
             vertex_stream,
             index_stream,
@@ -99,7 +80,7 @@ impl StoryboardRenderer {
                 device,
                 Some("StoryboardRenderer depth texture"),
                 screen.rect.size,
-                Self::DEPTH_TEXTURE_FORMAT,
+                component::DEPTH_TEXTURE_FORMAT,
                 TextureUsages::TEXTURE_BINDING | TextureUsages::RENDER_ATTACHMENT,
             )
             .create_view_default(None),
@@ -108,12 +89,10 @@ impl StoryboardRenderer {
 
     pub fn render<'a>(
         &mut self,
-        device: &Device,
-        queue: &Queue,
+        backend: BackendContext,
         screen: ScreenRect,
         drawables: impl ExactSizeIterator<Item = &'a dyn Drawable>,
         color_attachment: Option<RenderPassColorAttachment>,
-        renderer_data: &RendererData,
         encoder: &mut CommandEncoder,
     ) {
         if drawables.len() == 0 || screen.rect.area() == 0 {
@@ -124,23 +103,14 @@ impl StoryboardRenderer {
             self.update_screen_matrix(screen);
 
             if self.current_screen_rect.size != screen.rect.size {
-                self.update_depth_stencil(device, screen);
+                self.update_depth_stencil(backend.device, screen);
             }
 
             self.current_screen_rect = screen.rect;
         }
 
-        let backend_context = BackendContext {
-            device,
-            queue,
-
-            renderer_data,
-
-            depth_stencil: Self::DEPTH_STENCIL_STATE,
-        };
-
         let mut draw_context = DrawContext {
-            backend: backend_context,
+            backend,
             screen,
             screen_matrix: &self.screen_matrix,
             vertex_stream: &mut self.vertex_stream,
@@ -242,6 +212,7 @@ impl<'a> ComponentQueue<'a> {
 }
 
 #[derive(Debug)]
+/// Shared renderer data container
 pub struct RendererData {
     screen_format: TextureFormat,
     store: Store,

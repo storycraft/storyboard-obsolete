@@ -2,14 +2,14 @@ use std::fmt::Debug;
 
 use storyboard_core::observable::Observable;
 use wgpu::{
-    self, Color, CommandBuffer, CommandEncoderDescriptor, Device, LoadOp, Operations, PresentMode,
-    Queue, RenderPassColorAttachment, Surface, SurfaceTexture, TextureUsages,
+    self, Color, CommandBuffer, CommandEncoderDescriptor, LoadOp, Operations, PresentMode,
+    RenderPassColorAttachment, Surface, SurfaceTexture, TextureUsages,
     TextureViewDescriptor,
 };
 
 use crate::component::Drawable;
 
-use super::{RendererData, ScreenRect, StoryboardRenderer};
+use super::{ScreenRect, StoryboardRenderer, context::BackendContext};
 
 #[derive(Debug)]
 pub struct StoryboardSurfaceRenderer {
@@ -42,34 +42,31 @@ impl StoryboardSurfaceRenderer {
 
     pub fn render<'a>(
         &mut self,
-        device: &Device,
-        queue: &Queue,
+        backend: BackendContext,
         drawables: impl ExactSizeIterator<Item = &'a dyn Drawable>,
-        renderer_data: &RendererData,
     ) -> Option<SurfaceRenderResult> {
-        if Observable::invalidate(&mut self.configuration) {
-            if self.configuration.screen.rect.size.area() > 0 {
-                self.surface.configure(
-                    device,
-                    &wgpu::SurfaceConfiguration {
-                        usage: TextureUsages::RENDER_ATTACHMENT,
-                        format: renderer_data.screen_format(),
-                        width: self.configuration.screen.rect.size.width,
-                        height: self.configuration.screen.rect.size.height,
-                        present_mode: self.configuration.present_mode,
-                    },
-                );
-            }
+        if Observable::invalidate(&mut self.configuration)
+            && self.configuration.screen.rect.size.area() > 0
+        {
+            self.surface.configure(
+                backend.device,
+                &wgpu::SurfaceConfiguration {
+                    usage: TextureUsages::RENDER_ATTACHMENT,
+                    format: backend.renderer_data.screen_format(),
+                    width: self.configuration.screen.rect.size.width,
+                    height: self.configuration.screen.rect.size.height,
+                    present_mode: self.configuration.present_mode,
+                },
+            );
         }
 
         if let Ok(surface_texture) = self.surface.get_current_texture() {
-            let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
+            let mut encoder = backend.device.create_command_encoder(&CommandEncoderDescriptor {
                 label: Some("StoryboardSurfaceRenderer command encoder"),
             });
 
             self.renderer.render(
-                device,
-                queue,
+                backend,
                 self.configuration.screen,
                 drawables,
                 Some(RenderPassColorAttachment {
@@ -82,7 +79,6 @@ impl StoryboardSurfaceRenderer {
                         store: true,
                     },
                 }),
-                renderer_data,
                 &mut encoder,
             );
 

@@ -3,7 +3,7 @@ use storyboard_core::{
     store::StoreResources,
     unit::{LogicalPixelUnit, RenderUnit},
 };
-use wgpu::{DepthStencilState, Device, Queue, TextureFormat};
+use wgpu::{Device, Queue, TextureFormat};
 
 use crate::{
     buffer::stream::{BufferStream, StreamBuffer},
@@ -12,15 +12,28 @@ use crate::{
 
 use super::RendererData;
 
-#[derive(Debug, Clone)]
+/// Contains wgpu [`Device`], wgpu [`Queue`] and [`RendererData`]
+#[derive(Debug, Clone, Copy)]
 pub struct BackendContext<'a> {
     pub device: &'a Device,
     pub queue: &'a Queue,
     pub renderer_data: &'a RendererData,
-    pub depth_stencil: DepthStencilState,
 }
 
 impl<'a> BackendContext<'a> {
+    #[inline]
+    pub const fn new(
+        device: &'a Device,
+        queue: &'a Queue,
+        renderer_data: &'a RendererData,
+    ) -> Self {
+        Self {
+            device,
+            queue,
+            renderer_data,
+        }
+    }
+
     #[inline]
     pub const fn screen_format(&self) -> TextureFormat {
         self.renderer_data.screen_format()
