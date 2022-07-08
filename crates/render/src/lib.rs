@@ -5,13 +5,16 @@ pub use wgpu;
 
 pub mod backend;
 pub mod buffer;
+pub mod cache;
 pub mod component;
 pub mod renderer;
 pub mod task;
 pub mod texture;
-pub mod cache;
 
-use storyboard_core::{unit::{PhyiscalPixelUnit, LogicalPixelUnit, RenderUnit}, euclid::{Rect, Size2D, Transform3D}};
+use storyboard_core::{
+    euclid::{Rect, Size2D, Transform3D},
+    unit::{LogicalPixelUnit, PhyiscalPixelUnit, RenderUnit},
+};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ScreenRect {
@@ -21,10 +24,7 @@ pub struct ScreenRect {
 
 impl ScreenRect {
     pub const fn new(rect: Rect<u32, PhyiscalPixelUnit>, scale_factor: f32) -> Self {
-        Self {
-            rect,
-            scale_factor
-        }
+        Self { rect, scale_factor }
     }
 
     pub fn get_logical_size(&self) -> Size2D<f32, LogicalPixelUnit> {

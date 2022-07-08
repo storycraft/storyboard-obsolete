@@ -4,11 +4,7 @@ pub mod surface;
 
 use std::{borrow::Cow, fmt::Debug};
 
-use storyboard_core::{
-    euclid::{Rect, Transform3D},
-    store::Store,
-    unit::{LogicalPixelUnit, PhyiscalPixelUnit, RenderUnit},
-};
+use storyboard_core::store::Store;
 use trait_stack::TraitStack;
 use wgpu::Device;
 
@@ -33,9 +29,6 @@ use crate::{
 
 #[derive(Debug)]
 pub struct StoryboardRenderer {
-    current_screen_rect: Rect<u32, PhyiscalPixelUnit>,
-    screen_matrix: Transform3D<f32, LogicalPixelUnit, RenderUnit>,
-
     opaque_component: TraitStack<dyn Component>,
     transparent_component: TraitStack<dyn Component>,
 
@@ -57,9 +50,6 @@ impl StoryboardRenderer {
         );
 
         Self {
-            current_screen_rect: Rect::zero(),
-            screen_matrix: Transform3D::identity(),
-
             opaque_component: TraitStack::new(),
             transparent_component: TraitStack::new(),
 
@@ -68,10 +58,6 @@ impl StoryboardRenderer {
             vertex_stream,
             index_stream,
         }
-    }
-
-    fn update_screen_matrix(&mut self, screen: ScreenRect) {
-        self.screen_matrix = screen.get_logical_ortho_matrix();
     }
 
     fn update_depth_stencil(&mut self, device: &Device, screen: ScreenRect) {
@@ -99,20 +85,16 @@ impl StoryboardRenderer {
             return;
         }
 
-        if self.current_screen_rect != screen.rect {
-            self.update_screen_matrix(screen);
+        match &self.depth_texture {
+            Some(depth_texture) if depth_texture.size() == screen.rect.size => {}
 
-            if self.current_screen_rect.size != screen.rect.size {
-                self.update_depth_stencil(backend.device, screen);
-            }
-
-            self.current_screen_rect = screen.rect;
-        }
+            _ => self.update_depth_stencil(backend.device, screen),
+        };
 
         let mut draw_context = DrawContext {
             backend,
             screen,
-            screen_matrix: &self.screen_matrix,
+            screen_matrix: screen.get_logical_ortho_matrix(),
             vertex_stream: &mut self.vertex_stream,
             index_stream: &mut self.index_stream,
         };

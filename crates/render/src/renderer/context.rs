@@ -51,7 +51,7 @@ pub struct DrawContext<'a> {
     pub backend: BackendContext<'a>,
 
     pub screen: ScreenRect,
-    pub screen_matrix: &'a Transform3D<f32, LogicalPixelUnit, RenderUnit>,
+    pub screen_matrix: Transform3D<f32, LogicalPixelUnit, RenderUnit>,
 
     pub vertex_stream: &'a mut BufferStream<'static>,
     pub index_stream: &'a mut BufferStream<'static>,
