@@ -2,9 +2,9 @@ use std::ops::{Deref, DerefMut};
 
 /// Track changes of inner data
 #[derive(Debug, Clone, Default)]
-pub struct Observable<T> {
-    inner: T,
+pub struct Observable<T: ?Sized> {
     changed: bool,
+    inner: T,
 }
 
 impl<T> Observable<T> {
@@ -12,25 +12,27 @@ impl<T> Observable<T> {
     /// It is default constructor for any conversion implementation.
     pub const fn new(data: T) -> Self {
         Self {
-            inner: data,
             changed: true,
+            inner: data,
         }
     }
 
     /// Create new [Observable] with unchanged state
     pub const fn new_unchanged(data: T) -> Self {
         Self {
-            inner: data,
             changed: false,
+            inner: data,
         }
-    }
-
-    pub const fn changed(this: &Self) -> bool {
-        this.changed
     }
 
     pub fn into_inner(this: Self) -> T {
         this.inner
+    }
+}
+
+impl<T: ?Sized> Observable<T> {
+    pub const fn changed(this: &Self) -> bool {
+        this.changed
     }
 
     /// Invalidate inner data change flag.
@@ -81,7 +83,7 @@ pub fn observable_test() {
     let mut data = Observable::new_unchanged(2);
 
     assert!(!Observable::changed(&data));
-    
+
     data = 2.into();
 
     assert!(Observable::changed(&data));

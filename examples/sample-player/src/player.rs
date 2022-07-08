@@ -119,7 +119,7 @@ impl State<StoryboardStateData> for Player {
 
                 self.fps.set_text(Cow::Owned(format!(
                     "{} fps",
-                    system_state.render_task.report_rate().floor()
+                    system_state.render_task.frame_rate().floor()
                 )));
 
                 self.fps.update(

@@ -25,7 +25,7 @@ pub struct RenderTask {
     renderer_config: Arc<(Mutex<RenderConfiguration>, AtomicBool)>,
     input: Input<(TraitStack<dyn Drawable + 'static>, Vec<CommandBuffer>)>,
 
-    report_rate: Arc<AtomicU64>,
+    frame_rate: Arc<AtomicU64>,
 
     signal_sender: Sender<()>,
     task: IndependentTickTask<RenderTaskData>,
@@ -42,7 +42,7 @@ impl RenderTask {
 
         let (signal_sender, signal_receiver) = bounded(2);
 
-        let current_fps = Arc::new(AtomicU64::new(0));
+        let frame_rate = Arc::new(AtomicU64::new(0));
 
         let renderer_config = Arc::new((
             Mutex::new(RenderConfiguration {
@@ -62,7 +62,7 @@ impl RenderTask {
 
             frame_sampler: TimeSampler::new(task_config.report_rate),
             max_fps: task_config.max_fps,
-            report_rate: current_fps.clone(),
+            frame_rate: frame_rate.clone(),
 
             renderer,
         };
@@ -114,14 +114,14 @@ impl RenderTask {
                 data.frame_sampler.sample_end();
 
                 if let Some(rate) = data.frame_sampler.average_elapsed() {
-                    data.report_rate.store(rate.to_bits(), Ordering::Relaxed);
+                    data.frame_rate.store(rate.to_bits(), Ordering::Relaxed);
                 }
             }
         });
 
         Self {
             renderer_config,
-            report_rate: current_fps,
+            frame_rate,
             input,
             signal_sender,
             task,
@@ -144,8 +144,8 @@ impl RenderTask {
         self.renderer_config.1.store(true, Ordering::Relaxed);
     }
 
-    pub fn report_rate(&self) -> f64 {
-        f64::from_bits(self.report_rate.load(Ordering::Relaxed))
+    pub fn frame_rate(&self) -> f64 {
+        f64::from_bits(self.frame_rate.load(Ordering::Relaxed))
     }
 
     pub fn interrupted(&self) -> bool {
@@ -203,7 +203,7 @@ struct RenderTaskData {
 
     frame_sampler: TimeSampler,
     max_fps: Option<NonZeroU32>,
-    report_rate: Arc<AtomicU64>,
+    frame_rate: Arc<AtomicU64>,
 
     renderer: StoryboardSurfaceRenderer,
 }

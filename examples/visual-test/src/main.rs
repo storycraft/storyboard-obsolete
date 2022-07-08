@@ -145,7 +145,10 @@ impl StoryboardApp for SampleApp {
             state.draw(Triangle {
                 bounds: Rect::new(Point2D::new(30.0, 30.0), Size2D::new(50.0, 50.0)),
                 color: ShapeColor::WHITE,
-                texture: self.texture.as_ref().map(|component| component.inner.clone()),
+                texture: self
+                    .texture
+                    .as_ref()
+                    .map(|component| component.inner.clone()),
                 transform: Transform3D::identity(),
             });
 
@@ -168,7 +171,7 @@ impl StoryboardApp for SampleApp {
                 "렌더링 테스트\n{:?}\nElapsed: {} ms\nFps: {}",
                 self.cursor * prop.window.scale_factor() as f32,
                 prop.elapsed.as_nanos() as f64 / 1_000_000.0,
-                state.render_task.report_rate()
+                state.render_task.frame_rate()
             )));
 
             self.text.update(
