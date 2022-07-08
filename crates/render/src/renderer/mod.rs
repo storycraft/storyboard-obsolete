@@ -67,7 +67,7 @@ impl StoryboardRenderer {
                 Some("StoryboardRenderer depth texture"),
                 screen.rect.size,
                 component::DEPTH_TEXTURE_FORMAT,
-                TextureUsages::TEXTURE_BINDING | TextureUsages::RENDER_ATTACHMENT,
+                TextureUsages::RENDER_ATTACHMENT,
             )
             .create_view_default(None),
         );
