@@ -19,7 +19,7 @@ use storyboard_texture::render::data::TextureData;
 pub mod renderer;
 
 pub trait Bufferable: Drawable {
-    fn bounds(&self) -> Rect<u32, LogicalPixelUnit>;
+    fn bounds(&self) -> Option<Rect<f32, LogicalPixelUnit>>;
 }
 
 #[derive(Debug)]
@@ -36,17 +36,24 @@ impl<T: Bufferable> Drawable for BufferedDrawable<T> {
         encoder: &mut CommandEncoder,
         depth: f32,
     ) {
-        let target_bounds = self.drawable.bounds();
-        if target_bounds.area() == 0 {
-            return;
-        }
+        let (logical_rect, physical_screen) = if let Some(rect) = self.drawable.bounds() {
+            if rect.area() <= 0.0 {
+                return;
+            }
 
-        let mut phyiscal_size = target_bounds.size;
-        phyiscal_size.width = (phyiscal_size.width as f32 * ctx.pixel_density).ceil() as _;
-        phyiscal_size.height = (phyiscal_size.height as f32 * ctx.pixel_density).ceil() as _;
+            let phyiscal_rect = ScreenRect::new(
+                Rect::new(rect.origin, rect.size * ctx.screen.scale_factor)
+                    .round_out()
+                    .cast()
+                    .cast_unit(),
+                ctx.screen.scale_factor,
+            );
 
-        let rect = Rect::new(target_bounds.origin, phyiscal_size).cast_unit();
-
+            (rect, phyiscal_rect)
+        } else {
+            (ctx.screen.get_logical_rect(), ctx.screen)
+        };
+        
         let textures = ctx.get::<TextureData>();
 
         let mut inner_renderer = self.cached_data.inner_renderer.lock();
@@ -55,7 +62,7 @@ impl<T: Bufferable> Drawable for BufferedDrawable<T> {
                 ctx.backend.device,
                 textures,
                 ctx.backend.renderer_data.screen_format(),
-                rect.size,
+                physical_screen.rect.size,
             ));
         }
 
@@ -64,7 +71,7 @@ impl<T: Bufferable> Drawable for BufferedDrawable<T> {
         inner_renderer.render(
             ctx.backend.device,
             ctx.backend.queue,
-            ScreenRect::new(rect, ctx.pixel_density),
+            physical_screen,
             textures,
             iter::once(&self.drawable as _),
             ctx.backend.renderer_data,
@@ -73,7 +80,7 @@ impl<T: Bufferable> Drawable for BufferedDrawable<T> {
 
         if let Some(component) = PrimitiveComponent::from_rectangle(
             &Rectangle {
-                bounds: target_bounds.cast(),
+                bounds: logical_rect,
                 color: ShapeColor::WHITE,
                 texture: Some(inner_renderer.render_texture().clone()),
                 texture_coord: [

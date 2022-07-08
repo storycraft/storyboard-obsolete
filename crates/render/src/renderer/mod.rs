@@ -141,8 +141,7 @@ impl StoryboardRenderer {
 
         let mut draw_context = DrawContext {
             backend: backend_context,
-            screen: screen.logical_rect(),
-            pixel_density: screen.scale_factor,
+            screen,
             screen_matrix: &self.screen_matrix,
             vertex_stream: &mut self.vertex_stream,
             index_stream: &mut self.index_stream,

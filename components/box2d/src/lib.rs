@@ -169,7 +169,7 @@ impl Box2DComponent {
         let texture_bounds = ComponentTexture::option_get_texture_bounds(
             box2d.texture.as_ref(),
             box2d.bounds,
-            ctx.screen.size,
+            ctx.screen.get_logical_size(),
         );
 
         let texture_coords = texture_bounds

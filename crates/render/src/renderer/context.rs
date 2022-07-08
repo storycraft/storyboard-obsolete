@@ -1,11 +1,14 @@
 use storyboard_core::{
-    euclid::{Rect, Transform3D},
+    euclid::Transform3D,
     store::StoreResources,
     unit::{LogicalPixelUnit, RenderUnit},
 };
 use wgpu::{DepthStencilState, Device, Queue, TextureFormat};
 
-use crate::buffer::stream::{BufferStream, StreamBuffer};
+use crate::{
+    buffer::stream::{BufferStream, StreamBuffer},
+    ScreenRect,
+};
 
 use super::RendererData;
 
@@ -34,8 +37,7 @@ impl<'a> BackendContext<'a> {
 pub struct DrawContext<'a> {
     pub backend: BackendContext<'a>,
 
-    pub screen: Rect<f32, LogicalPixelUnit>,
-    pub pixel_density: f32,
+    pub screen: ScreenRect,
     pub screen_matrix: &'a Transform3D<f32, LogicalPixelUnit, RenderUnit>,
 
     pub vertex_stream: &'a mut BufferStream<'static>,

@@ -33,7 +33,7 @@ impl ScreenRect {
             .cast_unit()
     }
 
-    pub fn logical_rect(&self) -> Rect<f32, LogicalPixelUnit> {
+    pub fn get_logical_rect(&self) -> Rect<f32, LogicalPixelUnit> {
         Rect::new(self.rect.origin.cast().cast_unit(), self.get_logical_size())
     }
 
