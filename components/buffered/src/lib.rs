@@ -4,14 +4,15 @@ use parking_lot::Mutex;
 use renderer::StoryboardTextureRenderer;
 use storyboard_core::{
     color::ShapeColor,
-    euclid::{Rect, Transform3D},
+    euclid::{Point2D, Rect, Transform3D},
     unit::LogicalPixelUnit,
 };
 use storyboard_primitive::{PrimitiveComponent, Rectangle};
 use storyboard_render::{
     component::Drawable,
     renderer::{context::DrawContext, ComponentQueue},
-    wgpu::CommandEncoder, ScreenRect,
+    wgpu::CommandEncoder,
+    ScreenRect,
 };
 use storyboard_texture::render::data::TextureData;
 
@@ -75,6 +76,12 @@ impl<T: Bufferable> Drawable for BufferedDrawable<T> {
                 bounds: target_bounds.cast(),
                 color: ShapeColor::WHITE,
                 texture: Some(inner_renderer.render_texture().clone()),
+                texture_coord: [
+                    Point2D::new(0.0, 0.0),
+                    Point2D::new(0.0, 1.0),
+                    Point2D::new(1.0, 1.0),
+                    Point2D::new(1.0, 0.0),
+                ],
                 transform: Transform3D::identity(),
             },
             ctx,

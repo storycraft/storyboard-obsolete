@@ -149,6 +149,11 @@ impl StoryboardApp for SampleApp {
                     .texture
                     .as_ref()
                     .map(|component| component.inner.clone()),
+                texture_coord: [
+                    Point2D::new(0.5, 0.0),
+                    Point2D::new(0.0, 1.0),
+                    Point2D::new(1.0, 1.0),
+                ],
                 transform: Transform3D::identity(),
             });
 

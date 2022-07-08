@@ -94,6 +94,7 @@ pub struct Triangle {
     pub bounds: Rect<f32, LogicalPixelUnit>,
     pub color: ShapeColor<3>,
     pub texture: Option<Arc<RenderTexture2D>>,
+    pub texture_coord: [Point2D<f32, TextureUnit>; 3],
     pub transform: Transform3D<f32, LogicalPixelUnit, LogicalPixelUnit>,
 }
 
@@ -120,6 +121,7 @@ pub struct Rectangle {
     pub bounds: Rect<f32, LogicalPixelUnit>,
     pub color: ShapeColor<4>,
     pub texture: Option<Arc<RenderTexture2D>>,
+    pub texture_coord: [Point2D<f32, TextureUnit>; 4],
     pub transform: Transform3D<f32, LogicalPixelUnit, LogicalPixelUnit>,
 }
 
@@ -151,7 +153,7 @@ pub struct PrimitiveComponent {
 #[derive(Debug)]
 pub enum PrimitiveType {
     Triangle,
-    Rectangle,
+    Quad,
 }
 
 impl PrimitiveComponent {
@@ -169,7 +171,7 @@ impl PrimitiveComponent {
                     .transform_point2d((coords[0] + coords[3].to_vector()) / 2.0)?
                     .extend(depth),
                 color: triangle.color[0],
-                texture_coord: Point2D::new(0.5, 0.0),
+                texture_coord: triangle.texture_coord[0],
             },
             PrimitiveVertex {
                 position: ctx
@@ -177,7 +179,7 @@ impl PrimitiveComponent {
                     .transform_point2d(coords[1])?
                     .extend(depth),
                 color: triangle.color[1],
-                texture_coord: Point2D::new(0.0, 1.0),
+                texture_coord: triangle.texture_coord[1],
             },
             PrimitiveVertex {
                 position: ctx
@@ -185,7 +187,7 @@ impl PrimitiveComponent {
                     .transform_point2d(coords[2])?
                     .extend(depth),
                 color: triangle.color[2],
-                texture_coord: Point2D::new(1.0, 1.0),
+                texture_coord: triangle.texture_coord[2],
             },
         ]));
 
@@ -210,7 +212,7 @@ impl PrimitiveComponent {
                     .transform_point2d(coords[0])?
                     .extend(depth),
                 color: rect.color[0],
-                texture_coord: Point2D::new(0.0, 0.0),
+                texture_coord: rect.texture_coord[0],
             },
             PrimitiveVertex {
                 position: ctx
@@ -218,7 +220,7 @@ impl PrimitiveComponent {
                     .transform_point2d(coords[1])?
                     .extend(depth),
                 color: rect.color[1],
-                texture_coord: Point2D::new(0.0, 1.0),
+                texture_coord: rect.texture_coord[1],
             },
             PrimitiveVertex {
                 position: ctx
@@ -226,7 +228,7 @@ impl PrimitiveComponent {
                     .transform_point2d(coords[2])?
                     .extend(depth),
                 color: rect.color[2],
-                texture_coord: Point2D::new(1.0, 1.0),
+                texture_coord: rect.texture_coord[2],
             },
             PrimitiveVertex {
                 position: ctx
@@ -234,12 +236,12 @@ impl PrimitiveComponent {
                     .transform_point2d(coords[3])?
                     .extend(depth),
                 color: rect.color[3],
-                texture_coord: Point2D::new(1.0, 0.0),
+                texture_coord: rect.texture_coord[3],
             },
         ]));
 
         Some(Self {
-            primitive_type: PrimitiveType::Rectangle,
+            primitive_type: PrimitiveType::Quad,
             texture: rect.texture.clone(),
             vertices_slice,
         })
@@ -273,7 +275,7 @@ impl Component for PrimitiveComponent {
                 pass.draw(0..3, 0..1);
             }
 
-            PrimitiveType::Rectangle => {
+            PrimitiveType::Quad => {
                 pass.set_index_buffer(resources.quad_index_buffer.slice(..), IndexFormat::Uint16);
 
                 pass.draw_indexed(0..6, 0, 0..1);
@@ -307,7 +309,7 @@ impl Component for PrimitiveComponent {
                 pass.draw(0..3, 0..1);
             }
 
-            PrimitiveType::Rectangle => {
+            PrimitiveType::Quad => {
                 pass.set_index_buffer(resources.quad_index_buffer.slice(..), IndexFormat::Uint16);
 
                 pass.draw_indexed(0..6, 0, 0..1);
