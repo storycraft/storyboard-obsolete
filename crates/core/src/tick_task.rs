@@ -98,12 +98,16 @@ impl<T: Send + 'static> IndependentTickTask<T> {
             return;
         }
 
+        if let TickTaskVariant::Threaded(task) = &mut self.0 {
+            task.tick();
+        }
+
         replace_with_or_abort(self, |this| {
             match this.0 {
                 TickTaskVariant::Threaded(task) => {
                     let task_handle = match task.handle.unwrap().join() {
                         Ok(task_handle) => task_handle,
-                        Err(err) => panic::resume_unwind(err),
+                        Err(_) => unreachable!(),
                     };
     
                     Self::run_none_threaded(task_handle.item, task_handle.handler)
