@@ -12,6 +12,7 @@ use storyboard_core::{
 
 use storyboard_render::{
     buffer::stream::StreamRange,
+    cache::shader::ShaderCache,
     component::{Component, Drawable},
     renderer::pass::StoryboardRenderPass,
     renderer::{
@@ -25,7 +26,7 @@ use storyboard_render::{
         MultisampleState, PipelineLayout, PipelineLayoutDescriptor, PrimitiveState,
         PrimitiveTopology, RenderPipeline, RenderPipelineDescriptor, ShaderModule,
         ShaderModuleDescriptor, ShaderSource, VertexBufferLayout, VertexState, VertexStepMode,
-    }, cache::shader::ShaderCache,
+    },
 };
 use storyboard_texture::render::data::EmptyTextureResources;
 use storyboard_texture::render::{data::TextureData, RenderTexture2D};
@@ -40,8 +41,10 @@ pub struct PrimitiveResources {
 impl StoreResources<BackendContext<'_>> for PrimitiveResources {
     fn initialize(_: &Store, ctx: &BackendContext) -> Self {
         let textures = ctx.get::<TextureData>();
-        let shader = ctx.get::<ShaderCache>().get_or_create("primitive_shader", || init_primitive_shader(ctx.device));
-        
+        let shader = ctx
+            .get::<ShaderCache>()
+            .get_or_create("primitive_shader", || init_primitive_shader(ctx.device));
+
         let pipeline_layout =
             init_primitive_pipeline_layout(ctx.device, textures.bind_group_layout());
 
@@ -102,10 +105,12 @@ impl Drawable for Triangle {
         _: &mut CommandEncoder,
         depth: f32,
     ) {
-        if self.texture.is_none() && self.color.opaque() {
-            component_queue.push_opaque(PrimitiveComponent::from_triangle(self, ctx, depth));
-        } else {
-            component_queue.push_transparent(PrimitiveComponent::from_triangle(self, ctx, depth));
+        if let Some(component) = PrimitiveComponent::from_triangle(self, ctx, depth) {
+            if self.texture.is_none() && self.color.opaque() {
+                component_queue.push_opaque(component);
+            } else {
+                component_queue.push_transparent(component);
+            }
         }
     }
 }
@@ -126,10 +131,12 @@ impl Drawable for Rectangle {
         _: &mut CommandEncoder,
         depth: f32,
     ) {
-        if self.texture.is_none() && self.color.opaque() {
-            component_queue.push_opaque(PrimitiveComponent::from_rectangle(self, ctx, depth));
-        } else {
-            component_queue.push_transparent(PrimitiveComponent::from_rectangle(self, ctx, depth));
+        if let Some(component) = PrimitiveComponent::from_rectangle(self, ctx, depth) {
+            if self.texture.is_none() && self.color.opaque() {
+                component_queue.push_opaque(component);
+            } else {
+                component_queue.push_transparent(component);
+            }
         }
     }
 }
@@ -148,7 +155,7 @@ pub enum PrimitiveType {
 }
 
 impl PrimitiveComponent {
-    pub fn from_triangle(triangle: &Triangle, ctx: &mut DrawContext, depth: f32) -> Self {
+    pub fn from_triangle(triangle: &Triangle, ctx: &mut DrawContext, depth: f32) -> Option<Self> {
         let coords = triangle
             .transform
             .outer_transformed_rect(&triangle.bounds)
@@ -159,8 +166,7 @@ impl PrimitiveComponent {
             PrimitiveVertex {
                 position: ctx
                     .screen_matrix
-                    .transform_point2d((coords[0] + coords[3].to_vector()) / 2.0)
-                    .unwrap()
+                    .transform_point2d((coords[0] + coords[3].to_vector()) / 2.0)?
                     .extend(depth),
                 color: triangle.color[0],
                 texture_coord: Point2D::new(0.5, 0.0),
@@ -168,8 +174,7 @@ impl PrimitiveComponent {
             PrimitiveVertex {
                 position: ctx
                     .screen_matrix
-                    .transform_point2d(coords[1])
-                    .unwrap()
+                    .transform_point2d(coords[1])?
                     .extend(depth),
                 color: triangle.color[1],
                 texture_coord: Point2D::new(0.0, 1.0),
@@ -177,22 +182,21 @@ impl PrimitiveComponent {
             PrimitiveVertex {
                 position: ctx
                     .screen_matrix
-                    .transform_point2d(coords[2])
-                    .unwrap()
+                    .transform_point2d(coords[2])?
                     .extend(depth),
                 color: triangle.color[2],
                 texture_coord: Point2D::new(1.0, 1.0),
             },
         ]));
 
-        Self {
+        Some(Self {
             primitive_type: PrimitiveType::Triangle,
             texture: triangle.texture.clone(),
             vertices_slice,
-        }
+        })
     }
 
-    pub fn from_rectangle(rect: &Rectangle, ctx: &mut DrawContext, depth: f32) -> Self {
+    pub fn from_rectangle(rect: &Rectangle, ctx: &mut DrawContext, depth: f32) -> Option<Self> {
         let coords = rect
             .transform
             .outer_transformed_rect(&rect.bounds)
@@ -203,8 +207,7 @@ impl PrimitiveComponent {
             PrimitiveVertex {
                 position: ctx
                     .screen_matrix
-                    .transform_point2d(coords[0])
-                    .unwrap()
+                    .transform_point2d(coords[0])?
                     .extend(depth),
                 color: rect.color[0],
                 texture_coord: Point2D::new(0.0, 0.0),
@@ -212,8 +215,7 @@ impl PrimitiveComponent {
             PrimitiveVertex {
                 position: ctx
                     .screen_matrix
-                    .transform_point2d(coords[1])
-                    .unwrap()
+                    .transform_point2d(coords[1])?
                     .extend(depth),
                 color: rect.color[1],
                 texture_coord: Point2D::new(0.0, 1.0),
@@ -221,8 +223,7 @@ impl PrimitiveComponent {
             PrimitiveVertex {
                 position: ctx
                     .screen_matrix
-                    .transform_point2d(coords[2])
-                    .unwrap()
+                    .transform_point2d(coords[2])?
                     .extend(depth),
                 color: rect.color[2],
                 texture_coord: Point2D::new(1.0, 1.0),
@@ -230,19 +231,18 @@ impl PrimitiveComponent {
             PrimitiveVertex {
                 position: ctx
                     .screen_matrix
-                    .transform_point2d(coords[3])
-                    .unwrap()
+                    .transform_point2d(coords[3])?
                     .extend(depth),
                 color: rect.color[3],
                 texture_coord: Point2D::new(1.0, 0.0),
             },
         ]));
 
-        Self {
+        Some(Self {
             primitive_type: PrimitiveType::Rectangle,
             texture: rect.texture.clone(),
             vertices_slice,
-        }
+        })
     }
 }
 

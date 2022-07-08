@@ -12,6 +12,7 @@ use storyboard_core::{
 
 use storyboard_render::{
     buffer::stream::StreamRange,
+    cache::shader::ShaderCache,
     component::{Component, Drawable},
     renderer::pass::StoryboardRenderPass,
     renderer::{
@@ -25,7 +26,7 @@ use storyboard_render::{
         IndexFormat, MultisampleState, PipelineLayout, PipelineLayoutDescriptor, PrimitiveState,
         PrimitiveTopology, RenderPipeline, RenderPipelineDescriptor, ShaderModule,
         ShaderModuleDescriptor, ShaderSource, VertexBufferLayout, VertexState, VertexStepMode,
-    }, cache::shader::ShaderCache,
+    },
 };
 use storyboard_texture::{
     render::{
@@ -45,7 +46,9 @@ impl StoreResources<BackendContext<'_>> for Box2DResources {
     fn initialize(_: &Store, ctx: &BackendContext) -> Self {
         let textures = ctx.get::<TextureData>();
 
-        let shader = ctx.get::<ShaderCache>().get_or_create("box_2d_shader", || init_box_shader(ctx.device));
+        let shader = ctx
+            .get::<ShaderCache>()
+            .get_or_create("box_2d_shader", || init_box_shader(ctx.device));
         let pipeline_layout = init_box_pipeline_layout(ctx.device, textures.bind_group_layout());
         let pipeline = init_box_pipeline(
             ctx.device,
@@ -97,7 +100,9 @@ impl Drawable for Box2D {
         _: &mut CommandEncoder,
         depth: f32,
     ) {
-        component_queue.push_transparent(Box2DComponent::from_box2d(self, ctx, depth));
+        if let Some(component) = Box2DComponent::from_box2d(self, ctx, depth) {
+            component_queue.push_transparent(component);
+        }
     }
 }
 
@@ -140,7 +145,7 @@ pub struct Box2DComponent {
 }
 
 impl Box2DComponent {
-    pub fn from_box2d(box2d: &Box2D, ctx: &mut DrawContext, depth: f32) -> Self {
+    pub fn from_box2d(box2d: &Box2D, ctx: &mut DrawContext, depth: f32) -> Option<Self> {
         let border_bounds_inflation = box2d.style.border_thickness + 1.0;
         let bounds_inflation = border_bounds_inflation + box2d.style.glow_radius;
         let mut inflated_bounds = box2d.bounds.inflate(bounds_inflation, bounds_inflation);
@@ -177,16 +182,14 @@ impl Box2DComponent {
 
             let box_coords = box2d
                 .transform
-                .outer_transformed_rect(&inflated_bounds)
-                .unwrap_or(inflated_bounds)
+                .outer_transformed_rect(&inflated_bounds)?
                 .into_coords();
 
             writer.write(bytemuck::bytes_of(&[
                 BoxVertex {
                     position: ctx
                         .screen_matrix
-                        .transform_point2d(box_coords[0])
-                        .unwrap()
+                        .transform_point2d(box_coords[0])?
                         .extend(depth),
                     fill_color: box2d.fill_color[0],
                     border_color: box2d.border_color[0],
@@ -196,8 +199,7 @@ impl Box2DComponent {
                 BoxVertex {
                     position: ctx
                         .screen_matrix
-                        .transform_point2d(box_coords[1])
-                        .unwrap()
+                        .transform_point2d(box_coords[1])?
                         .extend(depth),
                     fill_color: box2d.fill_color[1],
                     border_color: box2d.border_color[1],
@@ -207,8 +209,7 @@ impl Box2DComponent {
                 BoxVertex {
                     position: ctx
                         .screen_matrix
-                        .transform_point2d(box_coords[2])
-                        .unwrap()
+                        .transform_point2d(box_coords[2])?
                         .extend(depth),
                     fill_color: box2d.fill_color[2],
                     border_color: box2d.border_color[2],
@@ -218,8 +219,7 @@ impl Box2DComponent {
                 BoxVertex {
                     position: ctx
                         .screen_matrix
-                        .transform_point2d(box_coords[3])
-                        .unwrap()
+                        .transform_point2d(box_coords[3])?
                         .extend(depth),
                     fill_color: box2d.fill_color[3],
                     border_color: box2d.border_color[3],
@@ -231,16 +231,14 @@ impl Box2DComponent {
             if draw_shadow_box {
                 let shadow_coords = box2d
                     .transform
-                    .outer_transformed_rect(&shadow_bounds)
-                    .unwrap_or(shadow_bounds)
+                    .outer_transformed_rect(&shadow_bounds)?
                     .into_coords();
 
                 writer.write(bytemuck::bytes_of(&[
                     BoxVertex {
                         position: ctx
                             .screen_matrix
-                            .transform_point2d(shadow_coords[0])
-                            .unwrap()
+                            .transform_point2d(shadow_coords[0])?
                             .extend(depth),
                         rect_coord: shadow_coords[0],
                         ..Default::default()
@@ -248,8 +246,7 @@ impl Box2DComponent {
                     BoxVertex {
                         position: ctx
                             .screen_matrix
-                            .transform_point2d(shadow_coords[1])
-                            .unwrap()
+                            .transform_point2d(shadow_coords[1])?
                             .extend(depth),
                         rect_coord: shadow_coords[1],
                         ..Default::default()
@@ -257,8 +254,7 @@ impl Box2DComponent {
                     BoxVertex {
                         position: ctx
                             .screen_matrix
-                            .transform_point2d(shadow_coords[2])
-                            .unwrap()
+                            .transform_point2d(shadow_coords[2])?
                             .extend(depth),
                         rect_coord: shadow_coords[2],
                         ..Default::default()
@@ -266,8 +262,7 @@ impl Box2DComponent {
                     BoxVertex {
                         position: ctx
                             .screen_matrix
-                            .transform_point2d(shadow_coords[3])
-                            .unwrap()
+                            .transform_point2d(shadow_coords[3])?
                             .extend(depth),
                         rect_coord: shadow_coords[3],
                         ..Default::default()
@@ -293,12 +288,12 @@ impl Box2DComponent {
                 style: box2d.style,
             }));
 
-        Self {
+        Some(Self {
             texture: box2d.texture.as_ref().map(|texture| texture.inner.clone()),
             indices,
             vertices_slice,
             instance_slice,
-        }
+        })
     }
 }
 
@@ -390,8 +385,6 @@ pub fn init_box_pipeline(
     fragment_targets: &[Option<ColorTargetState>],
     depth_stencil: Option<DepthStencilState>,
 ) -> RenderPipeline {
-    
-
     device.create_render_pipeline(&RenderPipelineDescriptor {
         label: Some("Box2D pipeline"),
         layout: Some(pipeline_layout),

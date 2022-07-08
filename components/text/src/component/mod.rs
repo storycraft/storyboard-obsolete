@@ -11,6 +11,7 @@ use storyboard_core::{
 };
 use storyboard_render::{
     buffer::stream::StreamRange,
+    cache::shader::ShaderCache,
     component::{Component, Drawable},
     renderer::{
         context::{BackendContext, DrawContext, RenderContext},
@@ -23,7 +24,7 @@ use storyboard_render::{
         PipelineLayoutDescriptor, PrimitiveState, PrimitiveTopology, RenderPipeline,
         RenderPipelineDescriptor, ShaderModule, ShaderModuleDescriptor, ShaderSource,
         VertexBufferLayout, VertexState, VertexStepMode,
-    }, cache::shader::ShaderCache,
+    },
 };
 use storyboard_texture::render::{data::TextureData, RenderTexture2D};
 
@@ -36,7 +37,9 @@ impl StoreResources<BackendContext<'_>> for TextResources {
     fn initialize(_: &Store, ctx: &BackendContext) -> Self {
         let textures = ctx.get::<TextureData>();
 
-        let shader = ctx.get::<ShaderCache>().get_or_create("glyph_shader", || init_glyph_shader(ctx.device));
+        let shader = ctx
+            .get::<ShaderCache>()
+            .get_or_create("glyph_shader", || init_glyph_shader(ctx.device));
         let pipeline_layout = init_glyph_pipeline_layout(ctx.device, textures.bind_group_layout());
 
         let pipeline = init_glyph_pipeline(
@@ -86,7 +89,8 @@ impl Drawable for TextDrawable {
         depth: f32,
     ) {
         for batch in self.batches.iter() {
-            if let Some(component) = GlyphComponent::from_batch(batch, &self.transform, ctx, depth) {
+            if let Some(component) = GlyphComponent::from_batch(batch, &self.transform, ctx, depth)
+            {
                 component_queue.push_transparent(component);
             }
         }
@@ -115,14 +119,13 @@ impl GlyphComponent {
                 continue;
             }
 
-            let coords = transform.outer_transformed_rect(&rect.rect).unwrap_or(rect.rect).into_coords();
+            let coords = transform.outer_transformed_rect(&rect.rect)?.into_coords();
             let tex_coords = rect.texture_rect.into_coords();
 
             let left_top = GlyphVertex {
                 position: ctx
                     .screen_matrix
-                    .transform_point2d(coords[0])
-                    .unwrap()
+                    .transform_point2d(coords[0])?
                     .extend(depth),
                 color: ShapeColor::WHITE.into(),
                 texture_coord: tex_coords[0],
@@ -131,8 +134,7 @@ impl GlyphComponent {
             let left_bottom = GlyphVertex {
                 position: ctx
                     .screen_matrix
-                    .transform_point2d(coords[1])
-                    .unwrap()
+                    .transform_point2d(coords[1])?
                     .extend(depth),
                 color: ShapeColor::WHITE.into(),
                 texture_coord: tex_coords[1],
@@ -141,8 +143,7 @@ impl GlyphComponent {
             let right_bottom = GlyphVertex {
                 position: ctx
                     .screen_matrix
-                    .transform_point2d(coords[2])
-                    .unwrap()
+                    .transform_point2d(coords[2])?
                     .extend(depth),
                 color: ShapeColor::WHITE.into(),
                 texture_coord: tex_coords[2],
@@ -151,8 +152,7 @@ impl GlyphComponent {
             let right_top = GlyphVertex {
                 position: ctx
                     .screen_matrix
-                    .transform_point2d(coords[3])
-                    .unwrap()
+                    .transform_point2d(coords[3])?
                     .extend(depth),
                 color: ShapeColor::WHITE.into(),
                 texture_coord: tex_coords[3],

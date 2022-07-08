@@ -70,7 +70,7 @@ impl<T: Bufferable> Drawable for BufferedDrawable<T> {
             encoder,
         );
 
-        component_queue.push_transparent(PrimitiveComponent::from_rectangle(
+        if let Some(component) = PrimitiveComponent::from_rectangle(
             &Rectangle {
                 bounds: target_bounds.cast(),
                 color: ShapeColor::WHITE,
@@ -79,7 +79,9 @@ impl<T: Bufferable> Drawable for BufferedDrawable<T> {
             },
             ctx,
             depth,
-        ));
+        ) {
+            component_queue.push_transparent(component);
+        }
     }
 }
 
