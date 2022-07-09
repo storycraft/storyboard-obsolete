@@ -13,9 +13,9 @@ use instant::Instant;
 
 use app::{StoryboardApp, StoryboardAppProp, StoryboardAppState};
 use render::{
-    renderer::{RendererData},
-    ScreenRect,
+    shared::{BackendShared, RenderShared},
     task::RenderTaskConfiguration,
+    ScreenRect,
 };
 use std::{path::Path, sync::Arc, time::Duration};
 use storyboard_core::euclid::{Point2D, Rect, Size2D};
@@ -26,7 +26,6 @@ use storyboard_render::{
     wgpu::TextureFormat,
     wgpu::{Backends, Features, Instance, PresentMode, Surface},
 };
-use storyboard_texture::render::data::TextureData;
 use winit::{
     event::{Event, WindowEvent},
     event_loop::EventLoop,
@@ -39,7 +38,6 @@ use winit::{
 pub struct Storyboard {
     backend: StoryboardBackend,
     screen_format: TextureFormat,
-    texture_data: TextureData,
 
     pub present_mode: PresentMode,
     pub render_task_config: RenderTaskConfiguration,
@@ -74,12 +72,10 @@ impl Storyboard {
             .get_supported_formats(backend.adapter())
             .get(0)
             .ok_or(BackendInitError::NoSuitableAdapter)?;
-        let texture_data = TextureData::init(backend.device());
 
         Ok(Self {
             backend,
             screen_format,
-            texture_data,
 
             present_mode,
             render_task_config: RenderTaskConfiguration::default(),
@@ -101,16 +97,11 @@ impl Storyboard {
         &self.window
     }
 
-    pub const fn texture_data(&self) -> &TextureData {
-        &self.texture_data
-    }
-
     /// Start app
     ///
     /// Start render thread and run given inital [StoryboardApp].
     pub fn run(self, event_loop: EventLoop<()>, mut app: impl StoryboardApp + 'static) -> ! {
         let backend = Arc::new(self.backend);
-        let texture_data = Arc::new(self.texture_data);
 
         let win_size = {
             let (width, height) = self.window.inner_size().into();
@@ -129,17 +120,21 @@ impl Storyboard {
             },
         );
 
+        let backend_shared = Arc::new(BackendShared::new());
+        let render_shared = Arc::new(RenderShared::new(self.screen_format));
+
         let mut render_task = Some(RenderTask::run(
             backend.clone(),
+            backend_shared.clone(),
+            render_shared.clone(),
             surface_renderer,
-            Arc::new(RendererData::new(self.screen_format)),
             self.render_task_config,
         ));
 
         let mut app_prop = StoryboardAppProp {
             backend,
-            screen_format: self.screen_format,
-            texture_data,
+            backend_shared,
+            render_shared,
             elapsed: Duration::ZERO,
             window: Arc::new(self.window),
         };

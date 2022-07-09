@@ -1,10 +1,14 @@
 //! Prop and States implemention for storyboard app.
 use std::{sync::Arc, time::Duration};
 
-use storyboard_core::{euclid::Size2D, unit::PhyiscalPixelUnit};
+use storyboard_core::{euclid::Size2D, store::StoreResources, unit::PhyiscalPixelUnit};
 use storyboard_render::{
     backend::StoryboardBackend,
     component::Drawable,
+    shared::{
+        BackendScope, BackendScopeContext, BackendShared, RenderScope, RenderScopeContext,
+        RenderShared,
+    },
     task::RenderTask,
     texture::{SizedTexture2D, TextureView2D},
     wgpu::{Sampler, TextureFormat, TextureUsages},
@@ -25,14 +29,52 @@ pub trait StoryboardApp {
 #[derive(Debug)]
 pub struct StoryboardAppProp {
     pub backend: Arc<StoryboardBackend>,
-    pub screen_format: TextureFormat,
-    pub texture_data: Arc<TextureData>,
+    pub backend_shared: Arc<BackendShared>,
+    pub render_shared: Arc<RenderShared>,
+
     pub window: Arc<Window>,
 
     pub elapsed: Duration,
 }
 
 impl StoryboardAppProp {
+    #[inline]
+    pub fn texture_format(&self) -> TextureFormat {
+        self.render_shared.texture_format()
+    }
+
+    #[inline]
+    fn backend_scope_context(&self) -> BackendScopeContext {
+        BackendScopeContext {
+            device: self.backend.device(),
+            queue: self.backend.queue(),
+        }
+    }
+
+    #[inline]
+    pub fn backend_scope(&self) -> BackendScope {
+        self.backend_shared.scope(self.backend_scope_context())
+    }
+
+    #[inline]
+    pub fn render_scope(&self) -> RenderScope {
+        self.backend_scope().render_scope(&self.render_shared)
+    }
+
+    #[inline]
+    pub fn backend_get<T: for<'ctx> StoreResources<BackendScopeContext<'ctx>>>(&self) -> &T {
+        self.backend_shared.get(self.backend_scope_context())
+    }
+
+    #[inline]
+    pub fn render_get<T: for<'ctx> StoreResources<RenderScopeContext<'ctx>>>(&self) -> &T {
+        self.render_shared.get(self.backend_scope())
+    }
+
+    pub fn texture_data(&self) -> &TextureData {
+        self.backend_get()
+    }
+
     /// Create [SizedTexture2D] from descriptor
     pub fn create_texture(
         &self,
@@ -69,7 +111,7 @@ impl StoryboardAppProp {
             self.backend.device(),
             label,
             size,
-            self.screen_format,
+            self.texture_format(),
             TextureUsages::TEXTURE_BINDING
                 | TextureUsages::RENDER_ATTACHMENT
                 | TextureUsages::COPY_SRC,
@@ -82,11 +124,13 @@ impl StoryboardAppProp {
         view: TextureView2D,
         sampler: Option<&Sampler>,
     ) -> RenderTexture2D {
+        let texture_data = self.texture_data();
+
         RenderTexture2D::init(
             self.backend.device(),
             view,
-            self.texture_data.bind_group_layout(),
-            sampler.unwrap_or_else(|| self.texture_data.default_sampler()),
+            texture_data.bind_group_layout(),
+            sampler.unwrap_or_else(|| texture_data.default_sampler()),
         )
     }
 

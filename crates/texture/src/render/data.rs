@@ -4,12 +4,11 @@ use storyboard_core::{
 };
 
 use storyboard_render::{
-    renderer::context::BackendContext,
     texture::{SizedTexture2D, TextureView2D},
     wgpu::{
         AddressMode, BindGroupLayout, Device, Sampler, SamplerDescriptor, TextureFormat,
         TextureUsages,
-    },
+    }, shared::BackendScopeContext,
 };
 
 use super::{create_texture2d_bind_group_layout, RenderTexture2D};
@@ -62,8 +61,8 @@ impl TextureData {
     }
 }
 
-impl StoreResources<BackendContext<'_>> for TextureData {
-    fn initialize(_: &Store, ctx: &BackendContext) -> Self {
+impl StoreResources<BackendScopeContext<'_>> for TextureData {
+    fn initialize(_: &Store, ctx: &BackendScopeContext) -> Self {
         Self::init(ctx.device)
     }
 }
@@ -74,8 +73,8 @@ pub struct EmptyTextureResources {
     pub empty_texture: RenderTexture2D,
 }
 
-impl StoreResources<BackendContext<'_>> for EmptyTextureResources {
-    fn initialize(store: &Store, ctx: &BackendContext) -> Self {
+impl StoreResources<BackendScopeContext<'_>> for EmptyTextureResources {
+    fn initialize(store: &Store, ctx: &BackendScopeContext) -> Self {
         let textures = store.get::<TextureData, _>(ctx);
 
         let empty_texture = {

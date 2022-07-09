@@ -10,6 +10,7 @@ pub mod component;
 pub mod renderer;
 pub mod task;
 pub mod texture;
+pub mod shared;
 
 use storyboard_core::{
     euclid::{Rect, Size2D, Transform3D},

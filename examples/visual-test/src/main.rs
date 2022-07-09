@@ -183,7 +183,7 @@ impl StoryboardApp for SampleApp {
                 prop.backend.device(),
                 prop.backend.queue(),
                 prop.window.scale_factor() as _,
-                &prop.texture_data,
+                prop.texture_data(),
                 &mut self.cache,
             );
 

@@ -3,13 +3,13 @@ use std::{fmt::Debug, sync::Arc};
 use storyboard_core::{euclid::Size2D, unit::PhyiscalPixelUnit};
 use storyboard_render::{
     component::Drawable,
-    renderer::{StoryboardRenderer, context::BackendContext},
+    renderer::{StoryboardRenderer},
     texture::{SizedTexture2D, SizedTextureView2D},
     wgpu::{
         Color, CommandEncoder, Device, LoadOp, Operations, RenderPassColorAttachment,
         TextureFormat, TextureUsages,
     },
-    ScreenRect,
+    ScreenRect, shared::RenderScope,
 };
 use storyboard_texture::render::{data::TextureData, RenderTexture2D};
 
@@ -69,25 +69,25 @@ impl StoryboardTextureRenderer {
 
     pub fn render<'a>(
         &mut self,
-        backend: BackendContext<'a>,
+        scope: RenderScope,
         screen: ScreenRect,
         textures: &TextureData,
         drawables: impl ExactSizeIterator<Item = &'a dyn Drawable>,
         encoder: &mut CommandEncoder,
     ) {
         if self.current_screen_size != screen.rect.size
-            || !backend.renderer_data.is_valid(self.current_texture_format)
+            || !scope.is_valid_for(self.current_texture_format)
         {
             let texture = SizedTexture2D::init(
-                backend.device,
+                scope.backend().device(),
                 Some("StoryboardTextureRenderer frame texture"),
                 screen.rect.size,
-                backend.screen_format(),
+                scope.texture_format(),
                 TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
             );
 
             self.render_texture = Arc::new(textures.create_render_texture(
-                backend.device,
+                scope.backend().device(),
                 texture.create_view_default(None).into(),
                 None,
             ));
@@ -95,7 +95,7 @@ impl StoryboardTextureRenderer {
         }
 
         self.renderer.render(
-            backend,
+            scope,
             screen,
             drawables,
             Some(RenderPassColorAttachment {

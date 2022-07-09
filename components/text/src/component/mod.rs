@@ -14,7 +14,7 @@ use storyboard_render::{
     cache::shader::ShaderCache,
     component::{Component, Drawable, self},
     renderer::{
-        context::{BackendContext, DrawContext, RenderContext},
+        context::{DrawContext, RenderContext},
         pass::StoryboardRenderPass,
         ComponentQueue,
     },
@@ -24,7 +24,7 @@ use storyboard_render::{
         PipelineLayoutDescriptor, PrimitiveState, PrimitiveTopology, RenderPipeline,
         RenderPipelineDescriptor, ShaderModule, ShaderModuleDescriptor, ShaderSource,
         VertexBufferLayout, VertexState, VertexStepMode,
-    },
+    }, shared::RenderScopeContext,
 };
 use storyboard_texture::render::{data::TextureData, RenderTexture2D};
 
@@ -33,21 +33,21 @@ pub struct TextResources {
     pub pipeline: RenderPipeline,
 }
 
-impl StoreResources<BackendContext<'_>> for TextResources {
-    fn initialize(_: &Store, ctx: &BackendContext) -> Self {
-        let textures = ctx.get::<TextureData>();
+impl StoreResources<RenderScopeContext<'_>> for TextResources {
+    fn initialize(_: &Store, ctx: &RenderScopeContext) -> Self {
+        let textures = ctx.backend.get::<TextureData>();
 
-        let shader = ctx
+        let shader = ctx.backend
             .get::<ShaderCache>()
-            .get_or_create("glyph_shader", || init_glyph_shader(ctx.device));
-        let pipeline_layout = init_glyph_pipeline_layout(ctx.device, textures.bind_group_layout());
+            .get_or_create("glyph_shader", || init_glyph_shader(ctx.backend.device()));
+        let pipeline_layout = init_glyph_pipeline_layout(ctx.backend.device(), textures.bind_group_layout());
 
         let pipeline = init_glyph_pipeline(
-            ctx.device,
+            ctx.backend.device(),
             &pipeline_layout,
             &shader,
             &[Some(ColorTargetState {
-                format: ctx.screen_format(),
+                format: ctx.texture_format,
                 blend: Some(BlendState::ALPHA_BLENDING),
                 write_mask: ColorWrites::ALL,
             })],
@@ -195,7 +195,7 @@ impl Component for GlyphComponent {
         ctx: &RenderContext<'rpass>,
         pass: &mut StoryboardRenderPass<'rpass>,
     ) {
-        let text_resources = ctx.get::<TextResources>();
+        let text_resources = ctx.scope.get::<TextResources>();
 
         pass.set_pipeline(&text_resources.pipeline);
         pass.set_bind_group(0, self.texture.bind_group(), &[]);

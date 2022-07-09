@@ -54,14 +54,14 @@ impl<T: Bufferable> Drawable for BufferedDrawable<T> {
             (ctx.screen.get_logical_rect(), ctx.screen)
         };
         
-        let textures = ctx.get::<TextureData>();
+        let textures = ctx.scope.backend().get::<TextureData>();
 
         let mut inner_renderer = self.cached_data.inner_renderer.lock();
         if inner_renderer.is_none() {
             *inner_renderer = Some(StoryboardTextureRenderer::init(
-                ctx.backend.device,
+                ctx.scope.backend().device(),
                 textures,
-                ctx.backend.renderer_data.screen_format(),
+                ctx.scope.texture_format(),
                 physical_screen.rect.size,
             ));
         }
@@ -69,7 +69,7 @@ impl<T: Bufferable> Drawable for BufferedDrawable<T> {
         let inner_renderer = inner_renderer.as_mut().unwrap();
 
         inner_renderer.render(
-            ctx.backend,
+            ctx.scope,
             physical_screen,
             textures,
             iter::once(&self.drawable as _),

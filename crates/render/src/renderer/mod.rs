@@ -6,16 +6,12 @@ use std::{borrow::Cow, fmt::Debug};
 
 use storyboard_core::{
     euclid::{Rect, Transform3D},
-    store::Store,
     unit::{LogicalPixelUnit, PhyiscalPixelUnit, RenderUnit},
 };
 use trait_stack::TraitStack;
 use wgpu::Device;
 
-use self::{
-    context::{BackendContext, DrawContext},
-    pass::StoryboardRenderPass,
-};
+use self::{context::DrawContext, pass::StoryboardRenderPass};
 
 use super::{
     buffer::stream::BufferStream,
@@ -24,9 +20,10 @@ use super::{
 
 use crate::{
     component::{self, Component, Drawable},
+    shared::RenderScope,
     wgpu::{
         BufferUsages, CommandEncoder, LoadOp, Operations, RenderPassColorAttachment,
-        RenderPassDepthStencilAttachment, RenderPassDescriptor, TextureFormat, TextureUsages,
+        RenderPassDepthStencilAttachment, RenderPassDescriptor, TextureUsages,
     },
     ScreenRect,
 };
@@ -89,7 +86,7 @@ impl StoryboardRenderer {
 
     pub fn render<'a>(
         &mut self,
-        backend: BackendContext,
+        scope: RenderScope,
         screen: ScreenRect,
         drawables: impl ExactSizeIterator<Item = &'a dyn Drawable>,
         color_attachment: Option<RenderPassColorAttachment>,
@@ -103,14 +100,14 @@ impl StoryboardRenderer {
             self.update_screen_matrix(screen);
 
             if self.current_screen_rect.size != screen.rect.size {
-                self.update_depth_stencil(backend.device, screen);
+                self.update_depth_stencil(scope.backend().device(), screen);
             }
 
             self.current_screen_rect = screen.rect;
         }
 
         let mut draw_context = DrawContext {
-            backend,
+            scope,
             screen,
             screen_matrix: self.screen_matrix,
             vertex_stream: &mut self.vertex_stream,
@@ -208,33 +205,5 @@ impl<'a> ComponentQueue<'a> {
 
     pub fn push_transparent(&mut self, component: impl Component + 'static) {
         self.transparent.push(component);
-    }
-}
-
-#[derive(Debug)]
-/// Shared renderer data container
-pub struct RendererData {
-    screen_format: TextureFormat,
-    store: Store,
-}
-
-impl RendererData {
-    pub fn new(screen_format: TextureFormat) -> Self {
-        Self {
-            screen_format,
-            store: Store::new(),
-        }
-    }
-
-    pub fn is_valid(&self, format: TextureFormat) -> bool {
-        self.screen_format == format
-    }
-
-    pub const fn screen_format(&self) -> TextureFormat {
-        self.screen_format
-    }
-
-    pub const fn store(&self) -> &Store {
-        &self.store
     }
 }

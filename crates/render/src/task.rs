@@ -9,13 +9,9 @@ use std::{
 };
 
 use crate::{
-    backend::StoryboardBackend,
     component::Drawable,
-    renderer::{
-        context::BackendContext,
-        surface::{StoryboardSurfaceRenderer, SurfaceConfiguration},
-        RendererData,
-    },
+    renderer::surface::{StoryboardSurfaceRenderer, SurfaceConfiguration},
+    shared::{BackendShared, RenderShared, BackendScopeContext}, backend::StoryboardBackend,
 };
 use crossbeam_channel::{bounded, Receiver, Sender};
 use parking_lot::{Mutex, MutexGuard};
@@ -38,8 +34,9 @@ pub struct RenderTask {
 impl RenderTask {
     pub fn run(
         backend: Arc<StoryboardBackend>,
+        backend_shared: Arc<BackendShared>,
+        render_shared: Arc<RenderShared>,
         renderer: StoryboardSurfaceRenderer,
-        renderer_data: Arc<RendererData>,
         task_config: RenderTaskConfiguration,
     ) -> Self {
         let (input, output) = TripleBuffer::default().split();
@@ -58,7 +55,8 @@ impl RenderTask {
 
         let data = RenderTaskData {
             backend,
-            renderer_data,
+            backend_shared,
+            render_shared,
 
             configuration: renderer_config.clone(),
             signal_receiver,
@@ -88,11 +86,12 @@ impl RenderTask {
                 if data.output.update() {
                     if !data.output.output_buffer().0.is_empty() {
                         if let Some(res) = data.renderer.render(
-                            BackendContext::new(
-                                data.backend.device(),
-                                data.backend.queue(),
-                                &data.renderer_data,
-                            ),
+                            data.backend_shared
+                                .scope(BackendScopeContext {
+                                    device: data.backend.device(),
+                                    queue: data.backend.queue(),
+                                })
+                                .render_scope(&data.render_shared),
                             data.output.output_buffer().0.iter(),
                         ) {
                             data.backend.device().poll(Maintain::Wait);
@@ -201,7 +200,8 @@ impl RenderTask {
 #[derive(Debug)]
 struct RenderTaskData {
     backend: Arc<StoryboardBackend>,
-    renderer_data: Arc<RendererData>,
+    backend_shared: Arc<BackendShared>,
+    render_shared: Arc<RenderShared>,
 
     configuration: Arc<(Mutex<RenderConfiguration>, AtomicBool)>,
     signal_receiver: Receiver<()>,

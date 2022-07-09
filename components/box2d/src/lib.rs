@@ -16,7 +16,7 @@ use storyboard_render::{
     component::{Component, Drawable, self},
     renderer::pass::StoryboardRenderPass,
     renderer::{
-        context::{BackendContext, DrawContext, RenderContext},
+        context::{DrawContext, RenderContext},
         ComponentQueue,
     },
     wgpu::{
@@ -26,7 +26,7 @@ use storyboard_render::{
         IndexFormat, MultisampleState, PipelineLayout, PipelineLayoutDescriptor, PrimitiveState,
         PrimitiveTopology, RenderPipeline, RenderPipelineDescriptor, ShaderModule,
         ShaderModuleDescriptor, ShaderSource, VertexBufferLayout, VertexState, VertexStepMode,
-    },
+    }, shared::RenderScopeContext,
 };
 use storyboard_texture::{
     render::{
@@ -42,27 +42,28 @@ pub struct Box2DResources {
     pub box_index_buffer: Buffer,
 }
 
-impl StoreResources<BackendContext<'_>> for Box2DResources {
-    fn initialize(_: &Store, ctx: &BackendContext) -> Self {
-        let textures = ctx.get::<TextureData>();
+impl StoreResources<RenderScopeContext<'_>> for Box2DResources {
+    fn initialize(_: &Store, ctx: &RenderScopeContext) -> Self {
+        let textures = ctx.backend.get::<TextureData>();
 
         let shader = ctx
+        .backend
             .get::<ShaderCache>()
-            .get_or_create("box_2d_shader", || init_box_shader(ctx.device));
-        let pipeline_layout = init_box_pipeline_layout(ctx.device, textures.bind_group_layout());
+            .get_or_create("box_2d_shader", || init_box_shader(ctx.backend.device()));
+        let pipeline_layout = init_box_pipeline_layout(ctx.backend.device(), textures.bind_group_layout());
         let pipeline = init_box_pipeline(
-            ctx.device,
+            ctx.backend.device(),
             &pipeline_layout,
             &shader,
             &[Some(ColorTargetState {
-                format: ctx.screen_format(),
+                format: ctx.texture_format,
                 blend: Some(BlendState::ALPHA_BLENDING),
                 write_mask: ColorWrites::ALL,
             })],
             Some(component::TRANSPARENT_DEPTH_STENCIL),
         );
 
-        let box_index_buffer = ctx.device.create_buffer_init(&BufferInitDescriptor {
+        let box_index_buffer = ctx.backend.device().create_buffer_init(&BufferInitDescriptor {
             label: Some("Box2DResources quad index buffer"),
             contents: bytemuck::cast_slice(&[0_u16, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7]),
             usage: BufferUsages::INDEX,
@@ -308,7 +309,7 @@ impl Component for Box2DComponent {
         ctx: &RenderContext<'rpass>,
         pass: &mut StoryboardRenderPass<'rpass>,
     ) {
-        let box_resources = ctx.get::<Box2DResources>();
+        let box_resources = ctx.scope.get::<Box2DResources>();
 
         pass.set_pipeline(&box_resources.pipeline);
 
@@ -324,7 +325,7 @@ impl Component for Box2DComponent {
             0,
             self.texture
                 .as_deref()
-                .or_else(|| Some(&ctx.get::<EmptyTextureResources>().empty_texture))
+                .or_else(|| Some(&ctx.scope.backend().get::<EmptyTextureResources>().empty_texture))
                 .unwrap()
                 .bind_group(),
             &[],

@@ -3,13 +3,12 @@ use std::fmt::Debug;
 use storyboard_core::observable::Observable;
 use wgpu::{
     self, Color, CommandBuffer, CommandEncoderDescriptor, LoadOp, Operations, PresentMode,
-    RenderPassColorAttachment, Surface, SurfaceTexture, TextureUsages,
-    TextureViewDescriptor,
+    RenderPassColorAttachment, Surface, SurfaceTexture, TextureUsages, TextureViewDescriptor,
 };
 
-use crate::component::Drawable;
+use crate::{component::Drawable, shared::RenderScope};
 
-use super::{ScreenRect, StoryboardRenderer, context::BackendContext};
+use super::{ScreenRect, StoryboardRenderer};
 
 #[derive(Debug)]
 pub struct StoryboardSurfaceRenderer {
@@ -42,17 +41,19 @@ impl StoryboardSurfaceRenderer {
 
     pub fn render<'a>(
         &mut self,
-        backend: BackendContext,
+        scope: RenderScope,
         drawables: impl ExactSizeIterator<Item = &'a dyn Drawable>,
     ) -> Option<SurfaceRenderResult> {
+        let backend = scope.backend();
+
         if Observable::invalidate(&mut self.configuration)
             && self.configuration.screen.rect.size.area() > 0
         {
             self.surface.configure(
-                backend.device,
+                backend.device(),
                 &wgpu::SurfaceConfiguration {
                     usage: TextureUsages::RENDER_ATTACHMENT,
-                    format: backend.renderer_data.screen_format(),
+                    format: scope.texture_format(),
                     width: self.configuration.screen.rect.size.width,
                     height: self.configuration.screen.rect.size.height,
                     present_mode: self.configuration.present_mode,
@@ -61,12 +62,14 @@ impl StoryboardSurfaceRenderer {
         }
 
         if let Ok(surface_texture) = self.surface.get_current_texture() {
-            let mut encoder = backend.device.create_command_encoder(&CommandEncoderDescriptor {
-                label: Some("StoryboardSurfaceRenderer command encoder"),
-            });
+            let mut encoder = backend
+                .device()
+                .create_command_encoder(&CommandEncoderDescriptor {
+                    label: Some("StoryboardSurfaceRenderer command encoder"),
+                });
 
             self.renderer.render(
-                backend,
+                scope,
                 self.configuration.screen,
                 drawables,
                 Some(RenderPassColorAttachment {

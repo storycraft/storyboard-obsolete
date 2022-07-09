@@ -126,7 +126,7 @@ impl State<StoryboardStateData> for Player {
                     system_prop.backend.device(),
                     system_prop.backend.queue(),
                     system_prop.window.scale_factor() as _,
-                    &system_prop.texture_data,
+                    system_prop.texture_data(),
                     &mut self.glyph_cache,
                 );
 

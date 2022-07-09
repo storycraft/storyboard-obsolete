@@ -16,7 +16,7 @@ use storyboard_render::{
     component::{Component, Drawable, self},
     renderer::pass::StoryboardRenderPass,
     renderer::{
-        context::{BackendContext, DrawContext, RenderContext},
+        context::{DrawContext, RenderContext},
         ComponentQueue,
     },
     wgpu::{
@@ -26,7 +26,7 @@ use storyboard_render::{
         MultisampleState, PipelineLayout, PipelineLayoutDescriptor, PrimitiveState,
         PrimitiveTopology, RenderPipeline, RenderPipelineDescriptor, ShaderModule,
         ShaderModuleDescriptor, ShaderSource, VertexBufferLayout, VertexState, VertexStepMode,
-    },
+    }, shared::RenderScopeContext,
 };
 use storyboard_texture::render::data::EmptyTextureResources;
 use storyboard_texture::render::{data::TextureData, RenderTexture2D};
@@ -38,22 +38,22 @@ pub struct PrimitiveResources {
     pub quad_index_buffer: Buffer,
 }
 
-impl StoreResources<BackendContext<'_>> for PrimitiveResources {
-    fn initialize(_: &Store, ctx: &BackendContext) -> Self {
-        let textures = ctx.get::<TextureData>();
-        let shader = ctx
+impl StoreResources<RenderScopeContext<'_>> for PrimitiveResources {
+    fn initialize(_: &Store, ctx: &RenderScopeContext) -> Self {
+        let textures = ctx.backend.get::<TextureData>();
+        let shader = ctx.backend
             .get::<ShaderCache>()
-            .get_or_create("primitive_shader", || init_primitive_shader(ctx.device));
+            .get_or_create("primitive_shader", || init_primitive_shader(ctx.backend.device()));
 
         let pipeline_layout =
-            init_primitive_pipeline_layout(ctx.device, textures.bind_group_layout());
+            init_primitive_pipeline_layout(ctx.backend.device(), textures.bind_group_layout());
 
         let opaque_pipeline = init_primitive_pipeline(
-            ctx.device,
+            ctx.backend.device(),
             &pipeline_layout,
             &shader,
             &[Some(ColorTargetState {
-                format: ctx.screen_format(),
+                format: ctx.texture_format,
                 blend: None,
                 write_mask: ColorWrites::COLOR,
             })],
@@ -61,18 +61,18 @@ impl StoreResources<BackendContext<'_>> for PrimitiveResources {
         );
 
         let transparent_pipeline = init_primitive_pipeline(
-            ctx.device,
+            ctx.backend.device(),
             &pipeline_layout,
             &shader,
             &[Some(ColorTargetState {
-                format: ctx.renderer_data.screen_format(),
+                format: ctx.texture_format,
                 blend: Some(BlendState::ALPHA_BLENDING),
                 write_mask: ColorWrites::ALL,
             })],
             Some(component::TRANSPARENT_DEPTH_STENCIL),
         );
 
-        let quad_index_buffer = ctx.device.create_buffer_init(&BufferInitDescriptor {
+        let quad_index_buffer = ctx.backend.device().create_buffer_init(&BufferInitDescriptor {
             label: Some("Primitive quad index buffer"),
             contents: bytemuck::cast_slice(&[0_u16, 1, 2, 0, 2, 3]),
             usage: BufferUsages::INDEX,
@@ -251,7 +251,7 @@ impl Component for PrimitiveComponent {
         ctx: &RenderContext<'rpass>,
         pass: &mut StoryboardRenderPass<'rpass>,
     ) {
-        let resources = ctx.get::<PrimitiveResources>();
+        let resources = ctx.scope.get::<PrimitiveResources>();
 
         pass.set_pipeline(&resources.opaque_pipeline);
 
@@ -259,7 +259,7 @@ impl Component for PrimitiveComponent {
             0,
             self.texture
                 .as_deref()
-                .or_else(|| Some(&ctx.get::<EmptyTextureResources>().empty_texture))
+                .or_else(|| Some(&ctx.scope.backend().get::<EmptyTextureResources>().empty_texture))
                 .unwrap()
                 .bind_group(),
             &[],
@@ -285,7 +285,7 @@ impl Component for PrimitiveComponent {
         ctx: &RenderContext<'rpass>,
         pass: &mut StoryboardRenderPass<'rpass>,
     ) {
-        let resources = ctx.get::<PrimitiveResources>();
+        let resources = ctx.scope.get::<PrimitiveResources>();
 
         pass.set_pipeline(&resources.transparent_pipeline);
 
@@ -293,7 +293,7 @@ impl Component for PrimitiveComponent {
             0,
             self.texture
                 .as_deref()
-                .or_else(|| Some(&ctx.get::<EmptyTextureResources>().empty_texture))
+                .or_else(|| Some(&ctx.scope.backend().get::<EmptyTextureResources>().empty_texture))
                 .unwrap()
                 .bind_group(),
             &[],
