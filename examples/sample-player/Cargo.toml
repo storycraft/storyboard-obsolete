@@ -13,12 +13,9 @@ futures = "0.3.21"
 instant = "0.1.12"
 
 rustfft = "6.0.1"
-
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-rodio = "0.15.0"
+rodio = { version = "0.15.0", default-features = false, features = ["symphonia-all"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-rodio = { version = "0.15.0", features = ["wasm-bindgen", "vorbis"], default-features = false }
 wasm-bindgen = "0.2.80"
 web-sys = { version = "0.3.57", features = [
     "Document",
