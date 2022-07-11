@@ -7,7 +7,7 @@ use storyboard_render::{
     texture::{SizedTexture2D, TextureView2D},
     wgpu::{
         AddressMode, BindGroupLayout, Device, Sampler, SamplerDescriptor, TextureFormat,
-        TextureUsages,
+        TextureUsages, FilterMode,
     }, shared::BackendScopeContext,
 };
 
@@ -17,24 +17,37 @@ use super::{create_texture2d_bind_group_layout, RenderTexture2D};
 #[derive(Debug)]
 pub struct TextureData {
     bind_group_layout: BindGroupLayout,
-    sampler: Sampler,
+    nearest_sampler: Sampler,
+    linear_sampler: Sampler,
 }
 
 impl TextureData {
     pub fn init(device: &Device) -> Self {
         let bind_group_layout = create_texture2d_bind_group_layout(device);
 
-        let sampler = device.create_sampler(&SamplerDescriptor {
-            label: Some("Texture2D default sampler"),
-            address_mode_u: AddressMode::ClampToEdge,
-            address_mode_v: AddressMode::ClampToEdge,
+        let nearest_sampler = device.create_sampler(&SamplerDescriptor {
+            label: Some("Texture2D nearest sampler"),
+            address_mode_u: AddressMode::Repeat,
+            address_mode_v: AddressMode::Repeat,
+
+            ..Default::default()
+        });
+
+        let linear_sampler = device.create_sampler(&SamplerDescriptor {
+            label: Some("Texture2D linear sampler"),
+            address_mode_u: AddressMode::Repeat,
+            address_mode_v: AddressMode::Repeat,
+
+            mag_filter: FilterMode::Linear,
+            min_filter: FilterMode::Linear,
 
             ..Default::default()
         });
 
         Self {
             bind_group_layout,
-            sampler,
+            nearest_sampler,
+            linear_sampler,
         }
     }
 
@@ -42,8 +55,12 @@ impl TextureData {
         &self.bind_group_layout
     }
 
-    pub const fn default_sampler(&self) -> &Sampler {
-        &self.sampler
+    pub const fn nearest_sampler(&self) -> &Sampler {
+        &self.nearest_sampler
+    }
+
+    pub const fn linear_sampler(&self) -> &Sampler {
+        &self.linear_sampler
     }
 
     pub fn create_render_texture(
@@ -56,7 +73,7 @@ impl TextureData {
             device,
             view,
             &self.bind_group_layout,
-            sampler.unwrap_or(&self.sampler),
+            sampler.unwrap_or(&self.nearest_sampler),
         )
     }
 }
@@ -92,7 +109,7 @@ impl StoreResources<BackendScopeContext<'_>> for EmptyTextureResources {
                 ctx.device,
                 TextureView2D::from(sized.create_view_default(None)),
                 textures.bind_group_layout(),
-                textures.default_sampler(),
+                textures.nearest_sampler(),
             )
         };
 
