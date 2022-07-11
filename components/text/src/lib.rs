@@ -118,7 +118,7 @@ impl Text {
                             device,
                             view_batch.view,
                             textures.bind_group_layout(),
-                            textures.default_sampler(),
+                            textures.nearest_sampler(),
                         ));
                         let mut rects = Vec::new();
 
