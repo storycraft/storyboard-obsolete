@@ -27,16 +27,16 @@ impl TextureData {
 
         let nearest_sampler = device.create_sampler(&SamplerDescriptor {
             label: Some("Texture2D nearest sampler"),
-            address_mode_u: AddressMode::Repeat,
-            address_mode_v: AddressMode::Repeat,
+            address_mode_u: AddressMode::ClampToEdge,
+            address_mode_v: AddressMode::ClampToEdge,
 
             ..Default::default()
         });
 
         let linear_sampler = device.create_sampler(&SamplerDescriptor {
             label: Some("Texture2D linear sampler"),
-            address_mode_u: AddressMode::Repeat,
-            address_mode_v: AddressMode::Repeat,
+            address_mode_u: AddressMode::ClampToEdge,
+            address_mode_v: AddressMode::ClampToEdge,
 
             mag_filter: FilterMode::Linear,
             min_filter: FilterMode::Linear,
