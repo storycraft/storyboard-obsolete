@@ -9,9 +9,10 @@ use std::{
 };
 
 use crate::{
+    backend::StoryboardBackend,
     component::Drawable,
     renderer::surface::{StoryboardSurfaceRenderer, SurfaceConfiguration},
-    shared::{BackendShared, RenderShared, BackendScopeContext}, backend::StoryboardBackend,
+    shared::{BackendScopeContext, BackendShared, RenderShared},
 };
 use crossbeam_channel::{bounded, Receiver, Sender};
 use parking_lot::{Mutex, MutexGuard};
@@ -85,15 +86,18 @@ impl RenderTask {
 
                 if data.output.update() {
                     if !data.output.output_buffer().0.is_empty() {
-                        if let Some(res) = data.renderer.render(
-                            data.backend_shared
-                                .scope(BackendScopeContext {
-                                    device: data.backend.device(),
-                                    queue: data.backend.queue(),
-                                })
-                                .render_scope(&data.render_shared),
-                            data.output.output_buffer().0.iter(),
-                        ) {
+                        let scope = data
+                            .backend_shared
+                            .scope(BackendScopeContext {
+                                device: data.backend.device(),
+                                queue: data.backend.queue(),
+                            })
+                            .render_scope(&data.render_shared);
+
+                        if let Some(res) = data
+                            .renderer
+                            .render(scope, data.output.output_buffer().0.iter())
+                        {
                             data.backend.device().poll(Maintain::Wait);
                             data.backend.queue().submit(
                                 iter::once(res.command_buffer)
