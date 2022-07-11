@@ -130,7 +130,7 @@ impl StoryboardAppProp {
             self.backend.device(),
             view,
             texture_data.bind_group_layout(),
-            sampler.unwrap_or_else(|| texture_data.default_sampler()),
+            sampler.unwrap_or_else(|| texture_data.nearest_sampler()),
         )
     }
 
