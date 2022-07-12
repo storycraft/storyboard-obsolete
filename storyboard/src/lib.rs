@@ -123,7 +123,7 @@ impl Storyboard {
 
         let backend_shared = Arc::new(BackendShared::new());
         let render_shared = Arc::new(RenderShared::new(
-            StoryboardRenderer::create_renderer_pipeline_data(self.screen_format),
+            StoryboardRenderer::create_renderer_pipeline_data(self.screen_format, None),
         ));
 
         let mut render_task = Some(RenderTask::run(

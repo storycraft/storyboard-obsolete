@@ -11,7 +11,7 @@ use storyboard_core::{
 use trait_stack::TraitStack;
 use wgpu::{
     CompareFunction, DepthBiasState, DepthStencilState, Device, StencilFaceState, StencilState,
-    TextureFormat,
+    TextureFormat, MultisampleState,
 };
 
 use self::{context::DrawContext, pass::StoryboardRenderPass};
@@ -72,12 +72,15 @@ impl StoryboardRenderer {
         }
     }
 
-    pub const fn create_renderer_pipeline_data(texture_format: TextureFormat) -> RenderPipelineData {
+    pub const fn create_renderer_pipeline_data(
+        texture_format: TextureFormat,
+        multi_sample: Option<MultisampleState>
+    ) -> RenderPipelineData {
         RenderPipelineData {
             texture_format,
             depth_stencil: Some(DepthStencilState {
                 format: Self::DEFAULT_DEPTH_TEXTURE_FORMAT,
-                depth_write_enabled: false,
+                depth_write_enabled: true,
                 depth_compare: CompareFunction::Less,
                 stencil: StencilState {
                     front: StencilFaceState::IGNORE,
@@ -91,7 +94,7 @@ impl StoryboardRenderer {
                     clamp: 0.0,
                 },
             }),
-            multi_sample: None,
+            multi_sample,
         }
     }
 
