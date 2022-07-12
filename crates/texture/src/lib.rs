@@ -147,7 +147,7 @@ impl TextureLayoutStyle {
         match self {
             TextureLayoutStyle::None => Self::none(texture_size),
             TextureLayoutStyle::Fill => {
-                if rect_size.width >= texture_size.width {
+                if rect_size.width / rect_size.height >= texture_size.width / texture_size.height {
                     Self::fit_width(rect_size, texture_size)
                 } else {
                     Self::fit_height(rect_size, texture_size)
@@ -158,7 +158,7 @@ impl TextureLayoutStyle {
             TextureLayoutStyle::FitWidth => Self::fit_width(rect_size, texture_size),
             TextureLayoutStyle::FitHeight => Self::fit_height(rect_size, texture_size),
             TextureLayoutStyle::Fit => {
-                if rect_size.width <= texture_size.width {
+                if rect_size.width / rect_size.height <= texture_size.width / texture_size.height {
                     Self::fit_width(rect_size, texture_size)
                 } else {
                     Self::fit_height(rect_size, texture_size)
