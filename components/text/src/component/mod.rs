@@ -12,7 +12,7 @@ use storyboard_core::{
 use storyboard_render::{
     buffer::stream::StreamRange,
     cache::shader::ShaderCache,
-    component::{Component, Drawable, self},
+    component::{Component, Drawable},
     renderer::{
         context::{DrawContext, RenderContext},
         pass::StoryboardRenderPass,
@@ -47,11 +47,11 @@ impl StoreResources<RenderScopeContext<'_>> for TextResources {
             &pipeline_layout,
             &shader,
             &[Some(ColorTargetState {
-                format: ctx.texture_format,
+                format: ctx.pipeline.texture_format,
                 blend: Some(BlendState::ALPHA_BLENDING),
                 write_mask: ColorWrites::ALL,
             })],
-            Some(component::TRANSPARENT_DEPTH_STENCIL),
+            ctx.pipeline.depth_stencil_read_only(),
         );
 
         Self { pipeline }

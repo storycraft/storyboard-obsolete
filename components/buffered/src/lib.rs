@@ -61,7 +61,7 @@ impl<T: Bufferable> Drawable for BufferedDrawable<T> {
             *inner_renderer = Some(StoryboardTextureRenderer::init(
                 ctx.scope.backend().device(),
                 textures,
-                ctx.scope.texture_format(),
+                ctx.scope.pipeline().texture_format,
                 physical_screen.rect.size,
             ));
         }

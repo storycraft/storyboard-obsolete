@@ -82,7 +82,7 @@ impl StoryboardTextureRenderer {
                 scope.backend().device(),
                 Some("StoryboardTextureRenderer frame texture"),
                 screen.rect.size,
-                scope.texture_format(),
+                scope.pipeline().texture_format,
                 TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
             );
 

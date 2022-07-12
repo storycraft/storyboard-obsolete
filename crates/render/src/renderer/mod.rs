@@ -9,7 +9,10 @@ use storyboard_core::{
     unit::{LogicalPixelUnit, PhyiscalPixelUnit, RenderUnit},
 };
 use trait_stack::TraitStack;
-use wgpu::Device;
+use wgpu::{
+    CompareFunction, DepthBiasState, DepthStencilState, Device, StencilFaceState, StencilState,
+    TextureFormat,
+};
 
 use self::{context::DrawContext, pass::StoryboardRenderPass};
 
@@ -19,8 +22,8 @@ use super::{
 };
 
 use crate::{
-    component::{self, Component, Drawable},
-    shared::RenderScope,
+    component::{Component, Drawable},
+    shared::{RenderPipelineData, RenderScope},
     wgpu::{
         BufferUsages, CommandEncoder, LoadOp, Operations, RenderPassColorAttachment,
         RenderPassDepthStencilAttachment, RenderPassDescriptor, TextureUsages,
@@ -43,6 +46,8 @@ pub struct StoryboardRenderer {
 }
 
 impl StoryboardRenderer {
+    pub const DEFAULT_DEPTH_TEXTURE_FORMAT: TextureFormat = TextureFormat::Depth32Float;
+
     pub fn new() -> Self {
         let vertex_stream = BufferStream::new(
             Some(Cow::from("StoryboardRenderer vertex stream buffer")),
@@ -67,6 +72,29 @@ impl StoryboardRenderer {
         }
     }
 
+    pub const fn create_renderer_pipeline_data(texture_format: TextureFormat) -> RenderPipelineData {
+        RenderPipelineData {
+            texture_format,
+            depth_stencil: Some(DepthStencilState {
+                format: Self::DEFAULT_DEPTH_TEXTURE_FORMAT,
+                depth_write_enabled: false,
+                depth_compare: CompareFunction::Less,
+                stencil: StencilState {
+                    front: StencilFaceState::IGNORE,
+                    back: StencilFaceState::IGNORE,
+                    read_mask: 0,
+                    write_mask: 0,
+                },
+                bias: DepthBiasState {
+                    constant: 0,
+                    slope_scale: 0.0,
+                    clamp: 0.0,
+                },
+            }),
+            multi_sample: None,
+        }
+    }
+
     fn update_screen_matrix(&mut self, screen: ScreenRect) {
         self.screen_matrix = screen.get_logical_ortho_matrix();
     }
@@ -77,7 +105,7 @@ impl StoryboardRenderer {
                 device,
                 Some("StoryboardRenderer depth texture"),
                 screen.rect.size,
-                component::DEPTH_TEXTURE_FORMAT,
+                Self::DEFAULT_DEPTH_TEXTURE_FORMAT,
                 TextureUsages::RENDER_ATTACHMENT,
             )
             .create_view_default(None),

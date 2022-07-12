@@ -53,7 +53,7 @@ impl StoryboardSurfaceRenderer {
                 backend.device(),
                 &wgpu::SurfaceConfiguration {
                     usage: TextureUsages::RENDER_ATTACHMENT,
-                    format: scope.texture_format(),
+                    format: scope.pipeline().texture_format,
                     width: self.configuration.screen.rect.size.width,
                     height: self.configuration.screen.rect.size.height,
                     present_mode: self.configuration.present_mode,

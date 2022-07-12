@@ -13,6 +13,7 @@ use instant::Instant;
 
 use app::{StoryboardApp, StoryboardAppProp, StoryboardAppState};
 use render::{
+    renderer::StoryboardRenderer,
     shared::{BackendShared, RenderShared},
     task::RenderTaskConfiguration,
     ScreenRect,
@@ -121,7 +122,9 @@ impl Storyboard {
         );
 
         let backend_shared = Arc::new(BackendShared::new());
-        let render_shared = Arc::new(RenderShared::new(self.screen_format));
+        let render_shared = Arc::new(RenderShared::new(
+            StoryboardRenderer::create_renderer_pipeline_data(self.screen_format),
+        ));
 
         let mut render_task = Some(RenderTask::run(
             backend.clone(),

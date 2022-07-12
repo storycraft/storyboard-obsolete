@@ -1,5 +1,5 @@
 use storyboard_core::store::{Store, StoreResources};
-use wgpu::{Device, Queue, TextureFormat};
+use wgpu::{DepthStencilState, Device, MultisampleState, Queue, TextureFormat};
 
 #[derive(Debug, Default)]
 /// Shared backend data container
@@ -77,30 +77,30 @@ pub struct BackendScopeContext<'a> {
 #[derive(Debug)]
 /// Shared render data container
 pub struct RenderShared {
-    texture_format: TextureFormat,
+    pipeline: RenderPipelineData,
     store: Store,
 }
 
 impl RenderShared {
-    pub fn new(texture_format: TextureFormat) -> Self {
+    pub fn new(pipeline: RenderPipelineData) -> Self {
         Self {
-            texture_format,
+            pipeline,
             store: Store::new(),
         }
     }
 
     #[inline]
-    pub const fn texture_format(&self) -> TextureFormat {
-        self.texture_format
+    pub const fn pipeline(&self) -> &RenderPipelineData {
+        &self.pipeline
     }
 
     pub fn get<'a, T: StoreResources<RenderScopeContext<'a>>>(
-        &self,
+        &'a self,
         backend: BackendScope<'a>,
     ) -> &T {
         self.store.get(&RenderScopeContext {
             backend,
-            texture_format: self.texture_format,
+            pipeline: &self.pipeline,
         })
     }
 }
@@ -120,7 +120,7 @@ impl<'a> RenderScope<'a> {
     pub fn context(&self) -> RenderScopeContext {
         RenderScopeContext {
             backend: self.backend,
-            texture_format: self.container.texture_format,
+            pipeline: &self.container.pipeline,
         }
     }
 
@@ -135,12 +135,12 @@ impl<'a> RenderScope<'a> {
     }
 
     #[inline]
-    pub const fn texture_format(&self) -> TextureFormat {
-        self.container.texture_format
+    pub const fn pipeline(&self) -> &RenderPipelineData {
+        self.container.pipeline()
     }
 
     pub fn is_valid_for(&self, format: TextureFormat) -> bool {
-        self.container.texture_format == format
+        self.container.pipeline.texture_format == format
     }
 
     pub fn get<T: for<'ctx> StoreResources<RenderScopeContext<'ctx>>>(&self) -> &'a T {
@@ -148,8 +148,36 @@ impl<'a> RenderScope<'a> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
+pub struct RenderPipelineData {
+    pub texture_format: TextureFormat,
+    pub depth_stencil: Option<DepthStencilState>,
+    pub multi_sample: Option<MultisampleState>,
+}
+
+impl RenderPipelineData {
+    pub const fn new(
+        texture_format: TextureFormat,
+        depth_stencil: Option<DepthStencilState>,
+        multi_sample: Option<MultisampleState>,
+    ) -> Self {
+        Self {
+            texture_format,
+            depth_stencil,
+            multi_sample,
+        }
+    }
+
+    pub fn depth_stencil_read_only(&self) -> Option<DepthStencilState> {
+        self.depth_stencil.clone().map(|mut depth_stencil| {
+            depth_stencil.depth_write_enabled = false;
+            depth_stencil
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct RenderScopeContext<'a> {
     pub backend: BackendScope<'a>,
-    pub texture_format: TextureFormat,
+    pub pipeline: &'a RenderPipelineData,
 }

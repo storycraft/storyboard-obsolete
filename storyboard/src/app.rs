@@ -40,7 +40,7 @@ pub struct StoryboardAppProp {
 impl StoryboardAppProp {
     #[inline]
     pub fn texture_format(&self) -> TextureFormat {
-        self.render_shared.texture_format()
+        self.render_shared.pipeline().texture_format
     }
 
     #[inline]
