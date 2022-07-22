@@ -10,8 +10,8 @@ use storyboard_core::{
 };
 use trait_stack::TraitStack;
 use wgpu::{
-    CompareFunction, DepthBiasState, DepthStencilState, Device, StencilFaceState, StencilState,
-    TextureFormat, MultisampleState,
+    CompareFunction, DepthBiasState, DepthStencilState, Device, MultisampleState, StencilFaceState,
+    StencilState, TextureFormat,
 };
 
 use self::{context::DrawContext, pass::StoryboardRenderPass};
@@ -74,7 +74,7 @@ impl StoryboardRenderer {
 
     pub const fn create_renderer_pipeline_data(
         texture_format: TextureFormat,
-        multi_sample: Option<MultisampleState>
+        multi_sample: Option<MultisampleState>,
     ) -> RenderPipelineData {
         RenderPipelineData {
             texture_format,
@@ -176,7 +176,7 @@ impl StoryboardRenderer {
             stencil_ops: None,
         };
 
-        if render_opaque || render_transparent {
+        {
             let mut pass =
                 StoryboardRenderPass::new(encoder.begin_render_pass(&RenderPassDescriptor {
                     label: Some("StoryboardRenderer render pass"),
