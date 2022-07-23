@@ -61,21 +61,16 @@ impl FrameContainer {
 
     pub fn update(&mut self) {
         self.dirty_list.retain(|id| {
-            let mut flag = false;
-            let mut expired = false;
-
             if let Some(state) = self.state_map.get_mut(id) {
-                flag = state.update();
-
-                expired = state.expired();
+                if state.expired() {
+                    self.state_map.remove(id);
+                    false
+                } else {
+                    state.update()
+                }
+            } else {
+                false
             }
-
-            if expired {
-                self.state_map.remove(id);
-                return false;
-            }
-
-            flag
         });
     }
 }
