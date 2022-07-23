@@ -7,6 +7,7 @@ members = [
     "crates/state",
     "crates/layout",
     "crates/render",
+    "crates/frame",
 
     "components/primitive",
     "components/box2d",
@@ -16,5 +17,6 @@ members = [
     "storyboard",
 
     "examples/visual-test",
-    "examples/sample-player"
+    "examples/sample-player",
+    "examples/stars"
 ]

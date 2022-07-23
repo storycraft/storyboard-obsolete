@@ -1,0 +1,14 @@
+[package]
+name = "stars"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+storyboard = { path = "../../storyboard" }
+storyboard-text = { path = "../../components/text" }
+storyboard-box2d = { path = "../../components/box2d" }
+storyboard-state = { path = "../../crates/state" }
+storyboard-frame = { path = "../../crates/frame" }
+
+futures = "0.3.21"
+rand = "0.8.5"
