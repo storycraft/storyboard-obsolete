@@ -162,17 +162,13 @@ pub enum PrimitiveType {
 
 impl PrimitiveComponent {
     pub fn from_triangle(triangle: &Triangle, ctx: &mut DrawContext, depth: f32) -> Option<Self> {
-        let coords = triangle
-            .transform
-            .outer_transformed_rect(&triangle.bounds)
-            .unwrap_or(triangle.bounds)
-            .into_coords();
+        let coords = triangle.bounds.into_coords();
 
         let vertices_slice = ctx.vertex_stream.write_slice(bytemuck::bytes_of(&[
             PrimitiveVertex {
                 position: ctx
                     .screen_matrix
-                    .transform_point2d((coords[0] + coords[3].to_vector()) / 2.0)?
+                    .transform_point2d(triangle.transform.transform_point2d((coords[0] + coords[3].to_vector()) / 2.0)?)?
                     .extend(depth),
                 color: triangle.color[0],
                 texture_coord: triangle.texture_coord[0],
@@ -180,7 +176,7 @@ impl PrimitiveComponent {
             PrimitiveVertex {
                 position: ctx
                     .screen_matrix
-                    .transform_point2d(coords[1])?
+                    .transform_point2d(triangle.transform.transform_point2d(coords[1])?)?
                     .extend(depth),
                 color: triangle.color[1],
                 texture_coord: triangle.texture_coord[1],
@@ -188,7 +184,7 @@ impl PrimitiveComponent {
             PrimitiveVertex {
                 position: ctx
                     .screen_matrix
-                    .transform_point2d(coords[2])?
+                    .transform_point2d(triangle.transform.transform_point2d(coords[2])?)?
                     .extend(depth),
                 color: triangle.color[2],
                 texture_coord: triangle.texture_coord[2],
@@ -203,17 +199,13 @@ impl PrimitiveComponent {
     }
 
     pub fn from_rectangle(rect: &Rectangle, ctx: &mut DrawContext, depth: f32) -> Option<Self> {
-        let coords = rect
-            .transform
-            .outer_transformed_rect(&rect.bounds)
-            .unwrap_or(rect.bounds)
-            .into_coords();
+        let coords = rect.bounds.into_coords();
 
         let vertices_slice = ctx.vertex_stream.write_slice(bytemuck::bytes_of(&[
             PrimitiveVertex {
                 position: ctx
                     .screen_matrix
-                    .transform_point2d(coords[0])?
+                    .transform_point2d(rect.transform.transform_point2d(coords[0])?)?
                     .extend(depth),
                 color: rect.color[0],
                 texture_coord: rect.texture_coord[0],
@@ -221,7 +213,7 @@ impl PrimitiveComponent {
             PrimitiveVertex {
                 position: ctx
                     .screen_matrix
-                    .transform_point2d(coords[1])?
+                    .transform_point2d(rect.transform.transform_point2d(coords[1])?)?
                     .extend(depth),
                 color: rect.color[1],
                 texture_coord: rect.texture_coord[1],
@@ -229,7 +221,7 @@ impl PrimitiveComponent {
             PrimitiveVertex {
                 position: ctx
                     .screen_matrix
-                    .transform_point2d(coords[2])?
+                    .transform_point2d(rect.transform.transform_point2d(coords[2])?)?
                     .extend(depth),
                 color: rect.color[2],
                 texture_coord: rect.texture_coord[2],
@@ -237,7 +229,7 @@ impl PrimitiveComponent {
             PrimitiveVertex {
                 position: ctx
                     .screen_matrix
-                    .transform_point2d(coords[3])?
+                    .transform_point2d(rect.transform.transform_point2d(coords[3])?)?
                     .extend(depth),
                 color: rect.color[3],
                 texture_coord: rect.texture_coord[3],

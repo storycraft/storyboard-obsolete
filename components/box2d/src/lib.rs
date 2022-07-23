@@ -183,16 +183,13 @@ impl Box2DComponent {
         let vertices_slice = {
             let mut writer = ctx.vertex_stream.next_writer();
 
-            let box_coords = box2d
-                .transform
-                .outer_transformed_rect(&inflated_bounds)?
-                .into_coords();
+            let box_coords = inflated_bounds.into_coords();
 
             writer.write(bytemuck::bytes_of(&[
                 BoxVertex {
                     position: ctx
                         .screen_matrix
-                        .transform_point2d(box_coords[0])?
+                        .transform_point2d(box2d.transform.transform_point2d(box_coords[0])?)?
                         .extend(depth),
                     fill_color: box2d.fill_color[0],
                     border_color: box2d.border_color[0],
@@ -202,7 +199,7 @@ impl Box2DComponent {
                 BoxVertex {
                     position: ctx
                         .screen_matrix
-                        .transform_point2d(box_coords[1])?
+                        .transform_point2d(box2d.transform.transform_point2d(box_coords[1])?)?
                         .extend(depth),
                     fill_color: box2d.fill_color[1],
                     border_color: box2d.border_color[1],
@@ -212,7 +209,7 @@ impl Box2DComponent {
                 BoxVertex {
                     position: ctx
                         .screen_matrix
-                        .transform_point2d(box_coords[2])?
+                        .transform_point2d(box2d.transform.transform_point2d(box_coords[2])?)?
                         .extend(depth),
                     fill_color: box2d.fill_color[2],
                     border_color: box2d.border_color[2],
@@ -222,7 +219,7 @@ impl Box2DComponent {
                 BoxVertex {
                     position: ctx
                         .screen_matrix
-                        .transform_point2d(box_coords[3])?
+                        .transform_point2d(box2d.transform.transform_point2d(box_coords[3])?)?
                         .extend(depth),
                     fill_color: box2d.fill_color[3],
                     border_color: box2d.border_color[3],
@@ -232,16 +229,13 @@ impl Box2DComponent {
             ]));
 
             if draw_shadow_box {
-                let shadow_coords = box2d
-                    .transform
-                    .outer_transformed_rect(&shadow_bounds)?
-                    .into_coords();
+                let shadow_coords = shadow_bounds.into_coords();
 
                 writer.write(bytemuck::bytes_of(&[
                     BoxVertex {
                         position: ctx
                             .screen_matrix
-                            .transform_point2d(shadow_coords[0])?
+                            .transform_point2d(box2d.transform.transform_point2d(shadow_coords[0])?)?
                             .extend(depth),
                         rect_coord: shadow_coords[0],
                         ..Default::default()
@@ -249,7 +243,7 @@ impl Box2DComponent {
                     BoxVertex {
                         position: ctx
                             .screen_matrix
-                            .transform_point2d(shadow_coords[1])?
+                            .transform_point2d(box2d.transform.transform_point2d(shadow_coords[1])?)?
                             .extend(depth),
                         rect_coord: shadow_coords[1],
                         ..Default::default()
@@ -257,7 +251,7 @@ impl Box2DComponent {
                     BoxVertex {
                         position: ctx
                             .screen_matrix
-                            .transform_point2d(shadow_coords[2])?
+                            .transform_point2d(box2d.transform.transform_point2d(shadow_coords[2])?)?
                             .extend(depth),
                         rect_coord: shadow_coords[2],
                         ..Default::default()
@@ -265,7 +259,7 @@ impl Box2DComponent {
                     BoxVertex {
                         position: ctx
                             .screen_matrix
-                            .transform_point2d(shadow_coords[3])?
+                            .transform_point2d(box2d.transform.transform_point2d(shadow_coords[3])?)?
                             .extend(depth),
                         rect_coord: shadow_coords[3],
                         ..Default::default()

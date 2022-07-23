@@ -147,7 +147,6 @@ pub struct StoryboardAppState<'a> {
     pub event: Event<'a, ()>,
 
     pub control_flow: &'a mut ControlFlow,
-
     pub render_task: &'a mut RenderTask,
 }
 

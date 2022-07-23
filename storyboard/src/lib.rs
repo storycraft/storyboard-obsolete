@@ -126,13 +126,13 @@ impl Storyboard {
             StoryboardRenderer::create_renderer_pipeline_data(self.screen_format, None),
         ));
 
-        let mut render_task = Some(RenderTask::run(
+        let mut render_task = RenderTask::run(
             backend.clone(),
             backend_shared.clone(),
             render_shared.clone(),
             surface_renderer,
             self.render_task_config,
-        ));
+        );
 
         let mut app_prop = StoryboardAppProp {
             backend,
@@ -143,11 +143,11 @@ impl Storyboard {
         };
         app.load(&app_prop);
 
+        let mut instant = Instant::now();
         event_loop.run(move |event, _, control_flow| {
-            let instant = Instant::now();
 
             let mut app_state = StoryboardAppState {
-                render_task: &mut render_task.as_mut().unwrap(),
+                render_task: &mut render_task,
                 control_flow,
                 event,
             };
@@ -199,11 +199,12 @@ impl Storyboard {
             match &app_state.event {
                 Event::MainEventsCleared => {
                     app_prop.elapsed = instant.elapsed();
+                    instant = Instant::now();
                 }
 
                 Event::LoopDestroyed => {
                     app.unload(&app_prop);
-                    app_state.render_task.interrupt();
+                    render_task.interrupt();
                 }
 
                 _ => {}
