@@ -49,7 +49,7 @@ impl<T: Bufferable> Drawable for BufferedDrawable<T> {
                 ctx.screen.scale_factor,
             );
 
-            (rect, phyiscal_rect)
+            (rect.round_out(), phyiscal_rect)
         } else {
             (ctx.screen.get_logical_rect(), ctx.screen)
         };
