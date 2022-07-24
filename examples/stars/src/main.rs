@@ -54,7 +54,7 @@ async fn main_async(event_loop: EventLoop<()>, window: Window) {
 
     storyboard.run(
         event_loop,
-        App::new(SimpleAnimApp::new(Duration::from_millis(50))),
+        App::new(SimpleAnimApp::new(Duration::from_millis(20))),
     );
 }
 

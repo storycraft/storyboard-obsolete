@@ -1,6 +1,6 @@
 use downcast::{downcast, Any};
 use rustc_hash::{FxHashSet, FxHasher};
-use std::{marker::PhantomData, hash::BuildHasherDefault, fmt::Debug};
+use std::{fmt::Debug, hash::BuildHasherDefault, marker::PhantomData};
 use storyboard_render::task::RenderTask;
 
 use indexmap::IndexMap;
@@ -8,6 +8,7 @@ use indexmap::IndexMap;
 #[derive(Debug)]
 pub struct FrameContainer {
     state_map: IndexMap<usize, Box<dyn FrameComponent>, BuildHasherDefault<FxHasher>>,
+    next_id: usize,
     dirty_list: FxHashSet<usize>,
 }
 
@@ -15,6 +16,7 @@ impl FrameContainer {
     pub fn new() -> Self {
         Self {
             state_map: IndexMap::default(),
+            next_id: 0,
             dirty_list: FxHashSet::default(),
         }
     }
@@ -25,6 +27,14 @@ impl FrameContainer {
 
     pub fn values(&self) -> impl Iterator<Item = &Box<dyn FrameComponent>> {
         self.state_map.values()
+    }
+
+    pub fn values_mut(&mut self) -> impl Iterator<Item = &mut Box<dyn FrameComponent>> {
+        self.state_map.iter_mut().map(|(key, value)| {
+            self.dirty_list.insert(*key);
+
+            value
+        })
     }
 
     pub fn contains<T: FrameComponent>(&self, key: &FrameComponentKey<T>) -> bool {
@@ -46,7 +56,8 @@ impl FrameContainer {
 
     pub fn add_component<T: FrameComponent>(&mut self, state: T) -> FrameComponentKey<T> {
         let boxed = Box::new(state);
-        let key = FrameComponentKey((&*boxed as *const _) as usize, PhantomData);
+        let key = FrameComponentKey(self.next_id, PhantomData);
+        self.next_id += 1;
 
         self.state_map.insert(key.0, boxed);
         self.dirty_list.insert(key.0);
