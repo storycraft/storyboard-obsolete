@@ -1,6 +1,3 @@
-// Nightly features
-#![feature(generic_associated_types)]
-
 pub mod app;
 
 // Reexports

@@ -1,8 +1,5 @@
 //! Module providing general purpose state system.
 
-// Nightly features
-#![feature(generic_associated_types)]
-
 use std::fmt::Debug;
 
 use smallvec::{SmallVec, smallvec};

@@ -1,4 +1,4 @@
-use std::{any::TypeId, fmt::Debug};
+use std::{any::TypeId, fmt::Debug, mem};
 
 use parking_lot::RwLock;
 use rustc_hash::FxHashMap;
@@ -42,7 +42,7 @@ impl Drop for Store {
         // SAFETY: pointer created with [Box::into_raw]
         unsafe {
             for (_, value) in self.map.write().drain() {
-                Box::from_raw(value);
+                mem::drop(Box::from_raw(value));
             }
         }
     }
