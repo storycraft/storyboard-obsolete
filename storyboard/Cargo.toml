@@ -18,7 +18,7 @@ storyboard-core = { path = "../crates/core" }
 storyboard-texture = { path = "../crates/texture" }
 storyboard-render = { path = "../crates/render" }
 
-winit = "0.26.1"
+winit = "0.27.1"
 bytemuck = { version = "1.9.1", features = ["derive"] }
 rustc-hash = "1.1.0"
 instant = "0.1.12"
